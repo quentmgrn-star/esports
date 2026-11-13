@@ -13,6 +13,20 @@ npm run seed          # once, in a second terminal: loads the teams, matches and
 npm run dev           # http://localhost:3000
 ```
 
+## Admin area (`/admin`)
+
+`/admin` lists everyone who applied through **Apply to the association**, with filters (first name, programme, year, department) and a detail view (CV and video included). Sign-in uses [Better Auth](https://better-auth.com) through the Convex component `@convex-dev/better-auth`.
+
+Only emails listed in the `ADMIN_EMAILS` Convex environment variable can create an account and read applications (checked on the server, in Convex). Set these once per deployment (add `--prod` for production):
+
+```bash
+npx convex env set ADMIN_EMAILS "first@alumni.esade.edu,second@alumni.esade.edu"   # comma-separated
+npx convex env set BETTER_AUTH_SECRET "$(openssl rand -base64 32)"
+npx convex env set SITE_URL https://your-site.vercel.app      # http://localhost:3000 for the dev deployment
+```
+
+Then open `/admin`, choose **Create one**, and sign up with an approved email. To give someone access, add their email to `ADMIN_EMAILS`; removing it takes access away immediately.
+
 ## Deploy on Vercel
 
 1. Import this repo in Vercel (framework preset: Next.js).
@@ -30,15 +44,18 @@ Without Convex configured the site still builds and renders; form submissions ar
 ## Project layout
 
 ```
-app/                   layout (fonts, Convex provider), page, global styles
+app/                   layout (fonts, Convex provider), page, global styles, admin/, api/auth/
 components/
   EsadeSite.tsx        mounts the site and wires forms to Convex
+  admin/AdminApp.tsx   /admin: sign-in, applications list, filters, detail modal
   legacy/              markup, page logic and translations ported from the original HTML prototype
 lib/images.ts          Unsplash placeholder photos (swap for Esade Sports photos)
 convex/
   schema.ts            seasons, sports, teams, players, matches, standings, alumni, applications, partner inquiries
   teams.ts, alumni.ts  queries
-  forms.ts             try-out / coach applications, partner inquiries
+  forms.ts             try-out / coach / association applications, partner inquiries
+  auth.ts, http.ts     Better Auth (admin accounts, ADMIN_EMAILS)
+  admin.ts             admin-only queries
   seed.ts, seedData.ts seed data
 ```
 

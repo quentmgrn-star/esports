@@ -96,6 +96,24 @@ export default defineSchema({
     status: v.string(),
   }).index("by_team", ["teamSlug"]),
 
+  // "Apply to the association" form (associate in a department). Files live in Convex storage.
+  associationApplications: defineTable({
+    firstName: v.string(),
+    lastName: v.string(),
+    email: v.string(),
+    phone: v.string(),
+    programme: v.string(), // "BBA"
+    year: v.string(), // "2nd year"
+    linkedin: v.optional(v.string()),
+    pref1: v.string(), // department name, e.g. "Finance"
+    pref2: v.optional(v.string()),
+    motivation: v.string(),
+    cvId: v.id("_storage"),
+    videoId: v.optional(v.id("_storage")),
+    acceptsRedirect: v.boolean(),
+    confirmsAccuracy: v.boolean(),
+  }),
+
   partnerInquiries: defineTable({
     company: v.string(),
     name: v.string(),

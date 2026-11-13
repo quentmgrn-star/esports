@@ -1,1 +1,1 @@
-export function initSite(backend: Record<string, (args: Record<string, unknown>) => unknown> | null): void;
+export function initSite(backend: Record<string, (...args: any[]) => unknown> | null): void;

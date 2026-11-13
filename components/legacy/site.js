@@ -104,7 +104,7 @@ export function initSite(backend) {
   // ================= Header account area =================
   function renderAcct() {
     var u = state.user, html;
-    if (!u) html = '<a href="#signin">Sign in</a><a class="btn btn-blue" href="#join">Join</a>';
+    if (!u) html = '<a href="#signin">Sign in</a><a class="btn btn-blue" href="#apply-associate">Join</a>';
     else {
       var lbl = u.role === "guest" ? "Guest" : u.role === "alumni" ? (u.active ? "Alumni · Member" : "Alumni") : u.role === "captain" ? "Captain" : u.role === "board" ? "Board" : "Student Council";
       html = (isHub() ? '<a href="#hub-overview">Hub</a>' : "") +
@@ -429,22 +429,36 @@ export function initSite(backend) {
     var opts = DEPTS.filter(function (d) { return d.id !== "board"; }).map(function (d) { return '<option value="' + d.id + '">' + esc(d.name) + '</option>'; }).join('');
     return '<section class="band"><div class="wrap"><p class="eyebrow">Esade Sports recruitment</p><h1 class="display">Join the<br>association.</h1><p>Apply to up to two departments. Rank your preferences, tell us what motivates you and share the work that helps us understand how you could contribute.</p></div></section>' +
       '<section class="al"><div class="wrap body"><form class="pform" id="assoc-form" novalidate>' +
-      '<div class="fsec"><h2>Personal information</h2><div class="fgrid">' + fieldI("as-first", "First name", "", "required autocomplete=\"given-name\"") + fieldI("as-last", "Last name", "", "required autocomplete=\"family-name\"") + fieldI("as-email", "Esade email", "", 'type="email" required autocomplete="email"') + fieldI("as-phone", "Phone number", "", 'type="tel" required autocomplete="tel"') + fieldI("as-programme", "Programme and year", "", 'required placeholder="BBA, 2nd year"') + fieldI("as-linkedin", "LinkedIn profile", "", 'type="url" placeholder="https://linkedin.com/in/..."') + '</div></div>' +
+      '<div class="fsec"><h2>Personal information</h2><div class="fgrid">' + fieldI("as-first", "First name", "", "required autocomplete=\"given-name\"") + fieldI("as-last", "Last name", "", "required autocomplete=\"family-name\"") + fieldI("as-email", "Esade email", "", 'type="email" required autocomplete="email"') + fieldI("as-phone", "Phone number", "", 'type="tel" required autocomplete="tel"') + fieldI("as-programme", "Programme", "", 'required list="as-progs" placeholder="BBA"') + '<datalist id="as-progs"><option value="BBA"><option value="Double degree BBA + Law"><option value="MSc"><option value="MBA"></datalist>' + '<label class="field" for="as-year">Year<select id="as-year" required><option value="">Choose your year</option>' + YEARS.map(function (y) { return '<option value="' + y + '">' + y + '</option>'; }).join('') + '</select></label>' + fieldI("as-linkedin", "LinkedIn profile", "", 'type="url" placeholder="https://linkedin.com/in/..."') + '</div></div>' +
       '<div class="fsec"><h2>Department preferences</h2><p class="muted" style="margin:0">You may apply to a maximum of two departments. Preference 1 is your strongest choice.</p><div class="fgrid"><label class="field" for="as-pref1">Preference 1<select id="as-pref1" required><option value="">Choose a department</option>' + opts + '</select></label><label class="field" for="as-pref2">Preference 2 <small>(optional)</small><select id="as-pref2"><option value="">No second preference</option>' + opts + '</select></label></div><label class="field full" for="as-motivation">Why do you want to join Esade Sports and why these departments?<textarea id="as-motivation" rows="6" required placeholder="Tell us what motivates you, what you could contribute and why you ranked these departments."></textarea></label></div>' +
       '<div class="fsec"><h2>Application materials</h2><div class="fgrid"><label class="field" for="as-cv">CV <small>(PDF required)</small><input id="as-cv" type="file" accept="application/pdf,.pdf" required></label><label class="field" for="as-video">Short motivation video <small>(optional, MP4/MOV)</small><input id="as-video" type="file" accept="video/mp4,video/quicktime,.mp4,.mov"></label></div><p class="muted" style="margin:10px 0 0;font-size:13px">Keep the video short: around 60–90 seconds. Explain who you are, why Esade Sports interests you and why your department preferences fit you.</p></div>' +
       '<div class="fsec"><label class="consent" for="as-redirect"><input type="checkbox" id="as-redirect" required><span>I understand that the Board may redirect my application to another department if it is a better fit for my profile and the association’s needs.</span></label><label class="consent" for="as-consent"><input type="checkbox" id="as-consent" required><span>I confirm that the information and documents submitted are accurate and may be reviewed by the Esade Sports recruitment team.</span></label></div>' +
       '<p class="err" id="as-err" hidden></p><div class="form-actions"><button class="btn btn-blue" type="submit">Submit application</button><span class="muted" style="font-size:13px">Your application will be reviewed by the Board and relevant department Heads.</span></div></form>' +
       '<div class="locked" id="as-done" hidden><p class="eyebrow" style="color:var(--blue)">Application received</p><h2>Thanks for applying to Esade Sports</h2><p id="as-done-p">Your ranked preferences and application materials are ready for review.</p><a class="btn btn-ghost-navy" href="#home">Back to home</a></div></div></section>';
   }
+  var YEARS = ["1st year", "2nd year", "3rd year", "4th year", "5th year", "Master's"];
+  function deptName(id) { var n = ""; DEPTS.forEach(function (d) { if (d.id === id) n = d.name; }); return n; }
   function bindAssociateApply() {
     var f = $("assoc-form"); if (!f) return;
     f.addEventListener("submit", function (e) {
       e.preventDefault(); var err = $("as-err"), cv = $("as-cv").files[0], video = $("as-video").files[0], p1 = $("as-pref1").value, p2 = $("as-pref2").value;
-      if (!$("as-first").value.trim() || !$("as-last").value.trim() || !$("as-email").value.trim() || !$("as-phone").value.trim() || !$("as-programme").value.trim() || !p1 || !$("as-motivation").value.trim() || !cv || !$("as-redirect").checked || !$("as-consent").checked) { err.textContent = "Please complete your personal information, rank at least one department, upload your CV and accept both acknowledgements."; err.hidden = false; return; }
+      if (!$("as-first").value.trim() || !$("as-last").value.trim() || !$("as-email").value.trim() || !$("as-phone").value.trim() || !$("as-programme").value.trim() || !$("as-year").value || !p1 || !$("as-motivation").value.trim() || !cv || !$("as-redirect").checked || !$("as-consent").checked) { err.textContent = "Please complete your personal information, rank at least one department, upload your CV and accept both acknowledgements."; err.hidden = false; return; }
       if (p1 === p2) { err.textContent = "Choose two different departments, or leave Preference 2 empty."; err.hidden = false; return; }
       if (cv && cv.type !== "application/pdf" && !/\.pdf$/i.test(cv.name)) { err.textContent = "Please upload your CV as a PDF."; err.hidden = false; return; }
       if (video && !/^video\/(mp4|quicktime)$/.test(video.type) && !/\.(mp4|mov)$/i.test(video.name)) { err.textContent = "Please upload the motivation video as an MP4 or MOV file."; err.hidden = false; return; }
-      f.hidden = true; $("as-done").hidden = false; $("as-done-p").textContent = "Preference 1: " + $("as-pref1").selectedOptions[0].textContent + (p2 ? ". Preference 2: " + $("as-pref2").selectedOptions[0].textContent + "." : ".") + " The Board may redirect your application to another department if appropriate.";
+      err.hidden = true;
+      function done() { f.hidden = true; $("as-done").hidden = false; $("as-done-p").textContent = "Preference 1: " + deptName(p1) + (p2 ? ". Preference 2: " + deptName(p2) + "." : ".") + " The Board may redirect your application to another department if appropriate."; }
+      if (!backend || !backend.submitAssociationApplication) { done(); return; }
+      var btn = f.querySelector('button[type="submit"]'); btn.disabled = true; btn.textContent = "Sending…";
+      backend.submitAssociationApplication({
+        firstName: $("as-first").value.trim(), lastName: $("as-last").value.trim(), email: $("as-email").value.trim(), phone: $("as-phone").value.trim(),
+        programme: $("as-programme").value.trim(), year: $("as-year").value, linkedin: $("as-linkedin").value.trim() || undefined,
+        pref1: deptName(p1), pref2: p2 ? deptName(p2) : undefined, motivation: $("as-motivation").value.trim(),
+        acceptsRedirect: $("as-redirect").checked, confirmsAccuracy: $("as-consent").checked
+      }, { cv: cv, video: video }).then(done, function (x) {
+        console.error(x); btn.disabled = false; btn.textContent = "Submit application";
+        err.textContent = "Your application could not be sent. Please check your connection and try again."; err.hidden = false;
+      });
     });
   }
   function bindApply() {
