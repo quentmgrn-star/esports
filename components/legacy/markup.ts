@@ -21,10 +21,10 @@ export const SITE_MARKUP = `
     </a>
     <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="nav"><span></span><span></span><span></span></button>
     <nav class="nav" id="nav" aria-label="Main">
-      <a href="#teams">Teams</a>
-      <a href="#fixtures">Fixtures</a>
-      <a href="#events">Events</a>
       <a href="#about">About</a>
+      <a href="#teams">Teams</a>
+      <a href="#fixtures">Schedules</a>
+      <a href="#events">Events</a>
       <a href="#alumni">Alumni</a>
       <a href="#join">Recruitment</a>
       <a href="#partners">Partner with us!</a>
@@ -101,14 +101,14 @@ export const SITE_MARKUP = `
     <div class="wrap">
       <div class="sec-head">
         <div>
-          <p class="eyebrow">Fixtures and results</p>
+          <p class="eyebrow">Schedules and results</p>
           <h2 class="h2">This week at Esade</h2>
         </div>
         <a class="link-arrow" href="#fixtures">Full calendar →</a>
       </div>
       <div class="fx-grid">
         <div>
-          <div class="tabs" role="tablist" aria-label="Fixtures or results">
+          <div class="tabs" role="tablist" aria-label="Schedules or results">
             <button role="tab" id="tab-up" aria-selected="true" aria-controls="list-up">Upcoming</button>
             <button role="tab" id="tab-res" aria-selected="false" aria-controls="list-res">Results</button>
           </div>
