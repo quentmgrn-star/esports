@@ -1,5 +1,6 @@
 import { ConvexError, v } from "convex/values";
 import { mutation } from "./_generated/server";
+import { internal } from "./_generated/api";
 
 export const submitTeamApplication = mutation({
   args: {
@@ -136,6 +137,9 @@ export const submitContactMessage = mutation({
       .filter((q) => q.gt(q.field("_creationTime"), since))
       .collect();
     if (recent.length >= 3) throw new ConvexError("You have sent several messages in a short time. Please wait a few minutes.");
-    return ctx.db.insert("contactMessages", { topic: args.topic, name, email, subject, message, sport, status: "new" });
+    const id = await ctx.db.insert("contactMessages", { topic: args.topic, name, email, subject, message, sport, status: "new" });
+    // Email a copy to the right people after saving; a failed email never loses the message.
+    await ctx.scheduler.runAfter(0, internal.notify.emailContactMessage, { id });
+    return id;
   },
 });

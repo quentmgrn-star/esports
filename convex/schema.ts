@@ -129,6 +129,14 @@ export default defineSchema({
     message: v.optional(v.string()),
   }),
 
+  // Team captains, added by an admin in /admin. A captain can sign in and sees the contact messages
+  // about their teams' sports and the try-out/coach sign-ups for their teams. Team ids: convex/teamList.ts.
+  captains: defineTable({
+    email: v.string(), // lowercase
+    name: v.optional(v.string()),
+    teams: v.array(v.string()),
+  }).index("by_email", ["email"]),
+
   // Footer "Contact" form. Public insert only (forms.submitContactMessage); read and status changes are admin-only.
   contactMessages: defineTable({
     topic: v.string(), // one of CONTACT_TOPICS in convex/forms.ts
@@ -138,5 +146,7 @@ export default defineSchema({
     message: v.string(),
     sport: v.optional(v.string()),
     status: v.union(v.literal("new"), v.literal("read"), v.literal("answered")),
+    // Email copy to the captains (sport messages) or admins (general): "sent", "skipped: …" or "failed: …".
+    emailStatus: v.optional(v.string()),
   }).index("by_email", ["email"]),
 });

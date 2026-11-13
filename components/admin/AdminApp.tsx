@@ -86,7 +86,9 @@ function StageSelect({ app }: { app: Application }) {
   );
 }
 
-type Me = { name: string; email: string; isAdmin: boolean } | null;
+type Me = { name: string; email: string; isAdmin: boolean; teams: string[] } | null;
+const roleLabel = (me: NonNullable<Me>) =>
+  me.isAdmin ? "Admin" : `Captain · ${me.teams.map(teamLabel).join(", ")}`;
 
 export default function AdminApp() {
   return (
@@ -117,7 +119,7 @@ function HeaderStatus() {
       {email ? (
         <>
           <span className="adm-badge">
-            <i>{me?.isAdmin ? "Admin" : "Signed in"}</i> {email}
+            <i>{me?.isAdmin ? "Admin" : me?.teams?.length ? "Captain" : "Signed in"}</i> {email}
           </span>
           <button type="button" onClick={() => authClient.signOut()}>
             Sign out
@@ -155,10 +157,10 @@ function Gate() {
   // Signed in with Better Auth, but Convex has not accepted the session (yet).
   if (signedInEmail && (!isAuthenticated || !me)) return <Connecting email={signedInEmail} convexOk={isAuthenticated} />;
   if (!isAuthenticated || !me) return <AuthForm />;
-  if (!me.isAdmin) {
+  if (!me.isAdmin && !me.teams?.length) {
     return (
       <Panel title="No access">
-        <p className="adm-p">{me.email} is not approved for the admin area.</p>
+        <p className="adm-p">{me.email} is not an admin or a captain. Ask an admin to add you as a captain.</p>
         <SignOut />
       </Panel>
     );
@@ -299,35 +301,69 @@ const uniq = (xs: string[]) => [...new Set(xs.filter(Boolean))].sort((a, b) => a
 
 // Top-level switch between the admin sections.
 function Dashboard({ me }: { me: NonNullable<Me> }) {
-  const [section, setSection] = useState<"applications" | "tryouts" | "messages">("applications");
+  const [section, setSection] = useState<"applications" | "tryouts" | "messages" | "captains">(
+    me.isAdmin ? "applications" : "messages",
+  );
   const messages = useQuery(api.admin.listContactMessages, {}) as ContactMessage[] | undefined;
   const unread = (messages ?? []).filter((m) => m.status === "new").length;
   return (
     <main className="wrap adm-main">
       <div className="adm-top">
         <div>
-          <p className="eyebrow">Signed in as {me.email}</p>
+          <p className="eyebrow">
+            Signed in as {me.email} · {roleLabel(me)}
+          </p>
           <h1 className="display adm-title">
-            {section === "applications" ? "Applications" : section === "tryouts" ? "Try-outs & coaches" : "Messages"}
+            {section === "applications"
+              ? "Applications"
+              : section === "tryouts"
+                ? "Try-outs & coaches"
+                : section === "captains"
+                  ? "Captains"
+                  : "Messages"}
           </h1>
         </div>
         <div className="adm-user">
-          <a className="btn btn-blue" href="/#hub-overview">Open the Hub</a>
+          {me.isAdmin && (
+            <a className="btn btn-blue" href="/#hub-overview">
+              Open the Hub
+            </a>
+          )}
           <SignOut />
         </div>
       </div>
       <nav className="adm-sections" aria-label="Admin sections">
-        <button type="button" aria-pressed={section === "applications"} onClick={() => setSection("applications")}>
-          Association applications
-        </button>
+        {me.isAdmin && (
+          <button type="button" aria-pressed={section === "applications"} onClick={() => setSection("applications")}>
+            Association applications
+          </button>
+        )}
         <button type="button" aria-pressed={section === "tryouts"} onClick={() => setSection("tryouts")}>
           Try-outs &amp; coaches
         </button>
         <button type="button" aria-pressed={section === "messages"} onClick={() => setSection("messages")}>
           Messages{unread > 0 && <span>{unread}</span>}
         </button>
+        {me.isAdmin && (
+          <button type="button" aria-pressed={section === "captains"} onClick={() => setSection("captains")}>
+            Captains
+          </button>
+        )}
       </nav>
-      {section === "applications" ? <Applications /> : section === "tryouts" ? <Tryouts /> : <Messages messages={messages} />}
+      {!me.isAdmin && (
+        <p className="adm-p" style={{ marginBottom: 16 }}>
+          You see the messages about your sport and the try-out and coach sign-ups for your team.
+        </p>
+      )}
+      {section === "applications" && me.isAdmin ? (
+        <Applications />
+      ) : section === "tryouts" ? (
+        <Tryouts me={me} />
+      ) : section === "captains" && me.isAdmin ? (
+        <Captains />
+      ) : (
+        <Messages messages={messages} />
+      )}
     </main>
   );
 }
@@ -479,6 +515,7 @@ type ContactMessage = {
   message: string;
   sport?: string;
   status: "new" | "read" | "answered";
+  emailStatus?: string;
 };
 const MSG_STATUS: Record<ContactMessage["status"], string> = { new: "New", read: "Read", answered: "Answered" };
 
@@ -611,6 +648,14 @@ function MessageDetail({
           <div>
             <dt>Received</dt>
             <dd>{new Date(m._creationTime).toLocaleString("en-GB")}</dd>
+          </div>
+          <div>
+            <dt>Sent to</dt>
+            <dd>{m.sport ? `Captains of ${m.sport}` : "Admins (general message)"}</dd>
+          </div>
+          <div>
+            <dt>Email copy</dt>
+            <dd>{m.emailStatus ?? "Pending"}</dd>
           </div>
         </dl>
         <h3 className="adm-h3">Message</h3>
@@ -787,7 +832,8 @@ function TeamStatusSelect({ app }: { app: TeamApp }) {
   );
 }
 
-function Tryouts() {
+function Tryouts({ me }: { me: NonNullable<Me> }) {
+  const myTeams = me.isAdmin ? TEAMS : TEAMS.filter((t) => me.teams.includes(t.id));
   const apps = useQuery(api.admin.listTeamApplications, {}) as TeamApp[] | undefined;
   const [team, setTeam] = useState(""); // "" = all teams
   const [name, setName] = useState("");
@@ -818,7 +864,7 @@ function Tryouts() {
           <strong>All teams</strong>
           <span>{filtered.length}</span>
         </button>
-        {TEAMS.map((t) => (
+        {myTeams.map((t) => (
           <button key={t.id} type="button" aria-pressed={team === t.id} onClick={() => setTeam(t.id)}>
             <strong>{t.sport}</strong>
             <small>{t.squad}</small>
@@ -979,5 +1025,121 @@ function TeamAppDetail({ app, onClose }: { app: TeamApp; onClose: () => void }) 
         <Notes value={app.notes} save={(notes) => saveNotes({ id: app._id, notes })} />
       </section>
     </div>
+  );
+}
+
+// ---------- Captains (admins only) ----------
+type Captain = { _id: string; email: string; name?: string; teams: string[] };
+
+function Captains() {
+  const captains = useQuery(api.admin.listCaptains, {}) as Captain[] | undefined;
+  const save = useMutation(api.admin.saveCaptain);
+  const remove = useMutation(api.admin.removeCaptain);
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [teams, setTeams] = useState<string[]>([]);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const toggle = (id: string) => setTeams((t) => (t.includes(id) ? t.filter((x) => x !== id) : [...t, id]));
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setError("");
+    setBusy(true);
+    try {
+      await save({ email, name: name || undefined, teams });
+      setEmail("");
+      setName("");
+      setTeams([]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message.replace(/^.*ConvexError:\s*/, "") : String(err));
+    }
+    setBusy(false);
+  }
+
+  return (
+    <>
+      <form className="adm-captain-form" onSubmit={submit}>
+        <h2 className="adm-h3" style={{ marginTop: 0 }}>
+          Add a captain
+        </h2>
+        <p className="adm-p">
+          The captain then creates an account on /admin with this email. They see the messages about their sport and the
+          sign-ups for their team, and get an email copy of each message about their sport. Adding an existing email
+          replaces their teams.
+        </p>
+        <div className="adm-filters" style={{ padding: 0 }}>
+          <label className="field">
+            Email they will sign in with
+            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@alumni.esade.edu" />
+          </label>
+          <label className="field">
+            Name (optional)
+            <input value={name} onChange={(e) => setName(e.target.value)} />
+          </label>
+        </div>
+        <fieldset className="adm-team-checks">
+          <legend>Teams</legend>
+          {TEAMS.map((t) => (
+            <label key={t.id}>
+              <input type="checkbox" checked={teams.includes(t.id)} onChange={() => toggle(t.id)} /> {teamLabel(t.id)}
+            </label>
+          ))}
+        </fieldset>
+        {error && <p className="err">{error}</p>}
+        <button className="btn btn-blue" type="submit" disabled={busy || !email || teams.length === 0}>
+          {busy ? "Saving…" : "Save captain"}
+        </button>
+      </form>
+
+      <div className="adm-table-wrap" style={{ marginTop: 24 }}>
+        <table className="adm-table">
+          <thead>
+            <tr>
+              <th>Captain</th>
+              <th>Teams</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {(captains ?? []).map((c) => (
+              <tr key={c._id} className="adm-empty-click">
+                <td>
+                  <strong>{c.name || c.email}</strong>
+                  {c.name && <span className="adm-sub">{c.email}</span>}
+                </td>
+                <td>{c.teams.map(teamLabel).join(", ")}</td>
+                <td style={{ textAlign: "right" }}>
+                  <button
+                    className="btn btn-ghost-navy"
+                    type="button"
+                    onClick={() => {
+                      setEmail(c.email);
+                      setName(c.name ?? "");
+                      setTeams(c.teams);
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                  >
+                    Edit
+                  </button>{" "}
+                  <button
+                    className="btn btn-ghost-navy"
+                    type="button"
+                    onClick={() => confirm(`Remove ${c.email} as captain?`) && remove({ id: c._id })}
+                  >
+                    Remove
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {captains !== undefined && captains.length === 0 && (
+              <tr className="adm-empty">
+                <td colSpan={3}>No captains yet.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }

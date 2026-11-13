@@ -21,12 +21,16 @@ function pushAdmin(a: SiteAdmin) {
 function AdminBridge() {
   const { isLoading, isAuthenticated } = useConvexAuth();
   const me = useQuery(api.admin.me, isAuthenticated ? {} : "skip") as
-    | { email: string; name: string; isAdmin: boolean }
+    | { email: string; name: string; isAdmin: boolean; teams?: string[] }
     | null
     | undefined;
   const value: SiteAdmin =
-    isLoading || (isAuthenticated && me === undefined) ? undefined : me?.isAdmin ? { email: me.email, name: me.name } : null;
-  useEffect(() => pushAdmin(value), [value === undefined ? "?" : value ? value.email : ""]); // eslint-disable-line react-hooks/exhaustive-deps
+    isLoading || (isAuthenticated && me === undefined) ? undefined : me?.isAdmin
+        ? { email: me.email, name: me.name }
+        : me?.teams?.length
+          ? { email: me.email, name: me.name, captain: true }
+          : null;
+  useEffect(() => pushAdmin(value), [value === undefined ? "?" : value ? value.email + (value.captain ? ":c" : "") : ""]); // eslint-disable-line react-hooks/exhaustive-deps
   return null;
 }
 

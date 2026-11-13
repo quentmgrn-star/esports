@@ -112,7 +112,10 @@ export function initSite(backend) {
   function allAlumni() { return state.me && state.me.verified !== false ? [state.me].concat(ALUMNI) : ALUMNI; }
 
   // ================= Header account area =================
+  var captain = null; // signed-in captain (not admin): badge + inbox link, no Hub
   function adminBar() {
+    if (captain) return '<a class="admin-badge" href="/admin" title="Signed in as ' + esc(captain.email) + ' · open your inbox"><i>Captain</i><span>' + esc(captain.name || captain.email.split("@")[0]) + '</span></a>' +
+      '<a href="/admin">Inbox</a><button type="button" class="signout" data-signout>Sign out</button>';
     if (!admin) return "";
     return '<a class="admin-badge" href="/admin" title="Signed in as ' + esc(admin.email) + ' · open the admin area"><i>Admin</i><span>' + esc(admin.name || admin.email.split("@")[0]) + '</span></a>' +
       '<a href="#hub-overview">Hub</a><button type="button" class="signout" data-signout>Sign out</button>';
@@ -120,7 +123,7 @@ export function initSite(backend) {
   function renderAcct() {
     var u = state.user, html;
     // Far right of the top bar: members sign-in, or the signed-in admin indicator.
-    $("member").innerHTML = admin ? adminBar() : '<a class="member-signin" href="#signin" title="Captains, associates, Board and Student Council">Sign in</a>';
+    $("member").innerHTML = admin || captain ? adminBar() : '<a class="member-signin" href="#signin" title="Captains, associates, Board and Student Council">Sign in</a>';
     if (u && u.role === "alumni") html = '<a href="' + (state.me ? "#alumni-me" : "#my-profile") + '">' + (state.me ? "My profile" : "Create profile") + "</a>" +
         '<a class="acct-chip" href="#alumni-signin" title="Alumni access"><i>' + (u.active ? "Alumni · Member" : "Alumni") + "</i><span>Switch</span></a>";
     else html = admin ? "" : '<a class="btn btn-blue" href="#apply-associate">Join</a>';
@@ -1044,12 +1047,15 @@ export function initSite(backend) {
     if (state.user && HUB_ROLES[state.user.role]) state.user = null;
     save();
     Promise.resolve(backend && backend.signOut ? backend.signOut() : null).catch(console.error);
+    captain = null;
     setAdmin(null); go("home"); toast("Signed out.");
   }
   document.addEventListener("click", function (e) {
     if (e.target.closest && e.target.closest("#member [data-signout]")) signOut();
   });
   function setAdmin(a) {
+    var c = a && a.captain ? a : null; if (c) a = null;
+    if ((c ? c.email : null) !== (captain ? captain.email : null)) { captain = c; renderAcct(); }
     if (a === admin || (a && admin && a.email === admin.email)) return;
     admin = a;
     if (!admin && state.user && HUB_ROLES[state.user.role]) { state.user = null; save(); }

@@ -2,7 +2,7 @@ import { createClient, type GenericCtx } from "@convex-dev/better-auth";
 import { convex } from "@convex-dev/better-auth/plugins";
 import { betterAuth } from "better-auth/minimal";
 import { APIError } from "better-auth/api";
-import { components } from "./_generated/api";
+import { components, internal } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
 import authConfig from "./auth.config";
 
@@ -30,10 +30,13 @@ export const createAuth = (ctx: GenericCtx<DataModel>) =>
     databaseHooks: {
       user: {
         create: {
-          // Only approved emails can create an account.
+          // Only approved emails can create an account: admins (ADMIN_EMAILS) and captains added in /admin.
           before: async (user) => {
-            if (!isAdminEmail(user.email)) {
-              throw new APIError("FORBIDDEN", { message: "This email is not approved for an admin account." });
+            if (isAdminEmail(user.email)) return;
+            const c = ctx as { runQuery?: (q: unknown, args: unknown) => Promise<unknown> };
+            const captain = c.runQuery ? await c.runQuery(internal.roles.isCaptainEmail, { email: user.email }) : false;
+            if (!captain) {
+              throw new APIError("FORBIDDEN", { message: "This email is not approved. Ask an admin to add you as a captain first." });
             }
           },
         },
