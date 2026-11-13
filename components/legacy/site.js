@@ -202,9 +202,9 @@ export function initSite(backend, tools) {
   var state = { user: null, me: null, expenses: null, captains: null, teamApplications: {}, teamInfo: {}, teamResults: {}, tasks: {}, checkups: [], rosters: {}, deckNotes: {}, nextId: 100, al: { q: "", sport: "All", year: "" }, hubFilter: "all", appFilter: "all", teamOpen: null };
   try {
     var s = JSON.parse(localStorage.getItem("es-site") || "null");
-    if (s && s.v === 2) { state.user = s.user && s.user.role === "alumni" ? null : s.user; state.expenses = s.expenses; state.captains = s.captains || null; state.teamApplications = s.teamApplications || {}; state.teamInfo = s.teamInfo || {}; state.teamResults = s.teamResults || {}; state.tasks = s.tasks || {}; state.newTasks = s.newTasks || []; state.checkups = s.checkups || []; state.notifs = s.notifs || []; state.notifSeen = s.notifSeen || 0; state.rosters = s.rosters || {}; state.deckNotes = s.deckNotes || {}; state.ideas = s.ideas || null; state.nextId = s.nextId || 100; }
+    if (s && s.v === 2) { state.user = s.user && s.user.role === "alumni" ? null : s.user; state.expenses = s.expenses; state.captains = s.captains || null; state.teamApplications = s.teamApplications || {}; state.teamInfo = s.teamInfo || {}; state.teamResults = s.teamResults || {}; state.tasks = s.tasks || {}; state.newTasks = s.newTasks || []; state.checkups = s.checkups || []; state.tupd = s.tupd || []; state.notifs = s.notifs || []; state.notifSeen = s.notifSeen || 0; state.rosters = s.rosters || {}; state.deckNotes = s.deckNotes || {}; state.ideas = s.ideas || null; state.nextId = s.nextId || 100; }
   } catch (e) {}
-  function save() { try { localStorage.setItem("es-site", JSON.stringify({ v: 2, user: state.user, expenses: state.expenses, captains: state.captains, teamApplications: state.teamApplications, teamInfo: state.teamInfo, teamResults: state.teamResults, tasks: state.tasks, newTasks: state.newTasks, checkups: state.checkups, notifs: state.notifs, notifSeen: state.notifSeen, rosters: state.rosters, ideas: state.ideas, deckNotes: state.deckNotes, nextId: state.nextId })); } catch (e) {} }
+  function save() { try { localStorage.setItem("es-site", JSON.stringify({ v: 2, user: state.user, expenses: state.expenses, captains: state.captains, teamApplications: state.teamApplications, teamInfo: state.teamInfo, teamResults: state.teamResults, tasks: state.tasks, newTasks: state.newTasks, checkups: state.checkups, tupd: state.tupd, notifs: state.notifs, notifSeen: state.notifSeen, rosters: state.rosters, ideas: state.ideas, deckNotes: state.deckNotes, nextId: state.nextId })); } catch (e) {} }
   // Hub views (same rules as convex/roles.ts; permissions table in README.md):
   //   admin / exec (president, VPs): everything · viewer (Student Council, Eva Morta): everything, read-only
   //   head: their department for every team · associate: their department, their teams · captain: their team(s)
@@ -1017,6 +1017,12 @@ export function initSite(backend, tools) {
   }
   // Only the Board adds tasks: a head for their own department, the president / VPs (and admins) for any.
   function canAddTask(deptId) { var u = hv(); return !hRO() && (u.role === "admin" || u.role === "exec" || (u.role === "head" && u.dept === deptId)); }
+  // Work summaries / comments on tasks: the department's own head and associates (+ President, VPs, admins).
+  function canPostTask(deptId) { var u = hv(); return !hRO() && (u.role === "admin" || u.role === "exec" || ((u.role === "head" || u.role === "associate") && u.dept === deptId)); }
+  function taskUpdatesFor(key) {
+    if (live()) return (LIVE.tupd || []).filter(function (r) { return r.taskKey === key; }).map(function (r) { return { kind: r.kind, text: r.text, link: r.link, by: r.by, at: r.at, file: r.fileUrl ? { url: r.fileUrl, name: r.fileName || "File", type: r.fileType || "" } : null }; });
+    return (state.tupd || []).filter(function (r) { return r.taskKey === key; });
+  }
   function canSetTask(deptId) { var u = hv(); return can("tasks") && (u.role === "admin" || u.role === "exec" || u.dept === deptId); }
   // Name of the person whose view this is (example data).
   function myName() {
@@ -1084,11 +1090,16 @@ export function initSite(backend, tools) {
   var DEMO = [
     ["student", "1 · Student (public website)"],
     ["exec", "2 · Board: President / Vice-president", { role: "exec" }],
-    ["head-fin", "2 · Board: Head of Finance (all teams)", { role: "head", dept: "fin" }],
-    ["head-ops", "2 · Board: Head of Operations (all teams)", { role: "head", dept: "ops" }],
-    ["head-it", "2 · Board: Head of IT", { role: "head", dept: "it" }],
-    ["assoc-ops", "3 · Associate: Operations, Basketball Women", { role: "associate", dept: "ops", teams: ["basketball-women"] }],
+    ["head-fin", "2 · Head of Finance (every team)", { role: "head", dept: "fin" }],
+    ["head-ops", "2 · Head of Operations (every team)", { role: "head", dept: "ops" }],
+    ["head-med", "2 · Head of Marketing (every team)", { role: "head", dept: "med" }],
+    ["head-par", "2 · Head of Partnerships (every team)", { role: "head", dept: "par" }],
+    ["head-it", "2 · Head of IT", { role: "head", dept: "it" }],
     ["assoc", "3 · Associate: Finance, Basketball Women", { role: "associate", dept: "fin", teams: ["basketball-women"] }],
+    ["assoc-ops", "3 · Associate: Operations, Basketball Women", { role: "associate", dept: "ops", teams: ["basketball-women"] }],
+    ["assoc-med", "3 · Associate: Marketing, Basketball Women", { role: "associate", dept: "med", teams: ["basketball-women"] }],
+    ["assoc-par", "3 · Associate: Partnerships, Basketball Women", { role: "associate", dept: "par", teams: ["basketball-women"] }],
+    ["assoc-it", "3 · Associate: IT", { role: "associate", dept: "it", teams: ["basketball-women"] }],
     ["captain", "4 · Captain: Basketball Women", { role: "captain", teams: ["basketball-women"] }],
     ["viewer", "Student Council (Eva Morta), view only", { role: "viewer" }],
     ["admin", "Admin (back to full access)", { role: "admin" }]
@@ -1301,9 +1312,10 @@ export function initSite(backend, tools) {
     if (on && !LIVE.unExp) {
       LIVE.unExp = backend.watchExpenses(function (rows) { if (rows === undefined) return; LIVE.exp = (rows || []).map(fromServer); hubRefresh(); });
       LIVE.unIdeas = backend.watchIdeas(function (rows) { if (rows === undefined) return; LIVE.ideas = rows || []; hubRefresh(); });
+      LIVE.unTupd = backend.watchTaskUpdates ? backend.watchTaskUpdates(function (rows) { if (rows === undefined) return; LIVE.tupd = rows || []; hubRefresh(); }) : null;
       LIVE.unNotifs = backend.watchNotifications ? backend.watchNotifications(function (d) { if (d === undefined) return; LIVE.notifs = d; hubRefresh(); }) : null;
     } else if (!on && LIVE.unExp) {
-      LIVE.unExp(); LIVE.unIdeas(); if (LIVE.unNotifs) LIVE.unNotifs(); LIVE.unExp = LIVE.unIdeas = LIVE.unNotifs = null; LIVE.notifs = null; LIVE.exp = LIVE.ideas = null; LIVE.checks = {}; ROSTER = {}; ROSTER_ALL = null;
+      LIVE.unExp(); LIVE.unIdeas(); if (LIVE.unNotifs) LIVE.unNotifs(); if (LIVE.unTupd) LIVE.unTupd(); LIVE.unTupd = null; LIVE.tupd = null; LIVE.unExp = LIVE.unIdeas = LIVE.unNotifs = null; LIVE.notifs = null; LIVE.exp = LIVE.ideas = null; LIVE.checks = {}; ROSTER = {}; ROSTER_ALL = null;
     }
   }
   function allExp() { return live() ? LIVE.exp || [] : state.expenses; }
@@ -1700,8 +1712,20 @@ export function initSite(backend, tools) {
       '<section class="panel"><div class="panel-head"><h2>Active captains</h2><span class="muted">' + active.length + ' records</span></div><div class="table-wrap"><table><thead><tr><th>Captain</th><th>Team</th><th>Role</th><th>Programme</th><th>Since</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div></section>' +
       (edit ?       '<section class="panel"><div class="panel-head"><h2>Add a captain</h2><span class="muted">Board only</span></div><form class="form" id="captain-form"><label>First name<input id="c-first" required placeholder="First name"></label><label>Last name<input id="c-last" required placeholder="Last name"></label><label>Email<input id="c-email" type="email" required placeholder="name@esade.edu"></label><label>Team<select id="c-team">' + TEAMS.map(function (t) { return '<option value="' + t.id + '">' + esc(tLabel(t)) + '</option>'; }).join('') + '</select></label><label>Role<select id="c-role"><option>Captain</option><option>Vice-captain</option></select></label><label>Programme<input id="c-programme" required placeholder="BBA, MSc..."></label><div><button class="btn solid" type="submit">Add captain</button></div></form></section>' : '<p class="muted">View only: changes are made by the Board.</p>');
   }
-  function taskRow(t, deptId) {
+  function taskRowBase(t, deptId) {
     return "<li><span>" + esc(t.title) + '<small class="owner">' + esc(t.owner || "Unassigned") + "</small></span>" + (canSetTask(deptId) ? '<select data-task="' + t.key + '" aria-label="Status of ' + esc(t.title) + '">' + Object.keys(TASK_STATUS).map(function (o) { return '<option value="' + o + '"' + (o === t.status ? " selected" : "") + ">" + TASK_STATUS[o] + "</option>"; }).join("") + "</select>" : taskStatusPill(t.status)) + "</li>";
+  }
+  // A task with its work summaries and comments (everyone in the department sees them and can add to them).
+  function taskRow(t, deptId) {
+    var ups = taskUpdatesFor(t.key), n = ups.length, d = deptName(deptId) || (deptId === "board" ? "Board" : deptId), open = state.taskOpen === t.key;
+    var base = taskRowBase(t, deptId);
+    var list = ups.map(function (u) {
+      var f = u.file ? (/^image\//.test(u.file.type || "") ? '<a href="' + esc(u.file.url) + '" target="_blank" rel="noopener"><img class="tu-img" src="' + esc(u.file.url) + '" alt="' + esc(u.file.name) + '"></a>' : '<a href="' + esc(u.file.url) + '" target="_blank" rel="noopener" download="' + esc(u.file.name) + '">' + esc(u.file.name) + "</a>") : "";
+      return '<li class="tu ' + u.kind + '"><div class="tu-head"><span class="pill ' + (u.kind === "summary" ? "info" : "") + '">' + (u.kind === "summary" ? "Work summary" : "Comment") + "</span><b>" + esc(u.by) + '</b><small class="muted">' + esc(fmtWhen(u.at)) + "</small></div>" + (u.text ? "<p>" + esc(u.text) + "</p>" : "") + (u.link ? '<p><a href="' + esc(u.link) + '" target="_blank" rel="noopener">' + esc(u.link.replace(/^https:\/\//, "").slice(0, 60)) + " " + ico("out") + "</a></p>" : "") + f + "</li>";
+    }).join("");
+    var form = canPostTask(deptId) ? '<form class="tu-form" data-tu="' + esc(t.key) + '" data-tu-dept="' + esc(d) + '"><div class="tu-kind"><label><input type="radio" name="kind" value="summary" checked> Work summary</label><label><input type="radio" name="kind" value="comment"> Comment</label></div>' +
+      '<textarea name="text" rows="2" maxlength="2000" placeholder="What was done, what is next, what you need" aria-label="Update"></textarea><div class="tu-row"><input name="link" type="text" inputmode="url" placeholder="Link (optional)" aria-label="Link"><input name="file" type="file" accept="image/*,application/pdf" aria-label="Image or PDF"><button class="btn sm solid" type="submit">Post</button></div></form>' : "";
+    return base.replace(/<\/li>$/, "") + '<details class="tupd"' + (open ? " open" : "") + ' data-tkey="' + esc(t.key) + '"><summary>' + (n ? n + " update" + (n === 1 ? "" : "s") : "Add a work summary") + "</summary>" + (list ? '<ul class="tu-list">' + list + "</ul>" : "") + form + "</details></li>";
   }
   function addTaskForm(d) {
     if (!canAddTask(d.id)) return "";
@@ -1722,7 +1746,7 @@ export function initSite(backend, tools) {
     return '<div class="ph-head"><div><h1 class="display">Departments.</h1><p>Who leads each department, what it is responsible for, and where its work stands. Open a department to see its full team and who is working on what.</p></div></div>' +
       '<div class="dept-grid">' + visDepts().map(function (d) {
         return '<section class="dept"><div class="dept-title"><h2><a href="#hub-departments" data-dept-open="' + d.id + '">' + d.name + '</a></h2><small>' + d.size + ' people</small></div><div class="panel"><p style="margin:0"><strong>' + d.head + ' · ' + esc(DEPT_PEOPLE[d.id].head) + '</strong><br><span class="muted">' + d.remit + '</span></p><ul class="tasks">' +
-          deptTasks(d).map(function (t) { return taskRow(t, d.id); }).join("") + '</ul><a class="btn sm" href="#hub-departments" data-dept-open="' + d.id + '">Open team and tasks →</a>' + addTaskForm(d) + "</div></section>";
+          deptTasks(d).map(function (t) { return taskRowBase(t, d.id); }).join("") + '</ul><a class="btn sm" href="#hub-departments" data-dept-open="' + d.id + '">Open team and tasks →</a>' + addTaskForm(d) + "</div></section>";
       }).join("") + "</div>";
   }
   function bindHub() {
@@ -1786,6 +1810,29 @@ export function initSite(backend, tools) {
       $("ck-send").disabled = true;
       Promise.resolve(backend.saveCheckup(row)).then(function () { delete LIVE.checks[p.kind + "|" + p.key]; render(); toast("Check-up saved. Your head and the Board see it."); }, function (x) { $("ck-send").disabled = false; toast(errText(x)); });
     });
+    hub.querySelectorAll("details.tupd").forEach(function (d) { d.addEventListener("toggle", function () { var k = d.getAttribute("data-tkey"); if (d.open) state.taskOpen = k; else if (state.taskOpen === k) state.taskOpen = null; }); });
+    hub.querySelectorAll("form[data-tu]").forEach(function (f) { f.addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      var key = f.getAttribute("data-tu"), dept = f.getAttribute("data-tu-dept"), kind = (f.querySelector("input[name=kind]:checked") || {}).value || "summary";
+      var text = f.elements.text.value.trim(), link = f.elements.link.value.trim(), file = f.elements.file.files[0];
+      if (link && !/^https?:\/\//i.test(link)) link = "https://" + link;
+      if (link) link = link.replace(/^http:/i, "https:");
+      if (!text && !link && !file) { f.elements.text.focus(); toast("Write a summary or a comment."); return; }
+      state.taskOpen = key;
+      var btn = f.querySelector("button[type=submit]");
+      if (live()) {
+        if (file && file.size > 10 * 1024 * 1024) { toast("The file is too big (max 10 MB)."); return; }
+        btn.disabled = true;
+        Promise.resolve(file ? backend.uploadFile(file) : null).then(function (fid) {
+          return backend.addTaskUpdate({ taskKey: key, dept: dept, kind: kind, text: text, link: link || undefined, fileId: fid || undefined, fileName: file ? file.name : undefined, fileType: file ? file.type : undefined });
+        }).then(function () { toast("Posted. Your department can see it."); render(); }, function (x) { btn.disabled = false; toast(errText(x)); });
+        return;
+      }
+      function done(att) { (state.tupd = state.tupd || []).push({ taskKey: key, dept: dept, kind: kind, text: text, link: link || undefined, file: att, by: meLabel(), at: Date.now() }); save(); render(); toast("Posted. Your department can see it."); }
+      if (!file) { done(null); return; }
+      if (file.size > 1.5 * 1024 * 1024) { toast("The file is too big for the prototype (max 1.5 MB)."); return; }
+      var rd = new FileReader(); rd.onload = function () { done({ url: rd.result, name: file.name, type: file.type }); }; rd.readAsDataURL(file);
+    }); });
     var idf = $("idea-form"); if (idf) idf.addEventListener("submit", function (ev) {
       ev.preventDefault(); var text = $("id-text").value.trim(); if (!text) return;
       var row = { team: $("id-team") ? $("id-team").value : firstTeam(), kind: $("id-kind").value, text: text.slice(0, 600) }, ops = opsView();

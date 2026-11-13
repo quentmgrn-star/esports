@@ -339,4 +339,19 @@ export default defineSchema({
     updatedBy: v.string(),
     updatedAt: v.number(),
   }).index("by_team", ["team"]),
+
+  // Work summaries and comments on department tasks (convex/taskUpdates.ts): department-only.
+  taskUpdates: defineTable({
+    taskKey: v.string(), // Hub task id, e.g. "fin0" or "n123"
+    dept: v.string(), // department name, or "Board"
+    kind: v.union(v.literal("summary"), v.literal("comment")),
+    text: v.string(),
+    link: v.optional(v.string()),
+    fileId: v.optional(v.id("_storage")),
+    fileName: v.optional(v.string()),
+    fileType: v.optional(v.string()),
+    by: v.string(),
+    byEmail: v.string(),
+    at: v.number(),
+  }).index("by_task", ["taskKey"]),
 });

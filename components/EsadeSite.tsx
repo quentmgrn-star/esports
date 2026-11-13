@@ -114,6 +114,14 @@ export default function EsadeSite() {
         return w.onUpdate(push);
       },
       markNotifsSeen: () => client.mutation(api.notifications.markSeen, {}),
+      // Task work summaries and comments (department-only, checked in Convex).
+      watchTaskUpdates: (cb: (rows: unknown) => void) => {
+        const w = client.watchQuery(api.taskUpdates.list, {});
+        const push = () => { try { cb(w.localQueryResult()); } catch (e) { console.error(e); } };
+        push();
+        return w.onUpdate(push);
+      },
+      addTaskUpdate: (a: Record<string, unknown>) => client.mutation(api.taskUpdates.add, a as never),
       // Uploads the CV (and optional video) to Convex storage, then stores the application.
       submitAssociationApplication: async (a: Record<string, unknown>, files: { cv: File; video?: File }) => {
         const upload = async (file: File) => {
