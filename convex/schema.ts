@@ -94,7 +94,9 @@ export default defineSchema({
     programme: v.optional(v.string()),
     level: v.optional(v.string()),
     coachingExperience: v.optional(v.string()),
-    status: v.string(),
+    status: v.string(), // one of TEAM_STATUSES in convex/stages.ts ("New" for older rows)
+    statusChangedAt: v.optional(v.number()),
+    notes: v.optional(v.string()),
   }).index("by_team", ["teamSlug"]),
 
   // "Apply to the association" form (associate in a department). Files live in Convex storage.

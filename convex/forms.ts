@@ -14,7 +14,22 @@ export const submitTeamApplication = mutation({
     level: v.optional(v.string()),
     coachingExperience: v.optional(v.string()),
   },
-  handler: async (ctx, args) => ctx.db.insert("teamApplications", { ...args, status: "New" }),
+  handler: async (ctx, args) => {
+    const clean = (s: string | undefined, max: number) => (s ?? "").trim().slice(0, max);
+    const a = {
+      ...args,
+      teamSlug: clean(args.teamSlug, 60),
+      firstName: clean(args.firstName, 100),
+      lastName: clean(args.lastName, 100),
+      email: clean(args.email, 200),
+      phone: clean(args.phone, 50),
+      programme: clean(args.programme, 150) || undefined,
+      level: clean(args.level, 100) || undefined,
+      coachingExperience: clean(args.coachingExperience, 3000) || undefined,
+    };
+    if (!a.teamSlug || !a.firstName || !a.lastName || !a.email || !a.phone) throw new ConvexError("Missing required fields.");
+    return ctx.db.insert("teamApplications", { ...a, status: "New", statusChangedAt: Date.now() });
+  },
 });
 
 export const submitPartnerInquiry = mutation({

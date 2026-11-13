@@ -62,3 +62,15 @@
 .adm-pill-new { background: var(--blue); color: var(--white); }
 .adm-pill-read { background: var(--mist); color: var(--navy); }
 .adm-pill-answered { background: var(--ok-bg); color: var(--ok); }
+
+.adm-teams { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-bottom: 16px; }
+.adm-teams button { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 0 8px; text-align: left; background: var(--white); border: 1.5px solid transparent; padding: 12px 14px; font: inherit; color: var(--navy); cursor: pointer; }
+.adm-teams button strong { font-size: 14px; font-style: italic; text-transform: uppercase; font-weight: 900; }
+.adm-teams button small { grid-column: 1; font-size: 12px; color: var(--ink-soft); }
+.adm-teams button span { grid-column: 2; grid-row: 1 / span 2; background: var(--mist); font-size: 12px; font-weight: 700; padding: 2px 8px; }
+.adm-teams button:hover { border-color: var(--line); }
+.adm-teams button[aria-pressed="true"] { border-color: var(--blue); }
+.adm-teams button[aria-pressed="true"] span { background: var(--blue); color: var(--white); }
+.adm-tstatus-contacted, .adm-tstatus-trial-invited { border-color: var(--blue); }
+.adm-tstatus-accepted { border-color: var(--ok); background: var(--ok-bg); }
+.adm-tstatus-declined { border-color: var(--bad); background: var(--bad-bg); }

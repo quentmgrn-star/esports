@@ -6,3 +6,6 @@ export const STAGES = ["applied", "review", "interview", "case", "offer", "accep
 export type Stage = (typeof STAGES)[number];
 
 export const stageValidator = v.union(...STAGES.map((s) => v.literal(s)));
+
+// Try-out and coach sign-ups (teamApplications.status).
+export const TEAM_STATUSES = ["New", "Contacted", "Trial invited", "Accepted", "Declined"];

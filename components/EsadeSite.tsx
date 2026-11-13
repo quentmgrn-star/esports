@@ -37,8 +37,7 @@ export default function EsadeSite() {
     const client = convex;
     const backend = client && {
       signOut: () => authClient.signOut(),
-      submitTeamApplication: (a: Record<string, unknown>) =>
-        client.mutation(api.forms.submitTeamApplication, a as never).catch(console.error),
+      submitTeamApplication: (a: Record<string, unknown>) => client.mutation(api.forms.submitTeamApplication, a as never),
       submitPartnerInquiry: (a: Record<string, unknown>) =>
         client.mutation(api.forms.submitPartnerInquiry, a as never).catch(console.error),
       // Errors are passed back so the form can show them (e.g. rate limit).

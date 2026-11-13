@@ -556,15 +556,22 @@ export function initSite(backend) {
         coachingExperience: $("a-exp").value.trim(), captain: captain ? captainName(captain) : "Board review", captainEmail: captain ? captain.email : "Board review", status: "New", createdAt: "2026-11-12"
       });
       save();
-      if (backend && backend.submitTeamApplication) backend.submitTeamApplication({
+      function done() {
+        f.hidden = true; $("a-done").hidden = false;
+        $("a-done-h").textContent = coach ? "Thanks for offering to coach" : "You are signed up for try-outs";
+        $("a-done-p").textContent = "Team: " + tLabel(t) + ". Your information is stored in the " + folder + " folder and routed to " + (captain ? captainName(captain) + " (" + captain.email + ")" : "the Board because this team has no active captain") + ".";
+      }
+      if (!backend || !backend.submitTeamApplication) { done(); return; }
+      var btn = $("a-submit"), label = btn.textContent; btn.disabled = true; btn.textContent = "Sending…";
+      backend.submitTeamApplication({
         teamSlug: t.id, kind: coach ? "coach" : "tryout",
         firstName: $("a-first").value.trim(), lastName: $("a-last").value.trim(), email: $("a-email").value.trim(), phone: $("a-phone").value.trim(),
-        esadeStudent: $("a-esade").value === "yes", programme: $("a-prog").value.trim() || undefined,
+        esadeStudent: $("a-esade").value === "yes", programme: ($("a-esade").value === "yes" && $("a-prog").value.trim()) || undefined,
         level: coach ? undefined : $("a-level").value, coachingExperience: coach ? ($("a-exp").value.trim() || undefined) : undefined
+      }).then(done, function (x) {
+        console.error(x); btn.disabled = false; btn.textContent = label;
+        $("a-err").textContent = "Your sign-up could not be sent. Please check your connection and try again."; $("a-err").hidden = false;
       });
-      f.hidden = true; $("a-done").hidden = false;
-      $("a-done-h").textContent = coach ? "Thanks for offering to coach" : "You are signed up for try-outs";
-      $("a-done-p").textContent = "Team: " + tLabel(t) + ". Your information is stored in the " + folder + " folder and routed to " + (captain ? captainName(captain) + " (" + captain.email + ")" : "the Board because this team has no active captain") + ".";
     });
   }
 

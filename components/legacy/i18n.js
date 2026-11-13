@@ -5,6 +5,7 @@ export function initI18n() {
   "use strict";
   // English is the source. Each entry: "English": ["Català", "Español"]
   var D = {
+    "Your sign-up could not be sent. Please check your connection and try again.": ["No s'ha pogut enviar la inscripció. Comprova la connexió i torna-ho a provar.","No se ha podido enviar la inscripción. Comprueba la conexión y vuelve a intentarlo."],
     "Sport (optional)": ["Esport (opcional)","Deporte (opcional)"],
     "Get in": ["Posa't en", "Ponte en"],
     "touch.": ["contacte.", "contacto."],

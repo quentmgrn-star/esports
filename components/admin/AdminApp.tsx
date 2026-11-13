@@ -5,6 +5,7 @@ import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { authClient } from "@/lib/auth-client";
 import { convex } from "@/components/ConvexClientProvider";
+import { TEAMS, teamLabel } from "@/lib/teams";
 
 type Application = {
   _id: string;
@@ -298,7 +299,7 @@ const uniq = (xs: string[]) => [...new Set(xs.filter(Boolean))].sort((a, b) => a
 
 // Top-level switch between the admin sections.
 function Dashboard({ me }: { me: NonNullable<Me> }) {
-  const [section, setSection] = useState<"applications" | "messages">("applications");
+  const [section, setSection] = useState<"applications" | "tryouts" | "messages">("applications");
   const messages = useQuery(api.admin.listContactMessages, {}) as ContactMessage[] | undefined;
   const unread = (messages ?? []).filter((m) => m.status === "new").length;
   return (
@@ -306,7 +307,9 @@ function Dashboard({ me }: { me: NonNullable<Me> }) {
       <div className="adm-top">
         <div>
           <p className="eyebrow">Signed in as {me.email}</p>
-          <h1 className="display adm-title">{section === "applications" ? "Applications" : "Messages"}</h1>
+          <h1 className="display adm-title">
+            {section === "applications" ? "Applications" : section === "tryouts" ? "Try-outs & coaches" : "Messages"}
+          </h1>
         </div>
         <div className="adm-user">
           <a className="btn btn-blue" href="/#hub-overview">Open the Hub</a>
@@ -315,13 +318,16 @@ function Dashboard({ me }: { me: NonNullable<Me> }) {
       </div>
       <nav className="adm-sections" aria-label="Admin sections">
         <button type="button" aria-pressed={section === "applications"} onClick={() => setSection("applications")}>
-          Applications
+          Association applications
+        </button>
+        <button type="button" aria-pressed={section === "tryouts"} onClick={() => setSection("tryouts")}>
+          Try-outs &amp; coaches
         </button>
         <button type="button" aria-pressed={section === "messages"} onClick={() => setSection("messages")}>
           Messages{unread > 0 && <span>{unread}</span>}
         </button>
       </nav>
-      {section === "applications" ? <Applications /> : <Messages messages={messages} />}
+      {section === "applications" ? <Applications /> : section === "tryouts" ? <Tryouts /> : <Messages messages={messages} />}
     </main>
   );
 }
@@ -632,6 +638,7 @@ function MessageDetail({
 }
 
 function Detail({ app, onClose }: { app: Application; onClose: () => void }) {
+  const saveNotes = useMutation(api.admin.setApplicationNotes);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     document.addEventListener("keydown", onKey);
@@ -682,7 +689,7 @@ function Detail({ app, onClose }: { app: Application; onClose: () => void }) {
           </label>
           {app.stageChangedAt && <span className="adm-sub">In this stage since {fmtDate(app.stageChangedAt)}</span>}
         </div>
-        <Notes app={app} />
+        <Notes value={app.notes} save={(notes) => saveNotes({ id: app._id, notes })} />
         <h3 className="adm-h3">Motivation</h3>
         <p className="adm-motivation">{app.motivation}</p>
       </section>
@@ -691,11 +698,10 @@ function Detail({ app, onClose }: { app: Application; onClose: () => void }) {
 }
 
 // Internal notes, only visible in the admin area.
-function Notes({ app }: { app: Application }) {
-  const save = useMutation(api.admin.setApplicationNotes);
-  const [text, setText] = useState(app.notes ?? "");
+function Notes({ value, save }: { value?: string; save: (notes: string) => Promise<unknown> }) {
+  const [text, setText] = useState(value ?? "");
   const [state, setState] = useState<"" | "saving" | "saved" | "error">("");
-  const dirty = text.trim() !== (app.notes ?? "");
+  const dirty = text.trim() !== (value ?? "");
   return (
     <div className="adm-notes">
       <h3 className="adm-h3">Internal notes</h3>
@@ -716,7 +722,7 @@ function Notes({ app }: { app: Application }) {
           onClick={async () => {
             setState("saving");
             try {
-              await save({ id: app._id, notes: text });
+              await save(text);
               setState("saved");
             } catch {
               setState("error");
@@ -728,6 +734,250 @@ function Notes({ app }: { app: Application }) {
         {state === "saved" && <span className="adm-sub">Saved.</span>}
         {state === "error" && <span className="err">Could not save. Try again.</span>}
       </div>
+    </div>
+  );
+}
+
+// ---------- Try-outs & coaches (teamApplications) ----------
+type TeamApp = {
+  _id: string;
+  _creationTime: number;
+  teamSlug: string;
+  kind: "tryout" | "coach";
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  esadeStudent: boolean;
+  programme?: string;
+  level?: string;
+  coachingExperience?: string;
+  status: string;
+  statusChangedAt?: number;
+  notes?: string;
+};
+const TEAM_STATUSES = ["New", "Contacted", "Trial invited", "Accepted", "Declined"]; // same as convex/stages.ts
+const kindLabel = (k: TeamApp["kind"]) => (k === "coach" ? "Coach" : "Play");
+
+function TeamStatusSelect({ app }: { app: TeamApp }) {
+  const setStatus = useMutation(api.admin.setTeamApplicationStatus);
+  const [busy, setBusy] = useState(false);
+  return (
+    <select
+      className={`adm-stage adm-tstatus-${app.status.replace(/\s+/g, "-").toLowerCase()}`}
+      value={app.status}
+      disabled={busy}
+      aria-label={`Status for ${app.firstName} ${app.lastName}`}
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => e.stopPropagation()}
+      onChange={async (e) => {
+        setBusy(true);
+        try {
+          await setStatus({ id: app._id, status: e.target.value });
+        } catch (err) {
+          alert(`Could not change the status: ${err instanceof Error ? err.message : String(err)}`);
+        }
+        setBusy(false);
+      }}
+    >
+      {(TEAM_STATUSES.includes(app.status) ? TEAM_STATUSES : [app.status, ...TEAM_STATUSES]).map((st) => (
+        <option key={st}>{st}</option>
+      ))}
+    </select>
+  );
+}
+
+function Tryouts() {
+  const apps = useQuery(api.admin.listTeamApplications, {}) as TeamApp[] | undefined;
+  const [team, setTeam] = useState(""); // "" = all teams
+  const [name, setName] = useState("");
+  const [kind, setKind] = useState("");
+  const [level, setLevel] = useState("");
+  const [esade, setEsade] = useState("");
+  const [status, setStatus] = useState("");
+  const [openId, setOpenId] = useState<string | null>(null);
+
+  const list = apps ?? [];
+  const levels = uniq(list.map((a) => a.level ?? ""));
+  const filtered = list.filter(
+    (a) =>
+      (!name || `${a.firstName} ${a.lastName}`.toLowerCase().includes(name.trim().toLowerCase())) &&
+      (!kind || a.kind === kind) &&
+      (!level || a.level === level) &&
+      (!esade || (esade === "yes") === a.esadeStudent) &&
+      (!status || a.status === status),
+  );
+  const shown = filtered.filter((a) => !team || a.teamSlug === team);
+  const count = (id: string) => filtered.filter((a) => a.teamSlug === id).length;
+  const open = list.find((a) => a._id === openId) ?? null;
+
+  return (
+    <>
+      <div className="adm-teams" role="group" aria-label="Team">
+        <button type="button" aria-pressed={team === ""} onClick={() => setTeam("")}>
+          <strong>All teams</strong>
+          <span>{filtered.length}</span>
+        </button>
+        {TEAMS.map((t) => (
+          <button key={t.id} type="button" aria-pressed={team === t.id} onClick={() => setTeam(t.id)}>
+            <strong>{t.sport}</strong>
+            <small>{t.squad}</small>
+            <span>{count(t.id)}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="adm-filters">
+        <label className="field">
+          Name
+          <input type="search" value={name} onChange={(e) => setName(e.target.value)} placeholder="Search" />
+        </label>
+        <label className="field">
+          Play or coach
+          <select value={kind} onChange={(e) => setKind(e.target.value)}>
+            <option value="">Both</option>
+            <option value="tryout">Play (try-outs)</option>
+            <option value="coach">Coach</option>
+          </select>
+        </label>
+        <label className="field">
+          Level
+          <select value={level} onChange={(e) => setLevel(e.target.value)}>
+            <option value="">All levels</option>
+            {levels.map((l) => (
+              <option key={l}>{l}</option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          Esade student
+          <select value={esade} onChange={(e) => setEsade(e.target.value)}>
+            <option value="">All</option>
+            <option value="yes">Yes</option>
+            <option value="no">No</option>
+          </select>
+        </label>
+        <label className="field">
+          Status
+          <select value={status} onChange={(e) => setStatus(e.target.value)}>
+            <option value="">All statuses</option>
+            {TEAM_STATUSES.map((st) => (
+              <option key={st}>{st}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <p className="adm-count">
+        {apps === undefined
+          ? "Loading…"
+          : `${team ? teamLabel(team) + " · " : ""}${shown.length} shown · ${list.length} sign-up${list.length === 1 ? "" : "s"} in total`}
+      </p>
+
+      <div className="adm-table-wrap">
+        <table className="adm-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Team</th>
+              <th>Role</th>
+              <th>Esade student</th>
+              <th>Level</th>
+              <th>Submitted</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {shown.map((a) => (
+              <tr
+                key={a._id}
+                tabIndex={0}
+                onClick={() => setOpenId(a._id)}
+                onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), setOpenId(a._id))}
+              >
+                <td>
+                  <strong>
+                    {a.firstName} {a.lastName}
+                  </strong>
+                  <span className="adm-sub">{a.email}</span>
+                </td>
+                <td>{teamLabel(a.teamSlug)}</td>
+                <td>{kindLabel(a.kind)}</td>
+                <td>{a.esadeStudent ? "Yes" : "No"}</td>
+                <td>{a.level || "—"}</td>
+                <td>{fmtDate(a._creationTime)}</td>
+                <td>
+                  <TeamStatusSelect app={a} />
+                </td>
+              </tr>
+            ))}
+            {apps !== undefined && shown.length === 0 && (
+              <tr className="adm-empty">
+                <td colSpan={7}>{list.length ? "No sign-ups match these filters." : "No try-out or coach sign-ups yet."}</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {open && <TeamAppDetail app={open} onClose={() => setOpenId(null)} />}
+    </>
+  );
+}
+
+function TeamAppDetail({ app, onClose }: { app: TeamApp; onClose: () => void }) {
+  const saveNotes = useMutation(api.admin.setTeamApplicationNotes);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  const rows: [string, React.ReactNode][] = [
+    ["Team", teamLabel(app.teamSlug)],
+    ["Wants to", app.kind === "coach" ? "Coach the team" : "Play (sign up for try-outs)"],
+    ["Email", <a href={`mailto:${app.email}`}>{app.email}</a>],
+    ["Phone", <a href={`tel:${app.phone}`}>{app.phone}</a>],
+    ["Esade student", app.esadeStudent ? "Yes" : "No"],
+    ["Programme and year", app.programme || "—"],
+    ["Level", app.level || "—"],
+    ["Submitted", new Date(app._creationTime).toLocaleString("en-GB")],
+  ];
+  return (
+    <div className="match-modal">
+      <div className="match-backdrop" onClick={onClose} />
+      <section className="match-dialog adm-dialog" role="dialog" aria-modal="true" aria-labelledby="ta-title">
+        <button className="match-close" type="button" onClick={onClose} aria-label="Close">
+          ×
+        </button>
+        <p className="eyebrow" style={{ color: "var(--blue)" }}>
+          {app.kind === "coach" ? "Coach application" : "Try-out sign-up"}
+        </p>
+        <h2 id="ta-title">
+          {app.firstName} {app.lastName}
+        </h2>
+        <dl className="match-details">
+          {rows.map(([k, v]) => (
+            <div key={k}>
+              <dt>{k}</dt>
+              <dd>{v}</dd>
+            </div>
+          ))}
+        </dl>
+        {app.kind === "coach" && (
+          <>
+            <h3 className="adm-h3">Coaching experience</h3>
+            <p className="adm-motivation">{app.coachingExperience || "—"}</p>
+          </>
+        )}
+        <div className="adm-stagebox">
+          <label className="field">
+            Status
+            <TeamStatusSelect app={app} />
+          </label>
+          {app.statusChangedAt && <span className="adm-sub">Since {fmtDate(app.statusChangedAt)}</span>}
+        </div>
+        <Notes value={app.notes} save={(notes) => saveNotes({ id: app._id, notes })} />
+      </section>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { authComponent, isAdminEmail } from "./auth";
-import { stageValidator } from "./stages";
+import { stageValidator, TEAM_STATUSES } from "./stages";
 
 async function requireAdmin(ctx: QueryCtx | MutationCtx) {
   const user = await authComponent.safeGetAuthUser(ctx);
@@ -75,5 +75,34 @@ export const setContactStatus = mutation({
     await requireAdmin(ctx);
     if (!(await ctx.db.get(id))) throw new ConvexError("Message not found.");
     await ctx.db.patch(id, { status });
+  },
+});
+
+// Try-out and coach sign-ups for every team, newest first. Admins only.
+export const listTeamApplications = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+    return ctx.db.query("teamApplications").order("desc").collect();
+  },
+});
+
+export const setTeamApplicationStatus = mutation({
+  args: { id: v.id("teamApplications"), status: v.string() },
+  handler: async (ctx, { id, status }) => {
+    await requireAdmin(ctx);
+    if (!TEAM_STATUSES.includes(status)) throw new ConvexError("Unknown status.");
+    const app = await ctx.db.get(id);
+    if (!app) throw new ConvexError("Sign-up not found.");
+    if (app.status !== status) await ctx.db.patch(id, { status, statusChangedAt: Date.now() });
+  },
+});
+
+export const setTeamApplicationNotes = mutation({
+  args: { id: v.id("teamApplications"), notes: v.string() },
+  handler: async (ctx, { id, notes }) => {
+    await requireAdmin(ctx);
+    if (!(await ctx.db.get(id))) throw new ConvexError("Sign-up not found.");
+    await ctx.db.patch(id, { notes: notes.trim().slice(0, 5000) || undefined });
   },
 });
