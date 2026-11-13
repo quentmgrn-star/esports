@@ -1,5 +1,6 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { stageValidator } from "./stages";
 
 // isExample / dataStatus "example" marks placeholder content that captains still need to replace.
 export default defineSchema({
@@ -112,6 +113,10 @@ export default defineSchema({
     videoId: v.optional(v.id("_storage")),
     acceptsRedirect: v.boolean(),
     confirmsAccuracy: v.boolean(),
+    // Recruitment pipeline (admin only). Missing on older applications = "applied".
+    stage: v.optional(stageValidator),
+    stageChangedAt: v.optional(v.number()),
+    notes: v.optional(v.string()),
   }),
 
   partnerInquiries: defineTable({

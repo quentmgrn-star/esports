@@ -1,8 +1,9 @@
-import { ConvexError } from "convex/values";
-import { query, type QueryCtx } from "./_generated/server";
+import { ConvexError, v } from "convex/values";
+import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { authComponent, isAdminEmail } from "./auth";
+import { stageValidator } from "./stages";
 
-async function requireAdmin(ctx: QueryCtx) {
+async function requireAdmin(ctx: QueryCtx | MutationCtx) {
   const user = await authComponent.safeGetAuthUser(ctx);
   if (!user || !isAdminEmail(user.email)) throw new ConvexError("Not authorised.");
   return user;
@@ -31,5 +32,27 @@ export const listAssociationApplications = query({
         videoUrl: a.videoId ? await ctx.storage.getUrl(a.videoId) : null,
       })),
     );
+  },
+});
+
+// Move an application to another recruitment stage. Admins only.
+export const setApplicationStage = mutation({
+  args: { id: v.id("associationApplications"), stage: stageValidator },
+  handler: async (ctx, { id, stage }) => {
+    await requireAdmin(ctx);
+    const app = await ctx.db.get(id);
+    if (!app) throw new ConvexError("Application not found.");
+    if ((app.stage ?? "applied") === stage) return;
+    await ctx.db.patch(id, { stage, stageChangedAt: Date.now() });
+  },
+});
+
+// Internal notes on an application (interview feedback etc.). Admins only.
+export const setApplicationNotes = mutation({
+  args: { id: v.id("associationApplications"), notes: v.string() },
+  handler: async (ctx, { id, notes }) => {
+    await requireAdmin(ctx);
+    if (!(await ctx.db.get(id))) throw new ConvexError("Application not found.");
+    await ctx.db.patch(id, { notes: notes.trim().slice(0, 5000) || undefined });
   },
 });

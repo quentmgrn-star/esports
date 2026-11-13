@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { useConvexAuth, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { authClient } from "@/lib/auth-client";
 import { convex } from "@/components/ConvexClientProvider";
@@ -23,7 +23,67 @@ type Application = {
   confirmsAccuracy: boolean;
   cvUrl: string | null;
   videoUrl: string | null;
+  stage?: Stage;
+  stageChangedAt?: number;
+  notes?: string;
 };
+
+// Recruitment pipeline (same values as convex/stages.ts).
+type Stage = "applied" | "review" | "interview" | "case" | "offer" | "accepted" | "declined" | "rejected";
+const STAGE_LABEL: Record<Stage, string> = {
+  applied: "Applied",
+  review: "Under review",
+  interview: "Interview",
+  case: "Case interview",
+  offer: "Offer sent",
+  accepted: "Offer accepted",
+  declined: "Offer declined",
+  rejected: "Not accepted",
+};
+const STAGES = Object.keys(STAGE_LABEL) as Stage[];
+const DECISION: Stage[] = ["offer", "accepted", "declined", "rejected"];
+type Tab = "all" | "applied" | "review" | "interview" | "case" | "decision";
+const TABS: [Tab, string][] = [
+  ["all", "All"],
+  ["applied", "Applied"],
+  ["review", "Under review"],
+  ["interview", "Interview"],
+  ["case", "Case interview"],
+  ["decision", "Decision"],
+];
+const stageOf = (a: Application): Stage => a.stage ?? "applied";
+const inTab = (a: Application, tab: Tab) =>
+  tab === "all" || (tab === "decision" ? DECISION.includes(stageOf(a)) : stageOf(a) === tab);
+
+function StageSelect({ app }: { app: Application }) {
+  const setStage = useMutation(api.admin.setApplicationStage);
+  const [busy, setBusy] = useState(false);
+  return (
+    <select
+      className={`adm-stage adm-stage-${stageOf(app)}`}
+      value={stageOf(app)}
+      disabled={busy}
+      aria-label={`Stage for ${app.firstName} ${app.lastName}`}
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => e.stopPropagation()}
+      onChange={async (e) => {
+        setBusy(true);
+        try {
+          await setStage({ id: app._id, stage: e.target.value });
+        } catch (err) {
+          alert(`Could not change the stage: ${err instanceof Error ? err.message : String(err)}`);
+        }
+        setBusy(false);
+      }}
+    >
+      {STAGES.map((st) => (
+        <option key={st} value={st}>
+          {STAGE_LABEL[st]}
+        </option>
+      ))}
+    </select>
+  );
+}
 
 type Me = { name: string; email: string; isAdmin: boolean } | null;
 
@@ -242,9 +302,11 @@ function Dashboard({ me }: { me: NonNullable<Me> }) {
   const [programme, setProgramme] = useState("");
   const [year, setYear] = useState("");
   const [dept, setDept] = useState("");
-  const [open, setOpen] = useState<Application | null>(null);
+  const [tab, setTab] = useState<Tab>("all");
+  const [openId, setOpenId] = useState<string | null>(null);
 
   const list = apps ?? [];
+  const open = list.find((a) => a._id === openId) ?? null;
   const options = useMemo(
     () => ({
       programmes: uniq(list.map((a) => a.programme)),
@@ -253,13 +315,14 @@ function Dashboard({ me }: { me: NonNullable<Me> }) {
     }),
     [list],
   );
-  const shown = list.filter(
+  const filtered = list.filter(
     (a) =>
       (!first || a.firstName.toLowerCase().includes(first.trim().toLowerCase())) &&
       (!programme || a.programme === programme) &&
       (!year || a.year === year) &&
       (!dept || a.pref1 === dept || a.pref2 === dept),
   );
+  const shown = filtered.filter((a) => inTab(a, tab));
 
   return (
     <main className="wrap adm-main">
@@ -272,6 +335,21 @@ function Dashboard({ me }: { me: NonNullable<Me> }) {
           <a className="btn btn-blue" href="/#hub-overview">Open the Hub</a>
           <SignOut />
         </div>
+      </div>
+
+      <div className="adm-tabs" role="tablist" aria-label="Recruitment stage">
+        {TABS.map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={tab === id}
+            className="adm-tab"
+            onClick={() => setTab(id)}
+          >
+            {label} <span>{filtered.filter((a) => inTab(a, id)).length}</span>
+          </button>
+        ))}
       </div>
 
       <div className="adm-filters">
@@ -309,7 +387,9 @@ function Dashboard({ me }: { me: NonNullable<Me> }) {
       </div>
 
       <p className="adm-count">
-        {apps === undefined ? "Loading…" : `${shown.length} of ${list.length} application${list.length === 1 ? "" : "s"}`}
+        {apps === undefined
+          ? "Loading…"
+          : `${shown.length} shown · ${list.length} application${list.length === 1 ? "" : "s"} in total`}
       </p>
 
       <div className="adm-table-wrap">
@@ -322,6 +402,7 @@ function Dashboard({ me }: { me: NonNullable<Me> }) {
               <th>Preference 1</th>
               <th>Preference 2</th>
               <th>Submitted</th>
+              <th>Stage</th>
             </tr>
           </thead>
           <tbody>
@@ -329,8 +410,8 @@ function Dashboard({ me }: { me: NonNullable<Me> }) {
               <tr
                 key={a._id}
                 tabIndex={0}
-                onClick={() => setOpen(a)}
-                onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), setOpen(a))}
+                onClick={() => setOpenId(a._id)}
+                onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), setOpenId(a._id))}
               >
                 <td>
                   <strong>
@@ -343,18 +424,22 @@ function Dashboard({ me }: { me: NonNullable<Me> }) {
                 <td>{a.pref1}</td>
                 <td>{a.pref2 || "—"}</td>
                 <td>{fmtDate(a._creationTime)}</td>
+                <td>
+                  <StageSelect app={a} />
+                  {a.stageChangedAt && <span className="adm-sub">since {fmtDate(a.stageChangedAt)}</span>}
+                </td>
               </tr>
             ))}
             {apps !== undefined && shown.length === 0 && (
               <tr className="adm-empty">
-                <td colSpan={6}>{list.length ? "No applications match these filters." : "No applications yet."}</td>
+                <td colSpan={7}>{list.length ? "No applications in this stage match these filters." : "No applications yet."}</td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
 
-      {open && <Detail app={open} onClose={() => setOpen(null)} />}
+      {open && <Detail app={open} onClose={() => setOpenId(null)} />}
     </main>
   );
 }
@@ -403,9 +488,59 @@ function Detail({ app, onClose }: { app: Application; onClose: () => void }) {
             </div>
           ))}
         </dl>
+        <div className="adm-stagebox">
+          <label className="field">
+            Stage
+            <StageSelect app={app} />
+          </label>
+          {app.stageChangedAt && <span className="adm-sub">In this stage since {fmtDate(app.stageChangedAt)}</span>}
+        </div>
+        <Notes app={app} />
         <h3 className="adm-h3">Motivation</h3>
         <p className="adm-motivation">{app.motivation}</p>
       </section>
+    </div>
+  );
+}
+
+// Internal notes, only visible in the admin area.
+function Notes({ app }: { app: Application }) {
+  const save = useMutation(api.admin.setApplicationNotes);
+  const [text, setText] = useState(app.notes ?? "");
+  const [state, setState] = useState<"" | "saving" | "saved" | "error">("");
+  const dirty = text.trim() !== (app.notes ?? "");
+  return (
+    <div className="adm-notes">
+      <h3 className="adm-h3">Internal notes</h3>
+      <textarea
+        value={text}
+        rows={4}
+        placeholder="Interview feedback, next steps… Only admins can see this."
+        onChange={(e) => {
+          setText(e.target.value);
+          setState("");
+        }}
+      />
+      <div className="adm-notes-actions">
+        <button
+          className="btn btn-ghost-navy"
+          type="button"
+          disabled={!dirty || state === "saving"}
+          onClick={async () => {
+            setState("saving");
+            try {
+              await save({ id: app._id, notes: text });
+              setState("saved");
+            } catch {
+              setState("error");
+            }
+          }}
+        >
+          {state === "saving" ? "Saving…" : "Save notes"}
+        </button>
+        {state === "saved" && <span className="adm-sub">Saved.</span>}
+        {state === "error" && <span className="err">Could not save. Try again.</span>}
+      </div>
     </div>
   );
 }

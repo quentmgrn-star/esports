@@ -74,6 +74,6 @@ export const submitAssociationApplication = mutation({
       throw new ConvexError("Invalid department preferences.");
     }
     if (!a.acceptsRedirect || !a.confirmsAccuracy) throw new ConvexError("Both acknowledgements are required.");
-    return ctx.db.insert("associationApplications", a);
+    return ctx.db.insert("associationApplications", { ...a, stage: "applied", stageChangedAt: Date.now() });
   },
 });
