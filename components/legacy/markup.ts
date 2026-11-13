@@ -65,6 +65,8 @@ export const SITE_MARKUP = `
         ${heroSlides}
         <div class="stripes"></div>
         <div class="slide-dots" role="group" aria-label="Choose a photo">${heroDots}</div>
+        <button type="button" class="slide-arrow prev" data-step="-1" aria-label="Previous photo">&#8592;</button>
+        <button type="button" class="slide-arrow next" data-step="1" aria-label="Next photo">&#8594;</button>
       </div>
     </div>
   </section>

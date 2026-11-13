@@ -724,3 +724,9 @@ a { color: inherit; }
 
 .alumni-teaser { background: var(--mist); }
 .alumni-teaser-text { margin: 0; max-width: 60ch; color: var(--ink-soft); font-size: 17px; }
+.slide-arrow { position: absolute; top: 50%; transform: translateY(-50%); z-index: 2; width: 44px; height: 44px; border: 1.5px solid rgba(255,255,255,.6); background: rgba(0,11,61,.55); color: var(--white); font-size: 20px; line-height: 1; cursor: pointer; display: grid; place-items: center; }
+.slide-arrow:hover { background: var(--navy); border-color: var(--white); }
+.slide-arrow:focus-visible { outline: 2px solid var(--white); outline-offset: 2px; }
+.slide-arrow.prev { left: 8%; }
+.slide-arrow.next { right: 8%; }
+@media (max-width: 600px) { .slide-arrow { width: 36px; height: 36px; font-size: 16px; } .slide-arrow.prev { left: 7%; } .slide-arrow.next { right: 7%; } }

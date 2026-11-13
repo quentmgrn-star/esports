@@ -1004,7 +1004,7 @@ export function initSite(backend) {
     var h = location.hash.slice(1);
     if (h === "signin" || h.indexOf("hub-") === 0) render();
   }
-  // Hero photo slideshow: auto-advances every 5 s, pauses on hover/focus, swipe on touch, still if reduced motion is on.
+  // Hero photo slideshow: auto-advances every 3.4 s, arrows/keys go back and forth, pauses on hover/focus, swipe on touch, still if reduced motion is on.
   (function () {
     var box = $("hero-slides"); if (!box) return;
     var slides = box.querySelectorAll(".slide"), dots = box.querySelectorAll("[data-slide]"), cur = 0, timer = null, paused = false;
@@ -1014,9 +1014,13 @@ export function initSite(backend) {
       slides.forEach(function (s, k) { s.classList.toggle("on", k === cur); s.setAttribute("aria-hidden", k !== cur); });
       dots.forEach(function (d, k) { d.setAttribute("aria-pressed", k === cur); });
     }
-    function start() { stop(); if (!still) timer = setInterval(function () { if (!paused && !document.hidden) show(cur + 1); }, 5000); }
+    function start() { stop(); if (!still) timer = setInterval(function () { if (!paused && !document.hidden) show(cur + 1); }, 3400); }
     function stop() { if (timer) clearInterval(timer); timer = null; }
     dots.forEach(function (d) { d.addEventListener("click", function () { show(+d.getAttribute("data-slide")); start(); }); });
+    box.querySelectorAll("[data-step]").forEach(function (b) { b.addEventListener("click", function () { show(cur + +b.getAttribute("data-step")); start(); }); });
+    box.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); show(cur + (e.key === "ArrowLeft" ? -1 : 1)); start(); }
+    });
     box.addEventListener("mouseenter", function () { paused = true; });
     box.addEventListener("mouseleave", function () { paused = false; });
     box.addEventListener("focusin", function () { paused = true; });
