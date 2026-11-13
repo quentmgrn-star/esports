@@ -217,7 +217,7 @@ export function initI18n() {
     "Published on every channel, in English.": ["Publicada a tots els canals, en anglès.","Publicada en todos los canales, en inglés."],
     "Apply": ["Candidatura","Candidatura"],
     "CV, cover letter and a short video, through this website.": ["CV, carta de presentació i un vídeo curt, a través d'aquesta web.","CV, carta de presentación y un vídeo corto, a través de esta web."],
-    "Reviews/Screenings": ["Revisió i cribratge","Revisión y cribado"],
+    "Review": ["Revisió","Revisión"],
     "Chosen by the Board: executive board and Heads.": ["La tria la Junta: executiva i caps de departament.","La elige la Junta: ejecutiva y jefes de departamento."],
     "Interview": ["Entrevista","Entrevista"],
     "Formal, with set questions and a code of conduct.": ["Formal, amb preguntes fixades i un codi de conducta.","Formal, con preguntas fijadas y un código de conducta."],

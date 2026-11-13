@@ -221,7 +221,7 @@ export const SITE_MARKUP = `
       <ol class="steps" aria-label="How recruitment works">
         <li><span class="k">STEP 1</span><strong>Open call</strong><p>Published on every channel, in English.</p></li>
         <li><span class="k">STEP 2</span><strong>Apply</strong><p>CV, cover letter and a short video, through this website.</p></li>
-        <li><span class="k">STEP 3</span><strong>Reviews/Screenings</strong><p>Chosen by the Board: executive board and Heads.</p></li>
+        <li><span class="k">STEP 3</span><strong>Review</strong><p>Chosen by the Board: executive board and Heads.</p></li>
         <li><span class="k">STEP 4</span><strong>Interview</strong><p>Formal, with set questions and a code of conduct.</p></li>
         <li><span class="k">STEP 5</span><strong>Offer</strong><p>Offer and onboarding into your department.</p></li>
       </ol>
