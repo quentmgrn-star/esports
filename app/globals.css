@@ -915,3 +915,32 @@ a { text-underline-offset: .18em; text-decoration-thickness: 1.5px; }
 #hub .history button .ico, .slide-arrow .ico { vertical-align: middle; }
 #hub .history button, .slide-arrow { display: inline-flex; align-items: center; justify-content: center; }
 #hub .ph-head .exports { flex: none; flex-wrap: nowrap; }
+
+/* Roster cards, idea flow, notifications */
+#hub .pl-cards { display: grid; gap: 12px; }
+#hub .pl-card { border: 1px solid var(--line); background: var(--white); padding: 14px 16px; display: grid; gap: 12px; }
+#hub .pl-head { display: flex; align-items: center; gap: 10px; }
+#hub .pl-head [data-pl-del] { margin-left: auto; }
+#hub .pl-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px 12px; }
+#hub .pl-f { display: grid; gap: 4px; min-width: 0; }
+#hub .pl-f > span { font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); }
+#hub .pl-f input, #hub .pl-f select { width: 100%; min-width: 0; font: inherit; font-size: 14px; padding: 7px 9px; border: 1px solid var(--line); background: var(--white); color: var(--navy); }
+#hub .pl-f input:focus, #hub .pl-f select:focus { border-color: var(--blue); }
+#hub .pl-email, #hub .pl-notes { grid-column: span 2; }
+@media (max-width: 900px) { #hub .pl-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { #hub .pl-grid { grid-template-columns: 1fr; } #hub .pl-email, #hub .pl-notes { grid-column: auto; } }
+#hub .idea-btns { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; grid-column: 1 / -1; }
+#hub .concerns { flex-direction: column; align-items: flex-start; gap: 6px; }
+#hub .concerns label { white-space: normal; }
+#hub ul.comments { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 8px; border-top: 1px solid var(--line); padding-top: 10px; }
+#hub ul.comments p { margin: 2px 0 0; font-size: 13px; }
+#hub .comment-f { display: flex; gap: 8px; margin-top: 10px; }
+#hub .comment-f input { flex: 1; min-width: 0; font: inherit; font-size: 13px; padding: 6px 9px; border: 1px solid var(--line); }
+#hub .done-note { margin: 8px 0 0; font-size: 13px; font-weight: 700; color: #067647; }
+#hub .notif-list { list-style: none; margin: 0; padding: 0; display: grid; }
+#hub .notif-list li + li { border-top: 1px solid var(--line); }
+#hub .notif-list a { display: grid; gap: 2px; padding: 10px 0 10px 14px; color: var(--navy); text-decoration: none; position: relative; }
+#hub .notif-list a:hover strong { text-decoration: underline; }
+#hub .notif-list span { font-size: 13px; color: var(--ink-soft); }
+#hub .notif-list small { font-size: 11px; }
+#hub .notif-list li.unread a::before { content: ""; position: absolute; left: 0; top: 16px; width: 7px; height: 7px; background: var(--blue); }

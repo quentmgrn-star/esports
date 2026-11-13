@@ -103,6 +103,17 @@ export default function EsadeSite() {
       saveRoster: (a: Record<string, unknown>) => client.mutation(api.rosters.save, a as never),
       suggestIdea: (a: Record<string, unknown>) => client.mutation(api.ideas.suggest, a as never),
       updateIdea: (a: Record<string, unknown>) => client.mutation(api.ideas.update, a as never),
+      decideIdea: (a: Record<string, unknown>) => client.mutation(api.ideas.decide, a as never),
+      communicatedIdea: (a: Record<string, unknown>) => client.mutation(api.ideas.communicated, a as never),
+      commentIdea: (a: Record<string, unknown>) => client.mutation(api.ideas.comment, a as never),
+      // In-app notifications (who sees one is decided in Convex), kept live.
+      watchNotifications: (cb: (d: unknown) => void) => {
+        const w = client.watchQuery(api.notifications.list, {});
+        const push = () => { try { cb(w.localQueryResult()); } catch (e) { console.error(e); } };
+        push();
+        return w.onUpdate(push);
+      },
+      markNotifsSeen: () => client.mutation(api.notifications.markSeen, {}),
       // Uploads the CV (and optional video) to Convex storage, then stores the application.
       submitAssociationApplication: async (a: Record<string, unknown>, files: { cv: File; video?: File }) => {
         const upload = async (file: File) => {

@@ -276,7 +276,22 @@ export default defineSchema({
     team: v.string(),
     kind: v.string(),
     text: v.string(),
-    status: v.union(v.literal("new"), v.literal("researching"), v.literal("planned"), v.literal("dropped")),
+    // new (captain's idea) → researching (Operations) → awaiting (the captain approves or declines)
+    // → approved (Marketing communicates it) → communicated. "planned" is kept for older rows.
+    status: v.union(
+      v.literal("new"),
+      v.literal("researching"),
+      v.literal("awaiting"),
+      v.literal("approved"),
+      v.literal("communicated"),
+      v.literal("planned"),
+      v.literal("dropped"),
+    ),
+    origin: v.optional(v.union(v.literal("captain"), v.literal("ops"))),
+    concerns: v.optional(v.union(v.literal("budget"), v.literal("team"))), // budget: Finance gets an expense request
+    expenseId: v.optional(v.id("expenses")),
+    channel: v.optional(v.union(v.literal("media"), v.literal("news"))), // where Marketing communicated it
+    comments: v.optional(v.array(v.object({ by: v.string(), at: v.number(), text: v.string() }))),
     opsNote: v.optional(v.string()), // what Operations found: options, dates, estimated cost
     estimate: v.optional(v.number()), // euros
     by: v.string(),
@@ -285,6 +300,21 @@ export default defineSchema({
     updatedBy: v.optional(v.string()),
     updatedAt: v.optional(v.number()),
   }).index("by_team", ["team"]),
+
+  // In-app notifications. Addressed to a team's captains and/or a department for a team;
+  // who sees one follows convex/roles.ts (canSee). notifSeen: when each person last opened them.
+  notifications: defineTable({
+    team: v.string(),
+    dept: v.optional(v.string()),
+    captains: v.optional(v.boolean()),
+    title: v.string(),
+    body: v.optional(v.string()),
+    link: v.optional(v.string()), // Hub route, e.g. "hub-ideas"
+    by: v.string(),
+    byEmail: v.string(),
+    at: v.number(),
+  }).index("by_at", ["at"]),
+  notifSeen: defineTable({ email: v.string(), at: v.number() }).index("by_email", ["email"]),
 
   // Team roster (captain's team sheet). Sensitive personal data: only the team's captain(s),
   // admins, the President and the Vice-presidents can read or change it (convex/rosters.ts). Never public.
