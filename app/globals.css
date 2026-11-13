@@ -966,3 +966,33 @@ a { text-underline-offset: .18em; text-decoration-thickness: 1.5px; }
 #hub .tu-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; }
 #hub .tu-row input[type=file] { font-size: 12px; max-width: 200px; }
 @media (max-width: 640px) { #hub .tu-row { grid-template-columns: 1fr; } #hub .tu-row input[type=file] { max-width: none; } }
+
+/* Overview: department budgets, work feed, main links, Operations desk, history, Esade step */
+#hub .lead-note { margin: 0 0 14px; font-size: 14px; line-height: 1.55; color: var(--ink-soft); max-width: 72ch; }
+#hub .lead-note b { color: var(--ink); }
+#hub .b-lines { margin-bottom: 4px; }
+#hub details.b-teams { margin-top: 12px; }
+#hub details.b-teams > summary, #hub details.b-teams > summary { cursor: pointer; font-size: 13px; font-weight: 700; color: var(--blue, #0a4bd6); }
+#hub .budget-t td small { font-size: 12px; }
+#hub .work-feed { list-style: none; margin: 0; padding: 0; }
+#hub .work-feed li { padding: 10px 0; border-bottom: 1px solid var(--line); }
+#hub .work-feed li p { margin: 4px 0 0; font-size: 14px; overflow-wrap: anywhere; }
+#hub .link-list { list-style: none; margin: 0; padding: 0; }
+#hub .link-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; padding: 9px 0; border-bottom: 1px solid var(--line); align-items: center; }
+#hub .link-list li a { font-weight: 700; }
+#hub .link-list li small { grid-column: 1; font-size: 12px; }
+#hub .link-list li button { grid-column: 2; grid-row: 1 / span 2; }
+#hub .link-list li.ph span { color: var(--ink-soft); font-weight: 600; }
+#hub .links-panel .chips { margin-bottom: 10px; }
+#hub .link-form { display: grid; grid-template-columns: 1fr 1.3fr 1fr auto; gap: 8px; margin-top: 12px; }
+#hub .link-form input { min-width: 0; border: 1.5px solid var(--line); background: var(--white); padding: 7px 9px; font: inherit; font-size: 14px; }
+@media (max-width: 760px) { #hub .link-form { grid-template-columns: 1fr; } }
+#hub .sub-h { font-size: 14px; margin: 16px 0 4px; }
+#hub .tasks li .dept-tag { grid-column: 1 / -1; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+#hub .hist-filters .form { display: flex; flex-wrap: wrap; gap: 12px; }
+#hub .hist-filters label { min-width: 220px; }
+#hub small.esade { font-size: 12px; color: var(--ink-soft); }
+#hub small.esade.ok { color: #1f7a3f; font-weight: 600; }
+#hub small.esade.bad { color: #b42318; font-weight: 600; }
+#hub .esade-box { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; margin-bottom: 6px; }
+#hub .btn[disabled] { opacity: .45; cursor: not-allowed; }

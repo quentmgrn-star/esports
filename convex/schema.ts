@@ -249,6 +249,11 @@ export default defineSchema({
     decidedByEmail: v.optional(v.string()),
     decidedAt: v.optional(v.number()),
     reason: v.optional(v.string()), // required for a rejection
+    // Esade's own finance office must accept a request before Finance can validate it.
+    esade: v.optional(v.union(v.literal("sent"), v.literal("accepted"), v.literal("refused"))),
+    esadeAt: v.optional(v.number()),
+    esadeBy: v.optional(v.string()),
+    esadeNote: v.optional(v.string()),
     history: v.array(
       v.object({ action: v.string(), by: v.string(), at: v.number(), reason: v.optional(v.string()) }),
     ),
@@ -354,4 +359,14 @@ export default defineSchema({
     byEmail: v.string(),
     at: v.number(),
   }).index("by_task", ["taskKey"]),
+
+  // Main links on the Hub overview, per department (convex/deptLinks.ts).
+  deptLinks: defineTable({
+    dept: v.string(), // department name
+    title: v.string(),
+    url: v.string(),
+    note: v.optional(v.string()),
+    by: v.string(),
+    at: v.number(),
+  }).index("by_dept", ["dept"]),
 });

@@ -202,9 +202,9 @@ export function initSite(backend, tools) {
   var state = { user: null, me: null, expenses: null, captains: null, teamApplications: {}, teamInfo: {}, teamResults: {}, tasks: {}, checkups: [], rosters: {}, deckNotes: {}, nextId: 100, al: { q: "", sport: "All", year: "" }, hubFilter: "all", appFilter: "all", teamOpen: null };
   try {
     var s = JSON.parse(localStorage.getItem("es-site") || "null");
-    if (s && s.v === 2) { state.user = s.user && s.user.role === "alumni" ? null : s.user; state.expenses = s.expenses; state.captains = s.captains || null; state.teamApplications = s.teamApplications || {}; state.teamInfo = s.teamInfo || {}; state.teamResults = s.teamResults || {}; state.tasks = s.tasks || {}; state.newTasks = s.newTasks || []; state.checkups = s.checkups || []; state.tupd = s.tupd || []; state.notifs = s.notifs || []; state.notifSeen = s.notifSeen || 0; state.rosters = s.rosters || {}; state.deckNotes = s.deckNotes || {}; state.ideas = s.ideas || null; state.nextId = s.nextId || 100; }
+    if (s && s.v === 2) { state.user = s.user && s.user.role === "alumni" ? null : s.user; state.expenses = s.expenses; state.captains = s.captains || null; state.teamApplications = s.teamApplications || {}; state.teamInfo = s.teamInfo || {}; state.teamResults = s.teamResults || {}; state.tasks = s.tasks || {}; state.newTasks = s.newTasks || []; state.checkups = s.checkups || []; state.tupd = s.tupd || []; state.links = s.links || []; state.notifs = s.notifs || []; state.notifSeen = s.notifSeen || 0; state.rosters = s.rosters || {}; state.deckNotes = s.deckNotes || {}; state.ideas = s.ideas || null; state.nextId = s.nextId || 100; }
   } catch (e) {}
-  function save() { try { localStorage.setItem("es-site", JSON.stringify({ v: 2, user: state.user, expenses: state.expenses, captains: state.captains, teamApplications: state.teamApplications, teamInfo: state.teamInfo, teamResults: state.teamResults, tasks: state.tasks, newTasks: state.newTasks, checkups: state.checkups, tupd: state.tupd, notifs: state.notifs, notifSeen: state.notifSeen, rosters: state.rosters, ideas: state.ideas, deckNotes: state.deckNotes, nextId: state.nextId })); } catch (e) {} }
+  function save() { try { localStorage.setItem("es-site", JSON.stringify({ v: 2, user: state.user, expenses: state.expenses, captains: state.captains, teamApplications: state.teamApplications, teamInfo: state.teamInfo, teamResults: state.teamResults, tasks: state.tasks, newTasks: state.newTasks, checkups: state.checkups, tupd: state.tupd, links: state.links, notifs: state.notifs, notifSeen: state.notifSeen, rosters: state.rosters, ideas: state.ideas, deckNotes: state.deckNotes, nextId: state.nextId })); } catch (e) {} }
   // Hub views (same rules as convex/roles.ts; permissions table in README.md):
   //   admin / exec (president, VPs): everything · viewer (Student Council, Eva Morta): everything, read-only
   //   head: their department for every team · associate: their department, their teams · captain: their team(s)
@@ -972,8 +972,9 @@ export function initSite(backend, tools) {
     [11, "volleyball-mixed", "Team shirts", "Kit", 540, "Captain", "2026-10-28", "paid"], [12, "futsal-men", "Futsal balls (10)", "Material", 310, "Operations", "2026-11-01", "validated"],
     [13, "padel-women", "Padel balls (24)", "Material", 150, "Captain", "2026-11-09", "requested"]
   ].map(function (r) { return { id: r[0], team: r[1], item: r[2], cat: r[3], amount: r[4], by: r[5], date: r[6], status: r[7] }; });
-  // Older saved prototype rows: give them a budget line (department) and a decision history.
+  // Older saved prototype rows: give them a budget line (department), a decision history and an Esade status.
   state.expenses.forEach(function (e) {
+    if (!("esade" in e)) e.esade = e.status === "validated" || e.status === "paid" || e.id === 7 ? "accepted" : e.id === 6 ? "sent" : null;
     if (!e.dept) e.dept = e.cat === "Media" || e.cat === "Promotion" ? "Media & Marketing" : "Operations";
     if (!e.history) {
       var at = Date.parse(e.date + "T10:00:00Z"); e.history = [{ action: "requested", by: e.by, at: at }];
@@ -1151,7 +1152,7 @@ export function initSite(backend, tools) {
   function teamResultsFor(id) { return state.teamResults[id] || []; }
   function pill(map, k) { return '<span class="pill ' + map[k][0] + '">' + map[k][1] + "</span>"; }
   function stat(k, v, s) { return '<div class="stat"><p class="eyebrow">' + k + '</p><span class="v num">' + v + "</span><small>" + s + "</small></div>"; }
-  var HUBV = [["hub-overview", "Overview"], ["hub-teams", "Teams"], ["hub-team-editor", "Team editor"], ["hub-applications", "Sports applications"], ["hub-captains", "Captains"], ["hub-ideas", "Ideas & logistics"], ["hub-expenses", "Expenses ledger"], ["hub-departments", "Departments"], ["hub-report", "Reports"]];
+  var HUBV = [["hub-overview", "Overview"], ["hub-teams", "Teams"], ["hub-team-editor", "Team editor"], ["hub-applications", "Sports applications"], ["hub-captains", "Captains"], ["hub-ideas", "Ideas & logistics"], ["hub-expenses", "Expenses ledger"], ["hub-departments", "Departments"], ["hub-history", "History"], ["hub-report", "Reports"]];
 
   function hubShell(view, inner) {
     var pending = visExp().filter(canDecideE).length, newIdeas = can("ideas") ? visIdeas().filter(function (i) { return (i.status === "new" && canRunIdea(i)) || canApproveIdea(i) || canCommIdea(i); }).length : 0;
@@ -1188,10 +1189,133 @@ export function initSite(backend, tools) {
     return '<section class="panel"><div class="panel-head"><h2>Departments</h2><a class="btn sm" href="#hub-departments">Open</a></div><table><tbody>' +
       visDepts().map(function (d) { var done = d.tasks.filter(function (t, i) { return state.tasks[d.id + i] === "done"; }).length; return "<tr><td><strong>" + d.name + '</strong><br><small class="muted">' + d.head + '</small></td><td class="r num">' + done + " / " + d.tasks.length + ' <span class="muted">done</span></td></tr>'; }).join("") + "</tbody></table></section>";
   }
+  // ---- Overview panels: department budgets, where the work stands, main links, Operations desk ---------
+  function pair(a, b) { return a && b ? '<div class="grid-2">' + a + b + "</div>" : a || b; }
+  function okUrl(u) { return /^https?:\/\//i.test(u || "") ? u : ""; }
+  // Budgets: only Operations and Marketing spend a team's budget. Finance allocates it and approves or rejects requests.
+  function budgetPanel() {
+    var ts = visTeams(), tot = { ops: 0, med: 0, uo: 0, um: 0 };
+    var rows = ts.map(function (t) {
+      var b = budgetLines(t), u = lineUse(t.id); tot.ops += b.ops; tot.med += b.med; tot.uo += u.ops; tot.um += u.med;
+      return '<tr><td class="tname">' + esc(tLabel(t)) + '</td><td class="r num">' + EUR.format(t.budget) + '</td><td class="r num">' + EUR.format(b.ops) + '<small class="muted"> · ' + EUR.format(u.ops) + ' used</small></td><td class="r num">' + EUR.format(b.med) + '<small class="muted"> · ' + EUR.format(u.med) + " used</small></td></tr>";
+    }).join("");
+    return '<section class="panel budgets"><div class="panel-head"><h2>Department budgets' + (ts.length === 1 ? " · " + esc(tLabel(ts[0])) : "") + '</h2><span class="pill">Example split 70 / 30</span></div>' +
+      '<p class="lead-note">Each team\'s budget is split between <b>Operations</b> and <b>Marketing</b>, the two departments that spend it. <b>Finance does not spend it.</b> Finance allocates the budgets and approves or rejects each request, once Esade\'s finance office has accepted it.</p>' +
+      '<div class="grid-4 b-lines">' + stat("Team budgets", EUR.format(tot.ops + tot.med), ts.length + " team" + (ts.length === 1 ? "" : "s") + " · allocated by Finance") + stat("Operations", EUR.format(tot.ops), EUR.format(tot.uo) + " used · kit, facilities, travel") + stat("Marketing", EUR.format(tot.med), EUR.format(tot.um) + " used · media, promotion, events") +
+        stat("Waiting for a decision", EUR.format(visExp().filter(function (e) { return e.status === "requested" && ts.some(function (t) { return t.id === e.team; }); }).reduce(function (n, e) { return n + e.amount; }, 0)), "Esade, then Finance") + "</div>" +
+      (ts.length > 1 ? '<details class="b-teams"><summary>Split for each team</summary><div class="table-wrap"><table class="budget-t"><thead><tr><th>Team</th><th class="r">Total</th><th class="r">Operations</th><th class="r">Marketing</th></tr></thead><tbody>' + rows + "</tbody></table></div></details>" : "") + "</section>";
+  }
+  // Task updates the person may see (the server already filters; this also covers the admin's "Demo as" views).
+  function visUpdates() {
+    var u = hv(), rows = live() ? (LIVE.tupd || []) : (state.tupd || []);
+    return rows.filter(function (r) { return hFull() || r.dept === deptName(u.dept) || (r.dept === "Board" && u.role === "head"); });
+  }
+  function taskIndex() { var m = {}; DEPTS.forEach(function (d) { deptTasks(d).forEach(function (t) { m[t.key] = { title: t.title, dept: d.id, status: t.status, owner: t.owner }; }); }); return m; }
+  function workPanel() {
+    if (!can("depts")) return "";
+    var m = taskIndex(), ups = visUpdates().slice().sort(function (a, b) { return b.at - a.at; }).slice(0, 6), d = hv().dept;
+    return '<section class="panel"><div class="panel-head"><h2>Where the work stands</h2><a class="btn sm" href="#hub-departments" data-dept-open="' + (d || "") + '">Post an update</a></div>' +
+      (ups.length ? '<ul class="work-feed">' + ups.map(function (r) {
+        var t = m[r.taskKey];
+        return '<li><div class="tu-head"><span class="pill ' + (r.kind === "summary" ? "info" : "") + '">' + (r.kind === "summary" ? "Work summary" : "Comment") + "</span><b>" + esc(r.by) + '</b><small class="muted">' + esc(fmtWhen(r.at)) + "</small></div><p><strong>" + esc(t ? t.title : "Task") + "</strong>" + (r.text ? " · " + esc(r.text.length > 160 ? r.text.slice(0, 157) + "…" : r.text) : "") + "</p></li>";
+      }).join("") + "</ul>" : '<p class="empty">No work summaries yet. Open a task in your department and write where you are: what is done, what is next, what you need.</p>') + "</section>";
+  }
+  // Main links per department. IT gets the real tools behind the website; the rest are added by each head.
+  var DEFAULT_LINKS = {
+    it: [["Website code (GitHub)", "https://github.com/quentmgrn-star/esports", "Every change to the site starts here"],
+      ["How to change the website", "https://github.com/quentmgrn-star/esports#readme", "README: run it, edit it, publish it"],
+      ["Hosting (Vercel)", "https://vercel.com/dashboard", "Deployments and logs"],
+      ["Database (Convex)", "https://dashboard.convex.dev", "Data, environment variables, functions"]]
+  };
+  var LINK_HINTS = { ops: ["Court booking website", "Current league website"], med: ["Instagram account", "Media shared folder"], par: ["Sponsor pipeline", "Partnership deck"], fin: ["Budget sheet", "Esade finance office contact"] };
+  function canLinks(id) { var u = hv(); return !hRO() && (u.role === "admin" || u.role === "exec" || (u.role === "head" && u.dept === id)); }
+  function savedLinks(id) {
+    var n = deptName(id);
+    if (live()) return (LIVE.links || []).filter(function (r) { return r.dept === n; }).map(function (r) { return { id: r._id, title: r.title, url: r.url, note: r.note }; });
+    return (state.links || []).filter(function (r) { return r.dept === n; });
+  }
+  function linksPanel() {
+    var u = hv(); if (!can("depts")) return "";
+    var ids = hFull() || !u.dept || u.dept === "board" ? ["ops", "it", "med", "par", "fin"] : [u.dept], cur = ids.indexOf(state.linksDept) > -1 ? state.linksDept : ids[0];
+    var auto = (DEFAULT_LINKS[cur] || []).map(function (l) { return { title: l[0], url: l[1], note: l[2] }; });
+    if (cur === "ops") visTeams().forEach(function (t) { var i = teamInfoFor(t.id); if (okUrl(i.leagueUrl)) auto.push({ title: "League page · " + tLabel(t), url: i.leagueUrl, note: i.league || "Saved by the captain in Team editor" }); });
+    var saved = savedLinks(cur), edit = canLinks(cur), have = auto.concat(saved).map(function (l) { return l.title.toLowerCase(); }).join("|");
+    var todo = (LINK_HINTS[cur] || []).filter(function (h) { return have.indexOf(h.toLowerCase().split(" ")[0]) < 0; });
+    function li(l, del) { return '<li><a href="' + esc(okUrl(l.url)) + '" target="_blank" rel="noopener">' + esc(l.title) + " " + ico("out") + "</a>" + (l.note ? '<small class="muted">' + esc(l.note) + "</small>" : "") + (del ? '<button type="button" class="btn sm ghost" data-link-del="' + esc(String(l.id)) + '" aria-label="Remove ' + esc(l.title) + '">' + ico("x") + "</button>" : "") + "</li>"; }
+    return '<section class="panel links-panel"><div class="panel-head"><h2>Main links' + (ids.length === 1 ? " · " + esc(deptName(cur)) : "") + "</h2></div>" +
+      (ids.length > 1 ? '<div class="chips" role="group" aria-label="Department">' + ids.map(function (id) { return '<button class="chip" data-links-dept="' + id + '" aria-pressed="' + (id === cur) + '">' + esc(id === "med" ? "Marketing" : deptName(id)) + "</button>"; }).join("") + "</div>" : "") +
+      (cur === "it" ? '<p class="lead-note">To change the website: edit the code on GitHub (branch <b>main</b>). Vercel publishes it in a few minutes and updates the Convex database at the same time.</p>' : "") +
+      '<ul class="link-list">' + auto.map(function (l) { return li(l, false); }).join("") + saved.map(function (l) { return li(l, edit); }).join("") +
+      todo.map(function (h) { return '<li class="ph"><span>' + esc(h) + '</span><small class="muted">Not added yet' + (edit ? "" : ": ask the head of the department") + "</small></li>"; }).join("") + "</ul>" +
+      (edit ? '<form class="link-form" id="link-form" data-dept="' + cur + '"><input name="title" maxlength="80" placeholder="Name, e.g. ' + esc(todo[0] || "Shared folder") + '" aria-label="Link name" required><input name="url" inputmode="url" placeholder="https://…" aria-label="Address" required><input name="note" maxlength="200" placeholder="Note (optional)" aria-label="Note"><button class="btn sm solid" type="submit">Add link</button></form>' : "") + "</section>";
+  }
+  // Head of Operations (and Operations associates): what to organise, team by team.
+  function opsDesk() {
+    var u = hv(); if (u.dept !== "ops" || (u.role !== "head" && u.role !== "associate")) return "";
+    var ideas = visIdeas(), ts = visTeams();
+    var todo = ideas.filter(function (i) { return i.status === "new" || i.status === "researching"; }), wait = ideas.filter(function (i) { return i.status === "awaiting"; }), go = ideas.filter(function (i) { return i.status === "approved" || i.status === "communicated" || i.status === "planned"; });
+    var left = 0; ts.forEach(function (t) { left += budgetLines(t).ops - lineUse(t.id).ops; });
+    function row(i) { return '<li><span><strong>' + esc(i.kind) + '</strong> · ' + esc(tLabel(team(i.team)) || i.team) + '<small class="muted">' + esc(i.text.length > 110 ? i.text.slice(0, 107) + "…" : i.text) + "</small></span>" + pill(IDEA_STATUS, i.status) + "</li>"; }
+    var d = null; DEPTS.forEach(function (x) { if (x.id === "ops") d = x; });
+    var people = {}; deptTasks(d).forEach(function (t) { var k = t.owner || "Unassigned"; people[k] = people[k] || { open: 0, done: 0, last: 0 }; people[k][t.status === "done" ? "done" : "open"]++; taskUpdatesFor(t.key).forEach(function (x) { if (x.at > people[k].last) people[k].last = x.at; }); });
+    return '<div class="grid-4">' + stat("Ideas to research", String(todo.length), "new or being researched") + stat("With the captains", String(wait.length), "waiting for their approval") + stat("To organise", String(go.length), "approved by the captain") + stat("Operations budget left", EUR.format(left), ts.length + " team" + (ts.length === 1 ? "" : "s")) + "</div>" +
+      '<div class="grid-2"><section class="panel"><div class="panel-head"><h2>To organise</h2><a class="btn sm" href="#hub-ideas">Ideas &amp; logistics</a></div>' + (go.length ? '<ul class="tasks">' + go.slice(0, 6).map(row).join("") + "</ul>" : '<p class="empty">Nothing approved yet. Friendlies, tournaments and kit the captains approve appear here.</p>') +
+      (todo.length ? '<h3 class="sub-h">Ideas to research</h3><ul class="tasks">' + todo.slice(0, 5).map(row).join("") + "</ul>" : "") + "</section>" +
+      '<section class="panel"><div class="panel-head"><h2>Tasks by person</h2><a class="btn sm" href="#hub-departments" data-dept-open="ops">Open department</a></div><table><thead><tr><th>Person</th><th class="r">Open</th><th class="r">Done</th><th class="r">Last update</th></tr></thead><tbody>' +
+      Object.keys(people).map(function (k) { var p = people[k]; return "<tr><td><strong>" + esc(k) + '</strong></td><td class="r num">' + p.open + '</td><td class="r num">' + p.done + '</td><td class="r muted">' + (p.last ? esc(fmtDay(p.last)) : "None yet") + "</td></tr>"; }).join("") + "</tbody></table></section></div>" +
+      '<section class="panel"><div class="panel-head"><h2>Team logistics</h2><a class="btn sm" href="#hub-teams">Teams</a></div><div class="table-wrap"><table><thead><tr><th>Team</th><th>Training facility</th><th>League</th><th class="r">Open ideas</th><th class="r">Operations budget left</th></tr></thead><tbody>' +
+      ts.map(function (t) {
+        var i = teamInfoFor(t.id), n = ideas.filter(function (x) { return x.team === t.id && ["new", "researching", "awaiting", "approved"].indexOf(x.status) > -1; }).length, l = budgetLines(t).ops - lineUse(t.id).ops;
+        return '<tr><td class="tname">' + esc(tLabel(t)) + "</td><td>" + (i.venue ? esc(i.venue) : '<span class="muted">Not set</span>') + "</td><td>" + (i.league ? (okUrl(i.leagueUrl) ? '<a href="' + esc(i.leagueUrl) + '" target="_blank" rel="noopener">' + esc(i.league) + " " + ico("out") + "</a>" : esc(i.league)) : '<span class="muted">Not set</span>') + '</td><td class="r num">' + n + '</td><td class="r num">' + EUR.format(l) + "</td></tr>";
+      }).join("") + "</tbody></table></div></section>";
+  }
+  // ---- History: what has been done so far (finished tasks with their summaries, and each team's results) ----
+  function hubHistory() {
+    var depts = can("depts") ? visDepts() : [], ts = visTeams(), fd = state.histDept || "all", ft = state.histTeam || "all";
+    if (fd !== "all" && !depts.some(function (d) { return d.id === fd; })) fd = "all";
+    if (ft !== "all" && !ts.some(function (t) { return t.id === ft; })) ft = "all";
+    var done = []; depts.forEach(function (d) { if (fd !== "all" && fd !== d.id) return; deptTasks(d).forEach(function (t) { if (t.status === "done") done.push({ t: t, d: d }); }); });
+    var items = [];
+    visIdeas().forEach(function (i) { if ((ft === "all" || i.team === ft) && ["approved", "communicated", "planned"].indexOf(i.status) > -1) items.push({ at: i.updatedAt || i.at, team: i.team, what: i.kind + ": " + i.text, tag: pill(IDEA_STATUS, i.status) }); });
+    visExp().forEach(function (e) { if ((ft === "all" || e.team === ft) && (e.status === "paid" || e.status === "validated")) items.push({ at: Date.parse(e.date + "T12:00:00Z"), team: e.team, what: e.item + " · " + EUR.format(e.amount), tag: pill(EXP_STATUS, e.status) }); });
+    items.sort(function (a, b) { return b.at - a.at; });
+    return '<div class="ph-head"><div><h1 class="display">History.</h1><p>What has been done so far: finished tasks with their work summaries, and what each team got: approved ideas, communications and paid expenses.</p></div></div>' +
+      '<section class="panel hist-filters"><div class="form">' + (depts.length > 1 ? '<label for="hi-dept">Department<select id="hi-dept"><option value="all">All departments</option>' + depts.map(function (d) { return '<option value="' + d.id + '"' + (fd === d.id ? " selected" : "") + ">" + esc(d.name) + "</option>"; }).join("") + "</select></label>" : "") +
+      (ts.length > 1 ? '<label for="hi-team">Team<select id="hi-team"><option value="all">All teams</option>' + ts.map(function (t) { return '<option value="' + t.id + '"' + (ft === t.id ? " selected" : "") + ">" + esc(tLabel(t)) + "</option>"; }).join("") + "</select></label>" : "") + "</div></section>" +
+      (depts.length ? '<section class="panel"><div class="panel-head"><h2>Finished tasks</h2><span class="muted" style="font-size:12px">' + done.length + " done</span></div>" + (done.length ? '<ul class="tasks">' + done.map(function (x) { return taskRow(x.t, x.d.id).replace("<li>", '<li><small class="muted dept-tag">' + esc(x.d.name) + "</small>"); }).join("") + "</ul>" : '<p class="empty">No task marked done yet.</p>') + "</section>" : "") +
+      '<section class="panel"><div class="panel-head"><h2>Done for the teams</h2><span class="muted" style="font-size:12px">' + items.length + " item" + (items.length === 1 ? "" : "s") + "</span></div>" +
+      (items.length ? '<div class="table-wrap"><table><thead><tr><th>Date</th>' + (ts.length > 1 ? "<th>Team</th>" : "") + "<th>What</th><th>Status</th></tr></thead><tbody>" + items.map(function (x) { return '<tr><td class="num muted">' + esc(fmtDay(x.at)) + "</td>" + (ts.length > 1 ? '<td class="tname">' + esc(tLabel(team(x.team)) || x.team) + "</td>" : "") + "<td>" + esc(x.what.length > 160 ? x.what.slice(0, 157) + "…" : x.what) + "</td><td>" + x.tag + "</td></tr>"; }).join("") + "</tbody></table></div>" : '<p class="empty">Nothing yet for this selection.</p>') + "</section>";
+  }
+  // ---- Esade acceptance on an expense request ----------------------------------------------------
+  var ESADE_FIN_EMAIL = ""; // Esade finance office address: fill in when known; the email opens in the person's own mail app
+  function esadeMail(e) {
+    var lines = ["Hello,", "", "Esade Sports asks for approval of the following expense:", "", "Team: " + (tLabel(team(e.team)) || e.team), "Budget line: " + e.dept, "What: " + e.item + " (" + e.cat + ")", "Amount: " + EUR.format(e.amount), "Requested by: " + e.by + ", " + e.date];
+    if (e.file) lines.push("Invoice / PDF: " + (/^https:/.test(e.file.data) ? e.file.data : e.file.name + " (attached)"));
+    if (e.link) lines.push("Link: " + e.link);
+    lines.push("", "Thank you,", myName(), "Esade Sports · Finance");
+    return "mailto:" + ESADE_FIN_EMAIL + "?subject=" + encodeURIComponent("Expense approval: " + e.item + " (" + EUR.format(e.amount) + ")") + "&body=" + encodeURIComponent(lines.join("\n"));
+  }
+  function esadeLine(e) {
+    var s = e.esade, when = e.esadeAt ? " · " + fmtDay(e.esadeAt) : "";
+    if (s === "accepted") return '<br><small class="esade ok">Accepted by Esade' + esc(when) + "</small>";
+    if (s === "refused") return '<br><small class="esade bad">Refused by Esade' + esc(when) + "</small>" + (e.esadeNote ? '<br><small class="reason">“' + esc(e.esadeNote) + "”</small>" : "");
+    if (s === "sent") return '<br><small class="esade">Sent to Esade finance' + esc(when) + ", waiting</small>";
+    return e.status === "requested" ? '<br><small class="esade">Not sent to Esade yet</small>' : "";
+  }
+  function canEsadeE(e) { return e.status === "requested" && canDecideE(e) && srv(e, "e"); }
+  function esadeBox(e) {
+    var id = String(e.id), s = e.esade, b = "";
+    if (state.esadeRefusing === id) return '<div class="reject-box"><textarea id="er-' + id + '" rows="2" placeholder="What did Esade say? (required)" aria-label="Esade\'s answer"></textarea><div><button class="btn sm solid" data-esade-confirm="' + id + '">Save</button> <button class="btn sm" data-reject-cancel>Cancel</button></div></div>';
+    var inv = e.file ? '<a class="btn sm ghost" href="' + esc(e.file.data) + '" target="_blank" rel="noopener" download="' + esc(e.file.name) + '">' + ico("down") + " Invoice</a>" : "";
+    if (!s) b = '<a class="btn sm" href="' + esc(esadeMail(e)) + '">Email to Esade</a>' + inv + '<button class="btn sm" data-esade="sent" data-id="' + id + '">Mark sent</button>';
+    else if (s === "sent") b = '<a class="btn sm ghost" href="' + esc(esadeMail(e)) + '">Email again</a><button class="btn sm" data-esade="accepted" data-id="' + id + '">Esade accepted</button><button class="btn sm" data-esade="refused" data-id="' + id + '">Esade refused</button>';
+    else if (s === "refused") b = '<button class="btn sm ghost" data-esade="accepted" data-id="' + id + '">Esade accepted after all</button>';
+    return b ? '<div class="esade-box">' + b + "</div>" : "";
+  }
   function hubOverview() {
     var ts = visTeams(), budget = 0, paid = 0, pend = 0;
     if (!can("money")) // no finance view: teams and department only
-      return '<div class="ph-head"><div><h1 class="display">Overview.</h1><p>' + esc(viewLabel(hv())) + ".</p></div></div>" + notifPanel() +
+      return '<div class="ph-head"><div><h1 class="display">Overview.</h1><p>' + esc(viewLabel(hv())) + ".</p></div></div>" + notifPanel() + opsDesk() + pair(workPanel(), linksPanel()) + budgetPanel() +
         '<div class="grid-2"><section class="panel"><div class="panel-head"><h2>' + (can("all") ? "Every team" : "Your teams") + '</h2><a class="btn sm" href="#hub-teams">Open</a></div><table><tbody>' +
         ts.map(function (t) { return '<tr><td class="tname">' + esc(tLabel(t)) + '</td><td class="r muted">' + esc(captainName(captainForTeam(t.id))) + "</td></tr>"; }).join("") + "</tbody></table></section>" + deptPanel() + "</div>";
     ts.forEach(function (t) { var o = totals(t.id); budget += t.budget; paid += o.paid; pend += o.pending; });
@@ -1200,7 +1324,7 @@ export function initSite(backend, tools) {
     return '<div class="ph-head"><div><h1 class="display">' + (ts.length !== 1 ? "Overview." : esc(tLabel(ts[0])) + ".") + "</h1><p>" + (ts.length !== 1 ? "Where " + (can("all") ? "every team" : "your teams") + " and " + (hFull() ? "every department" : "your department") + " stand today." : "Your team's budget and expenses, handled by your Finance, Media and Operations associates.") + "</p></div></div>" +
       '<div class="grid-4">' + stat("Season budget", EUR.format(budget), ts.length !== 1 ? ts.length + " teams" : "Agreed with you") + stat("Paid so far", EUR.format(paid), Math.round(paid / budget * 100) + "% of budget") +
       stat("Waiting", EUR.format(pend), reqs.length + " request" + (reqs.length === 1 ? "" : "s") + " to validate") + stat(ts.length !== 1 ? "Budgets agreed" : "Budget", ts.length !== 1 ? agreed + " / " + ts.length : BUDGET_STATUS[ts[0].status][1], ts.length !== 1 ? "with captains" : "status") + "</div>" +
-      notifPanel() + '<div class="grid-2"><section class="panel"><div class="panel-head"><h2>Requests waiting for Finance</h2>' + (hv().role === "captain" && can("submit") ? '<a class="btn sm solid" href="#hub-expenses" data-make-req>Make a request</a>' : '<a class="btn sm" href="#hub-expenses">All expenses</a>') + '</div>' + expTable(reqs, true) + "</section>" +
+      notifPanel() + budgetPanel() + pair(workPanel(), linksPanel()) + '<div class="grid-2"><section class="panel"><div class="panel-head"><h2>Requests waiting for Finance</h2>' + (hv().role === "captain" && can("submit") ? '<a class="btn sm solid" href="#hub-expenses" data-make-req>Make a request</a>' : '<a class="btn sm" href="#hub-expenses">All expenses</a>') + '</div>' + expTable(reqs, true) + "</section>" +
       deptPanel() + "</div>";
   }
   // ---- Team information and roster (captain's team sheet) --------------------------------------
@@ -1301,8 +1425,8 @@ export function initSite(backend, tools) {
   function errText(x, d) { var m = String((x && x.data) || (x && x.message) || ""), m2 = m.match(/ConvexError: (.*)/); return (m2 ? m2[1] : x && x.data ? m : "") || d || "Something went wrong. Try again."; }
   function fromServer(r) {
     return { id: r._id, team: r.team, dept: r.dept, item: r.item, cat: r.cat, amount: r.amount, by: r.by, byEmail: r.byEmail, date: r.date, status: r.status, link: r.link,
-      file: r.fileUrl ? { name: r.fileName || "Attachment", data: r.fileUrl } : null, decidedBy: r.decidedBy, decidedByEmail: r.decidedByEmail, reason: r.reason,
-      history: r.history || [], example: r.isExample, sv: { d: r.canDecide, p: r.canPay, r: r.canReconsider } };
+      file: r.fileUrl ? { name: r.fileName || "Attachment", data: r.fileUrl } : null, decidedBy: r.decidedBy, decidedByEmail: r.decidedByEmail, reason: r.reason, esade: r.esade, esadeAt: r.esadeAt, esadeNote: r.esadeNote,
+      history: r.history || [], example: r.isExample, sv: { d: r.canDecide, p: r.canPay, r: r.canReconsider, e: r.canEsade } };
   }
   function hubBusy() { var a = document.activeElement; return !!(a && hub.contains(a) && (a.tagName === "TEXTAREA" || (a.tagName === "INPUT" && a.type !== "button" && a.type !== "submit") || a.tagName === "SELECT")); }
   function hubRefresh() { if (location.hash.indexOf("#hub-") !== 0) return; if (hubBusy()) { LIVE.dirty = true; return; } LIVE.dirty = false; render(); }
@@ -1312,10 +1436,11 @@ export function initSite(backend, tools) {
     if (on && !LIVE.unExp) {
       LIVE.unExp = backend.watchExpenses(function (rows) { if (rows === undefined) return; LIVE.exp = (rows || []).map(fromServer); hubRefresh(); });
       LIVE.unIdeas = backend.watchIdeas(function (rows) { if (rows === undefined) return; LIVE.ideas = rows || []; hubRefresh(); });
+      LIVE.unLinks = backend.watchDeptLinks ? backend.watchDeptLinks(function (rows) { if (rows === undefined) return; LIVE.links = rows || []; hubRefresh(); }) : null;
       LIVE.unTupd = backend.watchTaskUpdates ? backend.watchTaskUpdates(function (rows) { if (rows === undefined) return; LIVE.tupd = rows || []; hubRefresh(); }) : null;
       LIVE.unNotifs = backend.watchNotifications ? backend.watchNotifications(function (d) { if (d === undefined) return; LIVE.notifs = d; hubRefresh(); }) : null;
     } else if (!on && LIVE.unExp) {
-      LIVE.unExp(); LIVE.unIdeas(); if (LIVE.unNotifs) LIVE.unNotifs(); if (LIVE.unTupd) LIVE.unTupd(); LIVE.unTupd = null; LIVE.tupd = null; LIVE.unExp = LIVE.unIdeas = LIVE.unNotifs = null; LIVE.notifs = null; LIVE.exp = LIVE.ideas = null; LIVE.checks = {}; ROSTER = {}; ROSTER_ALL = null;
+      LIVE.unExp(); LIVE.unIdeas(); if (LIVE.unNotifs) LIVE.unNotifs(); if (LIVE.unTupd) LIVE.unTupd(); if (LIVE.unLinks) LIVE.unLinks(); LIVE.unLinks = null; LIVE.links = null; LIVE.unTupd = null; LIVE.tupd = null; LIVE.unExp = LIVE.unIdeas = LIVE.unNotifs = null; LIVE.notifs = null; LIVE.exp = LIVE.ideas = null; LIVE.checks = {}; ROSTER = {}; ROSTER_ALL = null;
     }
   }
   function allExp() { return live() ? LIVE.exp || [] : state.expenses; }
@@ -1339,7 +1464,7 @@ export function initSite(backend, tools) {
     var mine = live() ? !!e.decidedByEmail && e.decidedByEmail === meEmail() : e.decidedBy === meLabel();
     return (can("pay") || (e.status !== "paid" && mine && canDecideE({ status: "requested", team: e.team }))) && srv(e, "r");
   }
-  var ACTION = { requested: "Requested", validated: "Validated", rejected: "Rejected", paid: "Paid", reopened: "Reopened for review" };
+  var ACTION = { requested: "Requested", validated: "Validated", rejected: "Rejected", paid: "Paid", reopened: "Reopened for review", esade_sent: "Sent to Esade finance", esade_accepted: "Accepted by Esade", esade_refused: "Refused by Esade" };
   var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   function fmtDay(ms) { var d = new Date(ms); return d.getDate() + " " + MONTHS[d.getMonth()] + " " + d.getFullYear(); }
   function fmtWhen(ms) { var d = new Date(ms); return fmtDay(ms) + ", " + ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2); }
@@ -1373,7 +1498,7 @@ export function initSite(backend, tools) {
         if (state.rejecting === id) btns = '<div class="reject-box"><textarea id="rj-' + id + '" rows="2" placeholder="Why is it rejected? (required)" aria-label="Reason for rejecting"></textarea><div><button class="btn sm solid" data-reject-confirm="' + id + '">Reject</button> <button class="btn sm" data-reject-cancel>Cancel</button></div></div>';
         else if (state.reconsidering === id) btns = '<div class="reject-box"><textarea id="rc-' + id + '" rows="2" placeholder="Why reconsider this decision? (required)" aria-label="Reason for reconsidering"></textarea><div><button class="btn sm solid" data-recon-confirm="' + id + '">Reopen</button> <button class="btn sm" data-reject-cancel>Cancel</button></div></div>';
         else {
-          if (canDecideE(e)) btns = '<button class="btn sm" data-act="validated" data-id="' + id + '">Validate</button> <button class="btn sm" data-act="reject" data-id="' + id + '">Reject</button>';
+          if (canDecideE(e)) btns = (canEsadeE(e) ? esadeBox(e) : "") + (e.esade === "accepted" ? '<button class="btn sm solid" data-act="validated" data-id="' + id + '">Validate</button>' : '<button class="btn sm" disabled title="Esade finance has to accept it first">Validate</button>') + ' <button class="btn sm" data-act="reject" data-id="' + id + '">Reject</button>';
           if (canPayE(e)) btns = '<button class="btn sm solid" data-act="paid" data-id="' + id + '">Mark paid</button>';
           if (canReconE(e)) btns += (btns ? " " : "") + '<button class="btn sm ghost" data-act="reconsider" data-id="' + id + '">Reconsider</button>';
         }
@@ -1383,7 +1508,7 @@ export function initSite(backend, tools) {
         var reopened = (e.history || []).some(function (x) { return x.action === "reopened"; }) ? ' <span class="pill info">Reconsidered</span>' : "";
         return '<tr><td class="num muted">' + e.date.slice(5).split("-").reverse().join("/") + "</td>" + (multi ? '<td class="tname">' + esc(tLabel(team(e.team)) || e.team) + "</td>" : "") +
           "<td>" + esc(e.item) + (e.example ? ' <span class="pill">Example</span>' : "") + (compact ? "" : '<br><small class="muted">' + esc(e.cat) + " · " + esc(e.dept === "Media & Marketing" ? "Marketing budget" : e.dept === "Operations" ? "Operations budget" : e.dept) + " · by " + esc(e.by) + "</small>") + (files && !compact ? '<br><small class="files">' + files + "</small>" : "") + (compact ? "" : histList(e)) +
-          '</td><td class="r num"><strong>' + EUR.format(e.amount) + "</strong></td><td>" + pill(EXP_STATUS, e.status) + reopened + who + why + "</td>" +
+          '</td><td class="r num"><strong>' + EUR.format(e.amount) + "</strong></td><td>" + pill(EXP_STATUS, e.status) + reopened + esadeLine(e) + who + why + "</td>" +
           (act ? '<td class="r">' + btns + "</td>" : "") + "</tr>";
       }).join("") + "</tbody></table></div>";
   }
@@ -1399,20 +1524,27 @@ export function initSite(backend, tools) {
       '<label for="r-item" style="grid-column:span 2">What is it for<input id="r-item" required maxlength="140" placeholder="e.g. Referee fees, November"></label>' +
       '<label for="r-dept">Budget line<select id="r-dept">' + lines + '</select></label><label for="r-cat">Category<select id="r-cat"><option>League fees</option><option>Facilities</option><option>Kit</option><option>Material</option><option>Travel</option><option>Media</option><option>Promotion</option><option>Events</option></select></label>' +
       '<label for="r-amt">Amount (€)<input id="r-amt" type="number" min="1" step="1" required inputmode="numeric" placeholder="0"></label>' +
-      '<label for="r-link" style="grid-column:span 2">Link to the product or quote (optional)<input id="r-link" type="url" placeholder="https://..."></label><label for="r-file">Picture, screenshot or PDF (optional)<input id="r-file" type="file" accept="image/*,application/pdf"></label>' +
+      '<label for="r-link" style="grid-column:span 2">Link to the product or quote (optional)<input id="r-link" type="url" placeholder="https://..."></label><label for="r-file">Unpaid invoice, quote or PDF (Finance forwards it to Esade)<input id="r-file" type="file" accept="image/*,application/pdf"></label>' +
       '<div><button class="btn solid" type="submit" id="r-send" style="width:100%">Send request</button></div></form></section>' : "";
     var ex = "";
     if (admin && live() && LIVE.exp) ex = LIVE.exp.some(function (e) { return e.example; })
       ? '<p class="muted ex-tools">Example rows are loaded for the demo. <button type="button" class="btn sm" data-examples="remove">Remove example expenses</button></p>'
       : '<p class="muted ex-tools">The ledger is empty. For a demo: <button type="button" class="btn sm" data-examples="load">Load example expenses</button> (marked “Example”, removable in one click).</p>';
     return '<div class="ph-head"><div><h1 class="display">Every euro, traced.</h1><p>Every request, decision and payment for ' + (hFull() ? "every team and department" : u.role === "head" ? (u.dept === "fin" ? "every team" : esc(deptName(u.dept)) + ", every team") : u.role === "associate" ? esc(deptName(u.dept)) + " · " + esc(teamsText(u.teams)) : "your team") + '. It updates as soon as a request is decided or reconsidered, and downloads as Excel or PowerPoint.</p></div>' + exportButtons("ledger") + "</div>" +
-      '<div class="flow" aria-label="How an expense moves"><span>Captain or department requests</span><span>Finance validates or rejects (with a reason)</span><span>Association pays</span><span>Can be reconsidered</span></div>' + ex + form +
+      '<div class="flow" aria-label="How an expense moves"><span>Captain or department requests, with the unpaid invoice</span><span>Finance sends it to Esade finance</span><span>Esade accepts or refuses</span><span>Finance validates or rejects (with a reason)</span><span>Association pays</span></div>' + ex + form +
       '<section class="panel"><div class="chips" role="group" aria-label="Filter by status">' + [["all", "All"], ["requested", "Requested"], ["validated", "Validated"], ["paid", "Paid"], ["rejected", "Rejected"]].map(function (c) {
         var n = c[0] === "all" ? list.length : list.filter(function (e) { return e.status === c[0]; }).length;
         return '<button class="chip" data-filter="' + c[0] + '" aria-pressed="' + (state.hubFilter === c[0]) + '">' + c[1] + ' <span class="num">' + n + "</span></button>"; }).join("") + "</div>" + expTable(shown, false) + "</section>";
   }
   // Decide / pay / reconsider: Convex when signed in, else this browser (prototype).
   function expAct(kind, id, reason) {
+    if (kind.indexOf("esade-") === 0) {
+      var step = kind.slice(6), emsg = step === "sent" ? "Marked as sent to Esade finance." : step === "accepted" ? "Esade accepted. Finance can validate it now." : "Esade refused. You can reject the request with that reason.";
+      state.esadeRefusing = null;
+      if (live()) return Promise.resolve(backend.esadeExpense({ id: id, step: step, note: reason || undefined })).then(function () { toast(emsg); render(); }, function (x) { toast(errText(x)); render(); });
+      state.expenses.forEach(function (e) { if (String(e.id) !== id) return; e.esade = step; e.esadeAt = Date.now(); e.esadeNote = reason || undefined; (e.history = e.history || []).push({ action: "esade_" + step, by: meLabel(), at: e.esadeAt, reason: reason || undefined }); });
+      save(); render(); toast(emsg); return;
+    }
     var msg = kind === "validated" ? "Validated. Ready to pay." : kind === "paid" ? "Marked as paid." : kind === "rejected" ? "Request rejected. The requester sees your reason." : "Reopened. It can be decided again.";
     state.rejecting = state.reconsidering = null;
     if (live()) {
@@ -1764,7 +1896,7 @@ export function initSite(backend, tools) {
       if (!title || !canAddTask(d)) return;
       state.newTasks.push({ id: state.nextId++, dept: d, title: title.slice(0, 120), owner: f.elements.owner.value, status: "todo" }); save(); render(); toast("Task added.");
     }); });
-    hub.querySelectorAll("[data-reject-cancel]").forEach(function (b) { b.addEventListener("click", function () { state.rejecting = state.reconsidering = null; render(); }); });
+    hub.querySelectorAll("[data-reject-cancel]").forEach(function (b) { b.addEventListener("click", function () { state.rejecting = state.reconsidering = state.esadeRefusing = null; render(); }); });
     hub.querySelectorAll("[data-reject-confirm]").forEach(function (b) { b.addEventListener("click", function () {
       var id = b.getAttribute("data-reject-confirm"), box = $("rj-" + id), why = box ? box.value.trim() : "";
       if (!why) { if (box) { box.focus(); box.classList.add("invalid"); } toast("Write why the request is rejected."); return; }
@@ -1833,6 +1965,32 @@ export function initSite(backend, tools) {
       if (file.size > 1.5 * 1024 * 1024) { toast("The file is too big for the prototype (max 1.5 MB)."); return; }
       var rd = new FileReader(); rd.onload = function () { done({ url: rd.result, name: file.name, type: file.type }); }; rd.readAsDataURL(file);
     }); });
+    hub.querySelectorAll("[data-esade]").forEach(function (b) { b.addEventListener("click", function () {
+      var id = b.getAttribute("data-id"), st = b.getAttribute("data-esade");
+      if (st === "refused") { state.esadeRefusing = id; render(); var bx = $("er-" + id); if (bx) bx.focus(); return; }
+      b.disabled = true; expAct("esade-" + st, id);
+    }); });
+    hub.querySelectorAll("[data-esade-confirm]").forEach(function (b) { b.addEventListener("click", function () {
+      var id = b.getAttribute("data-esade-confirm"), box = $("er-" + id), note = box ? box.value.trim() : "";
+      if (!note) { if (box) { box.focus(); box.classList.add("invalid"); } toast("Write what Esade said."); return; }
+      expAct("esade-refused", id, note);
+    }); });
+    hub.querySelectorAll("[data-links-dept]").forEach(function (b) { b.addEventListener("click", function () { state.linksDept = b.getAttribute("data-links-dept"); render(); }); });
+    var lf = $("link-form"); if (lf) lf.addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      var dept = deptName(lf.getAttribute("data-dept")), title = lf.elements.title.value.trim(), url = lf.elements.url.value.trim(), note = lf.elements.note.value.trim();
+      if (url && !/^https?:\/\//i.test(url)) url = "https://" + url;
+      url = url.replace(/^http:/i, "https:");
+      if (!title || !url) return;
+      if (!live()) { (state.links = state.links || []).push({ id: state.nextId++, dept: dept, title: title.slice(0, 80), url: url.slice(0, 500), note: note.slice(0, 200) || undefined }); save(); render(); toast("Link added for the department."); return; }
+      Promise.resolve(backend.addDeptLink({ dept: dept, title: title, url: url, note: note || undefined })).then(function () { toast("Link added for the department."); }, function (x) { toast(errText(x)); });
+    });
+    hub.querySelectorAll("[data-link-del]").forEach(function (b) { b.addEventListener("click", function () {
+      var id = b.getAttribute("data-link-del");
+      if (!live()) { state.links = (state.links || []).filter(function (l) { return String(l.id) !== id; }); save(); render(); return; }
+      b.disabled = true; Promise.resolve(backend.removeDeptLink({ id: id })).then(function () { toast("Link removed."); }, function (x) { b.disabled = false; toast(errText(x)); });
+    }); });
+    ["hi-dept", "hi-team"].forEach(function (k) { var el = $(k); if (el) el.addEventListener("change", function () { if (k === "hi-dept") state.histDept = el.value; else state.histTeam = el.value; render(); }); });
     var idf = $("idea-form"); if (idf) idf.addEventListener("submit", function (ev) {
       ev.preventDefault(); var text = $("id-text").value.trim(); if (!text) return;
       var row = { team: $("id-team") ? $("id-team").value : firstTeam(), kind: $("id-kind").value, text: text.slice(0, 600) }, ops = opsView();
@@ -1964,7 +2122,7 @@ export function initSite(backend, tools) {
       if (h === "hub-team-editor" && !can("teamEdit")) h = "hub-overview";
       if (h === "hub-applications" && !can("applications")) h = "hub-overview";
       if (h === "hub-ideas" && !can("ideas")) h = "hub-overview";
-      var inner = h === "hub-teams" ? hubTeams() : h === "hub-team-editor" ? hubTeamEditor() : h === "hub-applications" ? hubApplications() : h === "hub-captains" ? hubCaptains() : h === "hub-expenses" ? hubExpenses() : h === "hub-departments" ? hubDepts() : h === "hub-report" || h === "hub-checkups" ? hubCheckups() : h === "hub-ideas" ? hubIdeas() : hubOverview();
+      var inner = h === "hub-teams" ? hubTeams() : h === "hub-team-editor" ? hubTeamEditor() : h === "hub-applications" ? hubApplications() : h === "hub-captains" ? hubCaptains() : h === "hub-expenses" ? hubExpenses() : h === "hub-departments" ? hubDepts() : h === "hub-report" || h === "hub-checkups" ? hubCheckups() : h === "hub-ideas" ? hubIdeas() : h === "hub-history" ? hubHistory() : hubOverview();
       hub.innerHTML = hubShell(h, inner); show("hub"); bindHub(); return;
     }
     if (h === "signin") html = signinView();

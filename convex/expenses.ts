@@ -36,6 +36,7 @@ export const list = query({
         ...e,
         fileUrl: e.fileId ? await ctx.storage.getUrl(e.fileId) : null,
         canDecide: e.status === "requested" && decides(a, e.team),
+        canEsade: e.status === "requested" && decides(a, e.team),
         canPay: e.status === "validated" && pays(a),
         canReconsider: reconsiders(a, e),
       });
@@ -107,6 +108,8 @@ export const decide = mutation({
     }
     if (e.status !== "requested") throw new ConvexError("This request was already decided. Reconsider it first.");
     if (!decides(a, e.team)) throw new ConvexError("Only Finance for this team can decide.");
+    if (status === "validated" && e.esade !== "accepted")
+      throw new ConvexError("Esade finance has to accept this request before Finance can validate it.");
     if (status === "rejected" && !why) throw new ConvexError("Write why the request is rejected.");
     await ctx.db.patch(id, {
       status,
@@ -115,6 +118,30 @@ export const decide = mutation({
       decidedAt: now,
       reason: status === "rejected" ? why : undefined,
       history: [...e.history, { action: status, by: who(a), at: now, reason: why || undefined }],
+    });
+    return null;
+  },
+});
+
+// Esade acceptance: Finance forwards the request (usually with an unpaid invoice) to Esade's finance office,
+// then records Esade's answer. Finance can only validate once Esade has accepted.
+const ESADE_ACTION = { sent: "esade_sent", accepted: "esade_accepted", refused: "esade_refused" } as const;
+export const esadeStep = mutation({
+  args: { id: v.id("expenses"), step: v.union(v.literal("sent"), v.literal("accepted"), v.literal("refused")), note: v.optional(v.string()) },
+  handler: async (ctx, { id, step, note }) => {
+    const a = await requireAccess(ctx);
+    const e = await load(ctx, id);
+    if (e.status !== "requested") throw new ConvexError("Only an open request goes to Esade. Reconsider it first.");
+    if (!decides(a, e.team)) throw new ConvexError("Only Finance for this team records Esade's answer.");
+    const why = note ? clip(note, 300) : "";
+    if (step === "refused" && !why) throw new ConvexError("Write what Esade said.");
+    const now = Date.now();
+    await ctx.db.patch(id, {
+      esade: step,
+      esadeAt: now,
+      esadeBy: who(a),
+      esadeNote: why || undefined,
+      history: [...e.history, { action: ESADE_ACTION[step], by: who(a), at: now, reason: why || undefined }],
     });
     return null;
   },
@@ -175,6 +202,8 @@ export const loadExamples = mutation({
       const at = Date.parse(date + "T10:00:00Z");
       const decided = status !== "requested";
       const history = [{ action: "requested", by: "Example captain (Captain)", at }];
+      const ok = status === "validated" || status === "paid";
+      if (ok) history.push({ action: "esade_accepted", by: "Example associate (Associate · Finance)", at: at + 43200000 });
       if (decided) history.push({ action: status === "paid" ? "validated" : status, by: "Example associate (Associate · Finance)", at: at + 86400000 });
       if (status === "paid") history.push({ action: "paid", by: "Example head (Head of Finance)", at: at + 3 * 86400000 });
       await ctx.db.insert("expenses", {
@@ -184,6 +213,9 @@ export const loadExamples = mutation({
         decidedBy: decided ? "Example associate (Associate · Finance)" : undefined,
         decidedAt: decided ? at + 86400000 : undefined,
         reason: status === "rejected" ? "Media covers match days with its own camera this semester." : undefined,
+        esade: ok ? "accepted" : undefined,
+        esadeAt: ok ? at + 43200000 : undefined,
+        esadeBy: ok ? "Example associate (Associate · Finance)" : undefined,
         history,
         isExample: true,
       });

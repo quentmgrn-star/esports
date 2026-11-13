@@ -81,6 +81,7 @@ export default function EsadeSite() {
       },
       requestExpense: (a: Record<string, unknown>) => client.mutation(api.expenses.request, a as never),
       decideExpense: (a: Record<string, unknown>) => client.mutation(api.expenses.decide, a as never),
+      esadeExpense: (a: Record<string, unknown>) => client.mutation(api.expenses.esadeStep, a as never),
       reconsiderExpense: (a: Record<string, unknown>) => client.mutation(api.expenses.reconsider, a as never),
       exampleExpenses: (remove: boolean) => client.mutation(api.expenses.loadExamples, { remove }),
       uploadFile: async (file: File) => {
@@ -114,6 +115,15 @@ export default function EsadeSite() {
         return w.onUpdate(push);
       },
       markNotifsSeen: () => client.mutation(api.notifications.markSeen, {}),
+      // Main links per department on the overview.
+      watchDeptLinks: (cb: (rows: unknown) => void) => {
+        const w = client.watchQuery(api.deptLinks.list, {});
+        const push = () => { try { cb(w.localQueryResult()); } catch (e) { console.error(e); } };
+        push();
+        return w.onUpdate(push);
+      },
+      addDeptLink: (a: Record<string, unknown>) => client.mutation(api.deptLinks.add, a as never),
+      removeDeptLink: (a: Record<string, unknown>) => client.mutation(api.deptLinks.remove, a as never),
       // Task work summaries and comments (department-only, checked in Convex).
       watchTaskUpdates: (cb: (rows: unknown) => void) => {
         const w = client.watchQuery(api.taskUpdates.list, {});
