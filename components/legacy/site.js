@@ -2,6 +2,7 @@
 import { SPORT_IMAGES } from "@/lib/images";
 import { BOARD_BLOCK } from "./markup";
 import { GAMES } from "./games";
+import { EVENTS } from "./events";
 // Ported from the original prototype script. Runs once on the client after the markup mounts.
 export function initSite(backend) {
 
@@ -39,6 +40,31 @@ export function initSite(backend) {
     if ($("list-up")) $("list-up").innerHTML = up.slice(0, 5).map(gameRow).join("");
     if ($("list-res")) $("list-res").innerHTML = res.slice(0, 5).map(gameRow).join("");
   })();
+
+  // ================= Events (one source: components/legacy/events.js) =================
+  function upcomingEvents() {
+    var today = ymd(new Date());
+    return EVENTS.filter(function (e) { return e.date >= today; }).sort(function (a, b) { return (a.date + a.time).localeCompare(b.date + b.time); });
+  }
+  function eWhen(e) { return gLong(e) + " · " + e.time; }
+  function eTitleHtml(e) { var w = e.title.split(" "); return esc(w.length > 1 ? w.slice(0, -1).join(" ") : w[0]) + (w.length > 1 ? "<br>" + esc(w[w.length - 1]) : "") + "."; }
+  function eventCard(e) {
+    return '<article class="event"><div class="title"><p class="eyebrow">' + esc(e.kind) + (e.example ? ' · <em class="ex">Example</em>' : "") + '</p><h3 class="display">' + eTitleHtml(e) + "</h3></div>" +
+      '<dl><div><dt>When</dt><dd>' + esc(gShort(e)) + " · " + e.time + '</dd></div><div><dt>Where</dt><dd>' + esc(e.place) + '</dd></div><div><dt>Price</dt><dd><b class="price">' + esc(e.price) + "</b></dd></div></dl>" +
+      '<p>' + esc(e.summary) + ' <a class="link-arrow" href="#all-events">Details →</a></p></article>';
+  }
+  if ($("events") && $("events").querySelector(".events")) $("events").querySelector(".events").innerHTML = upcomingEvents().slice(0, 3).map(eventCard).join("");
+  function eventsView() {
+    var list = upcomingEvents();
+    return '<section class="band"><div class="wrap"><p class="eyebrow">Events</p><h1 class="display">All<br>events.</h1><p>Runs, tournaments, talks and get-togethers in the Esade Sports community. Everyone is welcome: check the price and sign up below.</p></div></section>' +
+      '<section class="sec ev-sec"><div class="wrap"><ol class="ev-list">' + (list.length ? list.map(function (e) {
+        return '<li class="ev" id="ev-' + e.id + '"><div class="ev-date"><b>' + gDate(e).getDate() + "</b><span>" + MONTHS[gDate(e).getMonth()].slice(0, 3) + "</span><small>" + e.time + "</small></div>" +
+          '<div class="ev-body"><p class="eyebrow">' + esc(e.kind) + (e.example ? ' · <em class="ex">Example</em>' : "") + '</p><h2 class="ev-title">' + esc(e.title) + "</h2>" +
+          (e.tagline ? '<p class="ev-tag">' + esc(e.tagline) + "</p>" : "") + "<p>" + esc(e.summary) + "</p>" + (e.details ? '<p class="muted">' + esc(e.details) + "</p>" : "") +
+          '<dl class="ev-facts"><div><dt>When</dt><dd>' + esc(eWhen(e)) + '</dd></div><div><dt>Where</dt><dd>' + esc(e.place) + '</dd></div><div><dt>Organised by</dt><dd>' + esc(e.organiser) + '</dd></div><div><dt>Price</dt><dd><b class="price">' + esc(e.price) + "</b>" + (e.priceNote ? " · " + esc(e.priceNote) : "") + "</dd></div></dl>" +
+          (e.signup ? '<a class="btn btn-blue" href="' + esc(e.signup) + '" target="_blank" rel="noopener noreferrer">Sign up</a>' : '<span class="muted" style="font-size:13px">Sign-ups open soon.</span>') + "</div></li>";
+      }).join("") : '<li class="muted">No upcoming events yet.</li>') + "</ol></div></section>";
+  }
 
   // .ics file for "Add to calendar" (2-hour slot, Europe/Madrid local time).
   function icsFor(g) {
@@ -92,12 +118,14 @@ export function initSite(backend) {
         var d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + k), key = ymd(d);
         if (k === 35 && d.getMonth() !== m) break;
         var dayGames = games.filter(function (g) { return g.date === key; });
+        var dayEvents = cal.team ? [] : EVENTS.filter(function (e) { return e.date === key; });
         cells += '<div class="cal-day' + (d.getMonth() !== m ? " out" : "") + (d.getTime() === today.getTime() ? " today" : "") + '"><span class="cal-num">' + d.getDate() + "</span>" +
-          dayGames.map(function (g) { return '<button type="button" class="cal-game' + (g.score ? " played" : "") + '" data-match-id="' + g.id + '"><b>' + (g.score ? g.score : g.time) + "</b> " + esc(g.sport) + (g.example ? " <em>Ex.</em>" : "") + "</button>"; }).join("") + "</div>";
+          dayGames.map(function (g) { return '<button type="button" class="cal-game' + (g.score ? " played" : "") + '" data-match-id="' + g.id + '"><b>' + (g.score ? g.score : g.time) + "</b> " + esc(g.sport) + (g.example ? " <em>Ex.</em>" : "") + "</button>"; }).join("") +
+          dayEvents.map(function (e) { return '<a class="cal-game cal-event" href="#all-events"><b>' + e.time + "</b> " + esc(e.title) + "</a>"; }).join("") + "</div>";
       }
       body = '<div class="cal-grid" role="grid"><div class="cal-wd">Mon</div><div class="cal-wd">Tue</div><div class="cal-wd">Wed</div><div class="cal-wd">Thu</div><div class="cal-wd">Fri</div><div class="cal-wd">Sat</div><div class="cal-wd">Sun</div>' + cells + "</div>";
     }
-    return head + '<section class="sec cal-sec"><div class="wrap">' + bar + body + '<p class="muted cal-note">Click a game for details and to add it to your own calendar.</p></div></section>';
+    return head + '<section class="sec cal-sec"><div class="wrap">' + bar + body + '<p class="muted cal-note"><span class="cal-key"></span> Games: click one for details and to add it to your own calendar. <span class="cal-key ev"></span> Community events.</p></div></section>';
   }
   function bindCalendar() {
     page.querySelectorAll("[data-cal]").forEach(function (b) { b.addEventListener("click", function () {
@@ -1077,6 +1105,7 @@ export function initSite(backend) {
     else if (h === "privacy") html = privacyView();
     else if (h === "contact") html = contactView();
     else if (h === "calendar") html = calendarView();
+    else if (h === "all-events") html = eventsView();
     else if (h === "alumni-verify") html = verifyView();
     else if (h.indexOf("alumni-") === 0) {
       var id = h.slice(7), a = null;
@@ -1094,6 +1123,10 @@ export function initSite(backend) {
       if (h === "apply-associate") bindAssociateApply();
       if (h === "contact") bindContact();
       if (h === "calendar") bindCalendar();
+      if (h === "all-events" && !REDUCED && "IntersectionObserver" in window) {
+        var evo = new IntersectionObserver(function (es) { es.forEach(function (x) { if (x.isIntersecting) { x.target.classList.add("in"); evo.unobserve(x.target); } }); }, { threshold: 0.08 });
+        page.querySelectorAll(".ev").forEach(function (el) { el.classList.add("reveal"); evo.observe(el); });
+      }
       if (h === "apply" || h.indexOf("apply-") === 0) bindApply();
       page.querySelectorAll("[data-copy]").forEach(function (b) { b.addEventListener("click", function () {
         var v = b.getAttribute("data-copy");

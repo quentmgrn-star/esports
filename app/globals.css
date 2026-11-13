@@ -783,3 +783,29 @@ a { color: inherit; }
   .cal-game b, .cal-game em { display: none; }
   .cal-wd { padding: 6px 4px; font-size: 10px; letter-spacing: .05em; }
 }
+
+/* Events */
+.event .ex, .ev .ex { font-style: normal; color: var(--warn); background: var(--warn-bg); padding: 1px 5px; }
+.event .price, .ev .price { color: var(--navy); }
+.event p .link-arrow { white-space: nowrap; }
+.ev-sec { padding-top: 32px; }
+.ev-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 20px; }
+.ev { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 24px; background: var(--white); border: 1px solid var(--line); padding: 24px; }
+.ev-date { background: var(--navy); color: var(--white); clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%); display: grid; place-content: center; text-align: center; padding: 16px 8px; align-self: start; }
+.ev-date b { font-size: 40px; font-weight: 900; font-style: italic; line-height: 1; }
+.ev-date span { font-size: 12px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+.ev-date small { font-size: 12px; color: var(--on-navy-soft); margin-top: 4px; }
+.ev-body { display: grid; gap: 10px; justify-items: start; }
+.ev-body p { margin: 0; }
+.ev-body .eyebrow { color: var(--blue); }
+.ev-title { margin: 0; font-size: clamp(26px, 3.4vw, 40px); font-weight: 900; font-style: italic; text-transform: uppercase; line-height: 1; }
+.ev-tag { font-weight: 700; font-style: italic; }
+.ev-facts { margin: 4px 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 24px; width: 100%; }
+.ev-facts div { padding: 8px 0; border-bottom: 1px solid var(--line); display: grid; gap: 2px; }
+.ev-facts dt { font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); }
+.ev-facts dd { margin: 0; font-size: 14px; }
+@media (max-width: 640px) { .ev { grid-template-columns: 1fr; padding: 18px; } .ev-date { justify-self: start; grid-auto-flow: column; gap: 8px; align-items: baseline; } .ev-facts { grid-template-columns: 1fr; } }
+.cal-event { border-left-color: var(--warn); background: var(--warn-bg); text-decoration: none; display: block; }
+.cal-key { display: inline-block; width: 10px; height: 10px; background: var(--blue); margin-right: 4px; vertical-align: middle; }
+.cal-key.ev { background: var(--warn); margin-left: 12px; }
+@media (max-width: 760px) { .cal-event { background: var(--warn); } }

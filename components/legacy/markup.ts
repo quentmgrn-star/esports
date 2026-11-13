@@ -201,21 +201,9 @@ export const SITE_MARKUP = `
           <p class="eyebrow">Events</p>
           <h2 class="h2">For the community and for the industry</h2>
         </div>
-        <a class="link-arrow" href="#events">All events →</a>
+        <a class="link-arrow" href="#all-events">All events →</a>
       </div>
       <div class="events">
-        <article class="event">
-          <div class="title"><p class="eyebrow">Esade Sports presents</p><h3 class="display">World<br>Cup.</h3></div>
-          <dl><div><dt>When</dt><dd>Saturday 06/02/2027 · 10:00</dd></div><div><dt>Where</dt><dd>UniBall Elite · Barcelona</dd></div><div><dt>Format</dt><dd>Football · open to all</dd></div></dl>
-        </article>
-        <article class="event">
-          <div class="title"><p class="eyebrow">Esade Sports presents</p><h3 class="display">Padel<br>Tour.</h3></div>
-          <dl><div><dt>When</dt><dd>Saturday 20/02/2027 · 12:00</dd></div><div><dt>Where</dt><dd>Vall d'Hebron Sports Centre</dd></div><div><dt>Format</dt><dd>Padel · open to all</dd></div></dl>
-        </article>
-        <article class="event">
-          <div class="title"><p class="eyebrow">Sports business</p><h3 class="display">Talks &amp;<br>panels.</h3></div>
-          <dl><div><dt>When</dt><dd>Thursday 04/03/2027 · 18:30</dd></div><div><dt>Speaker</dt><dd>Laia Martín · Sports Partnerships Director</dd></div><div><dt>Format</dt><dd>Talk, panel or workshop</dd></div></dl>
-        </article>
       </div>
     </div>
   </section>
