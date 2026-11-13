@@ -528,7 +528,7 @@ export function initSite(backend) {
   function initials(a) { return esc((a.first || "?").charAt(0) + (a.last || "").charAt(0)); }
   function avatar(a) { return '<div class="av">' + (a.photo ? '<img src="' + a.photo + '" alt="">' : initials(a)) + "</div>"; }
   function alumniBand(extra) {
-    return '<section class="band"><div class="wrap"><p class="eyebrow">Esade alumni network</p><h1 class="display">Once Esade,<br>always Esade.</h1><p>Search the Esade Sports alumni network like a professional directory. Anyone can browse profiles; sign in only when you want to create or edit your own profile or access consented contact details.</p>' + (extra || "") + "</div></section>";
+    return '<section class="band"><div class="wrap"><p class="eyebrow">Esade alumni network</p><h1 class="display">Once Esade,<br>always Esade.</h1><p>A community that goes beyond sport, within an Esade alumni network ranked #6 by the Financial Times.</p><p>Search the Esade Sports alumni network like a professional directory. Anyone can browse profiles; sign in only when you want to create or edit your own profile or access consented contact details.</p>' + (extra || "") + "</div></section>";
   }
   function alumniView() {
     var years = []; allAlumni().forEach(function (a) { if (years.indexOf(a.grad) < 0) years.push(a.grad); }); years.sort(function (a, b) { return b - a; });

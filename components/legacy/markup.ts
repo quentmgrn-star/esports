@@ -1,5 +1,21 @@
 import { HERO_IMAGE, SPORT_IMAGES } from "@/lib/images";
 
+// "The Board" block of the About section: hidden for now at Quentin's request (13 Nov 2026).
+// To show it again, put ${BOARD_BLOCK} back where the comment in the About section is.
+export const BOARD_BLOCK = `
+      <div class="about-board">
+        <div class="sec-head"><div><p class="eyebrow">The team</p><h3 class="h2">The Board</h3></div><span class="tbc-note">Names to be confirmed</span></div>
+        <ul class="board-grid">
+          <li><b>President</b><span>To be confirmed</span></li>
+          <li><b>Vice-President</b><span>To be confirmed</span></li>
+          <li><b>Head of Finance</b><span>To be confirmed</span></li>
+          <li><b>Head of Media &amp; Marketing</b><span>To be confirmed</span></li>
+          <li><b>Head of Operations</b><span>To be confirmed</span></li>
+          <li><b>Head of Partnerships</b><span>To be confirmed</span></li>
+        </ul>
+      </div>
+`;
+
 // Hero slideshow: one photo per sport (generic Unsplash photos until Esade Sports sends its own).
 const HERO_SLIDES: [string, string][] = [
   ["Football 7", HERO_IMAGE],
@@ -119,17 +135,7 @@ export const SITE_MARKUP = `
         <div class="pillar"><p class="eyebrow">Pillar 02</p><h3>Events</h3><p>Tournaments for the community, and real sports-business events with people from the industry.</p></div>
         <div class="pillar"><p class="eyebrow">Pillar 03</p><h3>Industry</h3><p>A bridge between Esade students and sports-industry companies, through the Industry Platform.</p></div>
       </div>
-      <div class="about-board">
-        <div class="sec-head"><div><p class="eyebrow">The team</p><h3 class="h2">The Board</h3></div><span class="tbc-note">Names to be confirmed</span></div>
-        <ul class="board-grid">
-          <li><b>President</b><span>To be confirmed</span></li>
-          <li><b>Vice-President</b><span>To be confirmed</span></li>
-          <li><b>Head of Finance</b><span>To be confirmed</span></li>
-          <li><b>Head of Media &amp; Marketing</b><span>To be confirmed</span></li>
-          <li><b>Head of Operations</b><span>To be confirmed</span></li>
-          <li><b>Head of Partnerships</b><span>To be confirmed</span></li>
-        </ul>
-      </div>
+      <!-- The Board block is hidden for now (Quentin, 13 Nov 2026); see BOARD_BLOCK at the top of this file. -->
     </div>
   </section>
 
@@ -234,7 +240,7 @@ export const SITE_MARKUP = `
         </div>
         <a class="link-arrow" href="#alumni">Open the Alumni corner →</a>
       </div>
-      <p class="alumni-teaser-text">Former players, captains and associates keep a profile and stay in touch. Find alumni from your sport, see what they do now and reach out.</p>
+      <p class="alumni-teaser-text">Our community goes beyond sport. Former players, captains and associates keep a profile and stay in touch, as part of an Esade alumni network ranked #6 by the Financial Times. Find alumni from your sport, see what they do now and reach out.</p>
     </div>
   </section>
 
