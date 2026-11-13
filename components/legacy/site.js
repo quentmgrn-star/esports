@@ -1,40 +1,112 @@
 /* eslint-disable */
 import { SPORT_IMAGES } from "@/lib/images";
 import { BOARD_BLOCK } from "./markup";
+import { GAMES } from "./games";
 // Ported from the original prototype script. Runs once on the client after the markup mounts.
 export function initSite(backend) {
 
   "use strict";
   var EUR = new Intl.NumberFormat("en-IE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
   var $ = function (id) { return document.getElementById(id); };
+  var REDUCED = !!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
   var pub = $("public"), page = $("page"), hub = $("hub"), siteHead = $("top"), siteFoot = $("site-foot");
 
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
   function mono(w) { return '<svg class="mono" style="width:' + w + 'px" viewBox="0 0 132 72" aria-hidden="true"><use href="#es"/></svg>'; }
   function toast(msg) { var t = document.createElement("div"); t.className = "toast"; t.setAttribute("role", "status"); t.textContent = msg; document.body.appendChild(t); setTimeout(function () { t.remove(); }, 2200); }
 
-  var MATCH_DETAILS = {
-    "football-7": { sport: "Football 7 · Men", teams: "EUBS vs Esade FC", date: "Saturday 14 November 2026", time: "17:00", location: "Field A", league: "UniBall Championship (Men's F7) · Elite · Matchday 8", status: "Upcoming · Away" },
-    "basketball-women": { sport: "Basketball · Women", teams: "Esade vs GBSB Global", date: "Saturday 21 November 2026", time: "12:00", location: "Court 2, Barcelona Sports Hub", league: "Esade Student League · Women", status: "Upcoming · Home" },
-    "volleyball-men": { sport: "Volleyball · Men", teams: "Esade vs TBS United", date: "Sunday 22 November 2026", time: "11:00", location: "Court 1, Esade Pedralbes Campus", league: "Catalunya University Volleyball League", status: "Upcoming · Home" },
-    "padel-women": { sport: "Padel · Women", teams: "Esade vs EU Business School", date: "Wednesday 25 November 2026", time: "18:30", location: "Padel Court 4, Vall d’Hebron Sports Centre", league: "Barcelona Student Padel Tour", status: "Upcoming · Home" },
-    "futsal-women-result": { sport: "Futsal · Women", teams: "Esade 4–2 Sant Cugat FC", date: "Saturday 7 November 2026", time: "16:00", location: "Court 3, Esade Pedralbes Campus", league: "Esade Student League · Women", status: "Final · Esade won 4–2" },
-    "basketball-men": { sport: "Basketball · Men", teams: "Esade vs FE NATURAL", date: "Tuesday 17 November 2026", time: "21:00", location: "Thau Pedralbes · Voley - Baloncesto P2", league: "CSS · Bàsquet 1ª Lliga · 1ª Divisió (Round 5)", status: "Upcoming · Home" },
-    "basketball-men-result": { sport: "Basketball · Men", teams: "Esade 56–37 TOP", date: "Tuesday 10 November 2026", time: "22:00", location: "Thau Pedralbes · Voley - Baloncesto P2", league: "CSS · Bàsquet 1ª Lliga · 1ª Divisió (Round 1)", status: "Final · Esade won 56–37" },
-    "volleyball-women-result": { sport: "Volleyball · Women", teams: "Esade 2–1 ESADE Business School", date: "Wednesday 4 November 2026", time: "19:00", location: "Court 2, Esade Pedralbes Campus", league: "Catalunya University Volleyball League", status: "Final · Esade won 2–1" }
-  };
+  // ================= Games (one source: components/legacy/games.js) =================
+  var DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  function gDate(g) { var p = g.date.split("-"); return new Date(+p[0], +p[1] - 1, +p[2]); }
+  function ymd(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+  function gameById(id) { for (var i = 0; i < GAMES.length; i++) if (GAMES[i].id === id) return GAMES[i]; return null; }
+  function gTeams(g) { return g.score ? g.home + " " + g.score + " " + g.away : g.home + " vs " + g.away; }
+  function gLong(g) { var d = gDate(g); return DAYS[d.getDay()] + " " + d.getDate() + " " + MONTHS[d.getMonth()] + " " + d.getFullYear(); }
+  function gShort(g) { var d = gDate(g); return DAYS[d.getDay()].slice(0, 3) + " " + String(d.getDate()).padStart(2, "0") + "/" + String(d.getMonth() + 1).padStart(2, "0"); }
+  function gStatus(g) {
+    if (!g.score) return "Upcoming · " + g.side;
+    var sc = g.score.split("–"), esadeHome = g.home.indexOf("Esade") === 0, us = +(esadeHome ? sc[0] : sc[1]), them = +(esadeHome ? sc[1] : sc[0]);
+    return "Final · " + (us > them ? "Esade won " : us < them ? "Esade lost " : "Draw ") + g.score;
+  }
+  function gameRow(g) {
+    return '<li class="row match-button" data-match-id="' + g.id + '" role="button" tabindex="0" aria-label="View ' + esc(g.sport) + ' match details"><span class="when"><b>' + gShort(g) + "</b>" + (g.score ? "Final" : g.time) + '</span><span class="match"><span class="sport">' + esc(g.sport) + (g.example ? ' <em class="ex">Example</em>' : "") + '</span><div class="teamsline">' + esc(gTeams(g)) + '</div><span class="where">' + esc(g.venue) + "</span></span>" + (g.score ? '<span class="score">' + esc(g.score) + "</span>" : '<span class="tag">' + g.side + "</span>") + "</li>";
+  }
+  // Home lists: upcoming = no score yet (soonest first), results = played (latest first).
+  (function () {
+    var up = GAMES.filter(function (g) { return !g.score; }).sort(function (a, b) { return (a.date + a.time).localeCompare(b.date + b.time); });
+    var res = GAMES.filter(function (g) { return g.score; }).sort(function (a, b) { return (b.date + b.time).localeCompare(a.date + a.time); });
+    if ($("list-up")) $("list-up").innerHTML = up.slice(0, 5).map(gameRow).join("");
+    if ($("list-res")) $("list-res").innerHTML = res.slice(0, 5).map(gameRow).join("");
+  })();
 
+  // .ics file for "Add to calendar" (2-hour slot, Europe/Madrid local time).
+  function icsFor(g) {
+    var d = g.date.replace(/-/g, ""), t = g.time.replace(":", "") + "00", h = +g.time.slice(0, 2) + 2;
+    var end = String(Math.min(h, 23)).padStart(2, "0") + g.time.slice(3) + "00";
+    var clean = function (x) { return String(x).replace(/[,;\\]/g, "\\$&"); };
+    return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Esade Sports//Games//EN", "BEGIN:VEVENT", "UID:" + g.id + "@esadesports", "DTSTAMP:" + d + "T000000Z",
+      "DTSTART;TZID=Europe/Madrid:" + d + "T" + t, "DTEND;TZID=Europe/Madrid:" + d + "T" + end, "SUMMARY:" + clean(g.sport + ": " + g.home + " vs " + g.away),
+      "LOCATION:" + clean(g.venue), "DESCRIPTION:" + clean(g.competition), "END:VEVENT", "END:VCALENDAR"].join("\r\n");
+  }
   function openMatch(id) {
-    var m = MATCH_DETAILS[id], modal = $("match-modal");
-    if (!m || !modal) return;
-    $("match-modal-sport").textContent = m.sport;
-    $("match-modal-title").textContent = m.teams;
-    $("match-modal-meta").textContent = m.date + " · " + m.time;
-    $("match-modal-location").textContent = m.location;
-    $("match-modal-league").textContent = m.league;
-    $("match-modal-status").textContent = m.status;
+    var g = gameById(id), modal = $("match-modal");
+    if (!g || !modal) return;
+    $("match-modal-sport").textContent = g.sport + (g.example ? " · Example" : "");
+    $("match-modal-title").textContent = gTeams(g);
+    $("match-modal-meta").textContent = gLong(g) + " · " + g.time;
+    $("match-modal-location").textContent = g.venue;
+    $("match-modal-league").textContent = g.competition;
+    $("match-modal-status").textContent = gStatus(g);
+    var ics = $("match-modal-ics");
+    if (ics) {
+      ics.hidden = !!g.score;
+      if (!g.score) { ics.href = "data:text/calendar;charset=utf-8," + encodeURIComponent(icsFor(g)); ics.setAttribute("download", "esade-sports-" + g.id + ".ics"); }
+    }
     modal.hidden = false;
     document.body.style.overflow = "hidden";
+  }
+
+  // ================= Full calendar (#calendar) =================
+  var cal = { month: null, view: "month", team: "" };
+  function calendarView() {
+    var today = new Date(); today.setHours(0, 0, 0, 0);
+    if (!cal.month) {
+      var next = GAMES.filter(function (g) { return gDate(g) >= today; }).sort(function (a, b) { return a.date.localeCompare(b.date); })[0];
+      cal.month = next ? new Date(gDate(next).getFullYear(), gDate(next).getMonth(), 1) : new Date(today.getFullYear(), today.getMonth(), 1);
+    }
+    var y = cal.month.getFullYear(), m = cal.month.getMonth();
+    var games = GAMES.filter(function (g) { return !cal.team || g.team === cal.team; }).sort(function (a, b) { return (a.date + a.time).localeCompare(b.date + b.time); });
+    var teamsWithGames = TEAMS.filter(function (t) { return GAMES.some(function (g) { return g.team === t.id; }); });
+    var head = '<section class="band"><div class="wrap"><p class="eyebrow">Game schedules</p><h1 class="display">Full<br>calendar.</h1><p>Every Esade Sports game on the website: date, time, place and result. Games marked Example are placeholders until captains add the real ones.</p></div></section>';
+    var bar = '<div class="cal-bar"><div class="cal-nav"><button type="button" class="btn btn-ghost-navy sm" data-cal="prev" aria-label="Previous month">←</button><h2 class="cal-title">' + MONTHS[m] + " " + y + '</h2><button type="button" class="btn btn-ghost-navy sm" data-cal="next" aria-label="Next month">→</button><button type="button" class="btn btn-ghost-navy sm" data-cal="today">Today</button></div>' +
+      '<div class="cal-tools"><label class="field" for="cal-team">Team<select id="cal-team"><option value="">All teams</option>' + teamsWithGames.map(function (t) { return '<option value="' + t.id + '"' + (cal.team === t.id ? " selected" : "") + ">" + esc(tLabel(t)) + "</option>"; }).join("") + "</select></label>" +
+      '<div class="cal-toggle" role="group" aria-label="View"><button type="button" data-calview="month" aria-pressed="' + (cal.view === "month") + '">Month</button><button type="button" data-calview="list" aria-pressed="' + (cal.view === "list") + '">List</button></div></div></div>';
+    var body;
+    if (cal.view === "list") {
+      var inMonth = games.filter(function (g) { var d = gDate(g); return d.getFullYear() === y && d.getMonth() === m; });
+      body = inMonth.length ? '<ul class="rows cal-list">' + inMonth.map(gameRow).join("") + "</ul>" : '<p class="muted cal-empty">No games this month.</p>';
+    } else {
+      var first = new Date(y, m, 1), start = new Date(y, m, 1 - ((first.getDay() + 6) % 7)), cells = "";
+      for (var k = 0; k < 42; k++) {
+        var d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + k), key = ymd(d);
+        if (k === 35 && d.getMonth() !== m) break;
+        var dayGames = games.filter(function (g) { return g.date === key; });
+        cells += '<div class="cal-day' + (d.getMonth() !== m ? " out" : "") + (d.getTime() === today.getTime() ? " today" : "") + '"><span class="cal-num">' + d.getDate() + "</span>" +
+          dayGames.map(function (g) { return '<button type="button" class="cal-game' + (g.score ? " played" : "") + '" data-match-id="' + g.id + '"><b>' + (g.score ? g.score : g.time) + "</b> " + esc(g.sport) + (g.example ? " <em>Ex.</em>" : "") + "</button>"; }).join("") + "</div>";
+      }
+      body = '<div class="cal-grid" role="grid"><div class="cal-wd">Mon</div><div class="cal-wd">Tue</div><div class="cal-wd">Wed</div><div class="cal-wd">Thu</div><div class="cal-wd">Fri</div><div class="cal-wd">Sat</div><div class="cal-wd">Sun</div>' + cells + "</div>";
+    }
+    return head + '<section class="sec cal-sec"><div class="wrap">' + bar + body + '<p class="muted cal-note">Click a game for details and to add it to your own calendar.</p></div></section>';
+  }
+  function bindCalendar() {
+    page.querySelectorAll("[data-cal]").forEach(function (b) { b.addEventListener("click", function () {
+      var a = b.getAttribute("data-cal"), t = new Date();
+      cal.month = a === "today" ? new Date(t.getFullYear(), t.getMonth(), 1) : new Date(cal.month.getFullYear(), cal.month.getMonth() + (a === "next" ? 1 : -1), 1);
+      render();
+    }); });
+    page.querySelectorAll("[data-calview]").forEach(function (b) { b.addEventListener("click", function () { cal.view = b.getAttribute("data-calview"); render(); }); });
+    $("cal-team").addEventListener("change", function (e) { cal.team = e.target.value; render(); });
   }
 
   function closeMatch() {
@@ -1004,6 +1076,7 @@ export function initSite(backend) {
     else if (h === "my-profile") html = formView();
     else if (h === "privacy") html = privacyView();
     else if (h === "contact") html = contactView();
+    else if (h === "calendar") html = calendarView();
     else if (h === "alumni-verify") html = verifyView();
     else if (h.indexOf("alumni-") === 0) {
       var id = h.slice(7), a = null;
@@ -1011,6 +1084,7 @@ export function initSite(backend) {
       html = a ? (a.id === "me" && a.verified === false ? pendingNote() : "") + profileView(a) : alumniView();
     }
     if (html !== null) {
+      render.lastPub = false;
       page.innerHTML = html; show("page");
       if (h === "signin") bindSignin();
       if (h === "alumni-signin") bindAlumniSignin();
@@ -1019,6 +1093,7 @@ export function initSite(backend) {
       if (h === "alumni-verify") bindVerify();
       if (h === "apply-associate") bindAssociateApply();
       if (h === "contact") bindContact();
+      if (h === "calendar") bindCalendar();
       if (h === "apply" || h.indexOf("apply-") === 0) bindApply();
       page.querySelectorAll("[data-copy]").forEach(function (b) { b.addEventListener("click", function () {
         var v = b.getAttribute("data-copy");
@@ -1030,7 +1105,8 @@ export function initSite(backend) {
     }
     show("pub");
     var target = h && h !== "home" ? $(h) : null;
-    if (target) target.scrollIntoView(); else window.scrollTo(0, 0);
+    var wasPub = render.lastPub; render.lastPub = true;
+    if (target) target.scrollIntoView({ behavior: wasPub && !REDUCED ? "smooth" : "auto" }); else window.scrollTo(0, 0);
   }
   function bindAlumni() {
     if (!$("al-cards")) return;
@@ -1050,12 +1126,12 @@ export function initSite(backend) {
 
   document.addEventListener("click", function (e) { document.querySelectorAll("details.more[open]").forEach(function (d) { if (!d.contains(e.target)) d.removeAttribute("open"); }); });
   document.addEventListener("click", function (e) {
-    var row = e.target.closest && e.target.closest(".match-button[data-match-id]");
+    var row = e.target.closest && e.target.closest("[data-match-id]");
     if (row) openMatch(row.getAttribute("data-match-id"));
     if (e.target.closest && e.target.closest("[data-match-close]")) closeMatch();
   });
   document.addEventListener("keydown", function (e) {
-    var row = e.target.closest && e.target.closest(".match-button[data-match-id]");
+    var row = e.target.closest && e.target.closest("[data-match-id]");
     if (row && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openMatch(row.getAttribute("data-match-id")); }
     if (e.key === "Escape") closeMatch();
   });
@@ -1120,6 +1196,24 @@ export function initSite(backend) {
       if (Math.abs(dx) > 40) { show(cur + (dx < 0 ? 1 : -1)); start(); }
     });
     start();
+  })();
+  // Section reveal on scroll (fade + small rise) and the nav item for the section in view.
+  // Sections stay visible if JS or IntersectionObserver is unavailable, or with reduced motion.
+  (function () {
+    var secs = Array.prototype.slice.call(document.querySelectorAll("#public main > section:not(.hero)"));
+    if (!REDUCED && "IntersectionObserver" in window) {
+      var io = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }); }, { rootMargin: "0px 0px -10% 0px", threshold: 0.08 });
+      secs.forEach(function (sct) { sct.classList.add("reveal"); io.observe(sct); });
+    }
+    if (!("IntersectionObserver" in window)) return;
+    var links = {}; document.querySelectorAll("#nav > a[href^='#']").forEach(function (a) { links[a.getAttribute("href").slice(1)] = a; });
+    var alias = { "alumni-home": "alumni" }, visible = {};
+    var spy = new IntersectionObserver(function (es) {
+      es.forEach(function (e) { visible[e.target.id] = e.isIntersecting; });
+      var cur = null; secs.forEach(function (sct) { if (!cur && visible[sct.id] && links[alias[sct.id] || sct.id]) cur = alias[sct.id] || sct.id; });
+      Object.keys(links).forEach(function (k) { if (k === cur) links[k].setAttribute("aria-current", "true"); else links[k].removeAttribute("aria-current"); });
+    }, { rootMargin: "-45% 0px -50% 0px" });
+    secs.forEach(function (sct) { if (sct.id) spy.observe(sct); });
   })();
   window.addEventListener("hashchange", function () { state.teamOpen = null; render(); });
   renderAcct(); render();
