@@ -7,6 +7,9 @@ import { EVENTS } from "./events";
 export function initSite(backend, tools) {
 
   "use strict";
+  // Line icons (one stroke family, drawn as SVG): no glyph or emoji stand-ins.
+  var ICONS = { left: "M15 6l-6 6 6 6", right: "M9 6l6 6-6 6", down: "M12 4v12M6 11l6 6 6-6M5 20h14", x: "M6 6l12 12M18 6L6 18", out: "M7 17L17 7M9 7h8v8" };
+  function ico(k) { return '<svg class="ico" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"><path d="' + ICONS[k] + '" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'; }
   var EUR = new Intl.NumberFormat("en-IE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
   var $ = function (id) { return document.getElementById(id); };
   var REDUCED = !!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
@@ -56,7 +59,7 @@ export function initSite(backend, tools) {
   if ($("events") && $("events").querySelector(".events")) $("events").querySelector(".events").innerHTML = upcomingEvents().slice(0, 3).map(eventCard).join("");
   function eventsView() {
     var list = upcomingEvents();
-    return '<section class="band"><div class="wrap"><p class="eyebrow">Events</p><h1 class="display">All<br>events.</h1><p>Runs, tournaments, talks and get-togethers in the Esade Sports community. Everyone is welcome: check the price and sign up below.</p></div></section>' +
+    return '<section class="band"><div class="wrap"><h1 class="display">All<br>events.</h1><p>Runs, tournaments, talks and get-togethers in the Esade Sports community. Everyone is welcome: check the price and sign up below.</p></div></section>' +
       '<section class="sec ev-sec"><div class="wrap"><ol class="ev-list">' + (list.length ? list.map(function (e) {
         return '<li class="ev" id="ev-' + e.id + '"><div class="ev-date"><b>' + gDate(e).getDate() + "</b><span>" + MONTHS[gDate(e).getMonth()].slice(0, 3) + "</span><small>" + e.time + "</small></div>" +
           '<div class="ev-body"><p class="eyebrow">' + esc(e.kind) + (e.example ? ' · <em class="ex">Example</em>' : "") + '</p><h2 class="ev-title">' + esc(e.title) + "</h2>" +
@@ -104,8 +107,8 @@ export function initSite(backend, tools) {
     var y = cal.month.getFullYear(), m = cal.month.getMonth();
     var games = GAMES.filter(function (g) { return !cal.team || g.team === cal.team; }).sort(function (a, b) { return (a.date + a.time).localeCompare(b.date + b.time); });
     var teamsWithGames = TEAMS.filter(function (t) { return GAMES.some(function (g) { return g.team === t.id; }); });
-    var head = '<section class="band"><div class="wrap"><p class="eyebrow">Game schedules</p><h1 class="display">Full<br>calendar.</h1><p>Every Esade Sports game on the website: date, time, place and result. Games marked Example are placeholders until captains add the real ones.</p></div></section>';
-    var bar = '<div class="cal-bar"><div class="cal-nav"><button type="button" class="btn btn-ghost-navy sm" data-cal="prev" aria-label="Previous month">←</button><h2 class="cal-title">' + MONTHS[m] + " " + y + '</h2><button type="button" class="btn btn-ghost-navy sm" data-cal="next" aria-label="Next month">→</button><button type="button" class="btn btn-ghost-navy sm" data-cal="today">Today</button></div>' +
+    var head = '<section class="band"><div class="wrap"><h1 class="display">Full<br>calendar.</h1><p>Every Esade Sports game on the website: date, time, place and result. Games marked Example are placeholders until captains add the real ones.</p></div></section>';
+    var bar = '<div class="cal-bar"><div class="cal-nav"><button type="button" class="btn btn-ghost-navy sm" data-cal="prev" aria-label="Previous month">' + ico("left") + '</button><h2 class="cal-title">' + MONTHS[m] + " " + y + '</h2><button type="button" class="btn btn-ghost-navy sm" data-cal="next" aria-label="Next month">' + ico("right") + '</button><button type="button" class="btn btn-ghost-navy sm" data-cal="today">Today</button></div>' +
       '<div class="cal-tools"><label class="field" for="cal-team">Team<select id="cal-team"><option value="">All teams</option>' + teamsWithGames.map(function (t) { return '<option value="' + t.id + '"' + (cal.team === t.id ? " selected" : "") + ">" + esc(tLabel(t)) + "</option>"; }).join("") + "</select></label>" +
       '<div class="cal-toggle" role="group" aria-label="View"><button type="button" data-calview="month" aria-pressed="' + (cal.view === "month") + '">Month</button><button type="button" data-calview="list" aria-pressed="' + (cal.view === "list") + '">List</button></div></div></div>';
     var body;
@@ -261,7 +264,7 @@ export function initSite(backend, tools) {
   // ================= Members (low-key, linked from the footer) =================
   // Public browsing never needs a login. This page is only for the people who run Esade Sports.
   function signinView() {
-    return '<section class="band"><div class="wrap"><p class="eyebrow">Members</p><h1 class="display">Members<br>area.</h1><p>For captains, Board members, associates and the Student Council: requests, decisions and follow-up in one place. Visitors don\u2019t need an account, everything public is open.</p></div></section>' +
+    return '<section class="band"><div class="wrap"><h1 class="display">Members<br>area.</h1><p>For captains, Board members, associates and the Student Council: requests, decisions and follow-up in one place. Visitors don\u2019t need an account, everything public is open.</p></div></section>' +
       '<section class="signin"><div class="wrap"><div class="access">' +
       (admin || captain ? hubPicker() + (captain && !admin ? requestBlock() : "")
       : '<div class="acc"><p class="eyebrow">Captains · Board · Associates</p><strong>Sign in to the Hub</strong><p>Expenses and budgets, team updates, try-out applications, department tasks and reports for the Student Council.</p>' +
@@ -521,8 +524,8 @@ export function initSite(backend, tools) {
   function sec(id, title, sub, body) { return '<section class="tsec" id="' + id + '"><header><h2>' + title + "</h2><span>" + sub + "</span></header>" + body + "</section>"; }
   function joinBlock(t) {
     var D = teamData(t);
-    return '<div class="ways"><div class="tryout"><p class="eyebrow">Play</p><h3 class="display">Come to<br>try-outs.</h3><p>Next try-out: ' + esc(D.tryout || "Check the next club announcement") + '. Every level is welcome. Come and train with the squad.</p><a class="btn btn-solid-white" href="#apply-player-' + t.id + '">Sign up for try-outs</a></div>' +
-      '<div class="tryout coach"><p class="eyebrow">Coach</p><h3 class="display">Volunteer as coach.</h3><p>Our coaches are volunteers. Esade student or not, if you have played or coached ' + esc(t.sport.toLowerCase()) + ', we would love your help.</p><a class="btn btn-ghost-navy" href="#apply-coach-' + t.id + '">Apply to coach</a></div></div>';
+    return '<div class="ways"><div class="tryout"><h3 class="display">Come to<br>try-outs.</h3><p>Next try-out: ' + esc(D.tryout || "Check the next club announcement") + '. Every level is welcome. Come and train with the squad.</p><a class="btn btn-solid-white" href="#apply-player-' + t.id + '">Sign up for try-outs</a></div>' +
+      '<div class="tryout coach"><h3 class="display">Volunteer as coach.</h3><p>Our coaches are volunteers. Esade student or not, if you have played or coached ' + esc(t.sport.toLowerCase()) + ', we would love your help.</p><a class="btn btn-ghost-navy" href="#apply-coach-' + t.id + '">Apply to coach</a></div></div>';
   }
   function statsTable(t) {
     var L = LEAGUE[t.id], cols = (L && L.statCols) || STATCOLS[t.sport] || ["GP"], rows = [], D = teamData(t), players = D.roster || (L && L.players) || [];
@@ -564,7 +567,7 @@ export function initSite(backend, tools) {
       body = sec("t-roster", "Roster", "Season 2026–27 · kept up to date by the captain", rosterCards(t, 12));
     } else if (tab === "staff") {
       body = '<div class="tgrid">' + sec("t-staff", "Staff", "Students and volunteers", staffList(t)) +
-        '<section class="tsec"><div class="tryout coach"><p class="eyebrow">Coach</p><h3 class="display">Volunteer as coach.</h3><p>Our coaches are volunteers. Esade student or not, if you have played or coached ' + esc(t.sport.toLowerCase()) + ', we would love your help.</p><a class="btn btn-ghost-navy" href="#apply-coach-' + t.id + '">Apply to coach</a></div></section></div>';
+        '<section class="tsec"><div class="tryout coach"><h3 class="display">Volunteer as coach.</h3><p>Our coaches are volunteers. Esade student or not, if you have played or coached ' + esc(t.sport.toLowerCase()) + ', we would love your help.</p><a class="btn btn-ghost-navy" href="#apply-coach-' + t.id + '">Apply to coach</a></div></section></div>';
     } else if (tab === "schedule") {
       if (L && L.games) {
         body = recordCards(L) + sec("t-sched", "Schedule &amp; results", esc(L.league), gamesTable(L, L.games) + (L.gamesNote ? '<p class="src">' + esc(L.gamesNote) + "</p>" : "")) +
@@ -606,7 +609,7 @@ export function initSite(backend, tools) {
   // ================= Join a team (player or coach) =================
   function applyView(h) {
     var m = h.match(/^apply-(player|coach)-(.+)$/), as = m ? m[1] : "player", tid = m && team(m[2]) ? m[2] : TEAMS[0].id;
-    return '<section class="band"><div class="wrap"><p class="eyebrow">Join a team</p><h1 class="display">Play or<br>coach.</h1><p>Esade Sports teams are run by students. Players join through try-outs. Coaches are volunteers, and you do not need to be an Esade student to coach.</p></div></section>' +
+    return '<section class="band"><div class="wrap"><h1 class="display">Play or<br>coach.</h1><p>Esade Sports teams are run by students. Players join through try-outs. Coaches are volunteers, and you do not need to be an Esade student to coach.</p></div></section>' +
       '<section class="al"><div class="wrap body"><form class="pform" id="aform" novalidate>' +
       '<div class="fsec"><h2>What would you like to do?</h2><div class="checks" role="radiogroup" aria-label="Join as">' +
       '<label for="as-player"><input type="radio" name="as" id="as-player" value="player"' + (as === "player" ? " checked" : "") + '>Play: sign up for try-outs</label>' +
@@ -618,23 +621,23 @@ export function initSite(backend, tools) {
       '<label class="field" for="a-level">Your level<select id="a-level"><option>Beginner</option><option>Played at school or in a club</option><option>Played at a competitive level</option></select></label>' +
       '<label class="field full" for="a-exp" id="a-exp-wrap">Coaching experience<textarea id="a-exp" rows="3" placeholder="Teams or age groups you have coached, licences, how much time you can give each week"></textarea></label></div></div>' +
       '<p class="err" id="a-err" hidden></p><div class="form-actions"><button class="btn btn-blue" type="submit" id="a-submit">Send</button><span class="muted" style="font-size:13px">The captain gets back to you by email.</span></div></form>' +
-      '<div class="locked" id="a-done" hidden><p class="eyebrow" style="color:var(--blue)">Sent</p><h2 id="a-done-h">Thanks, we have your details</h2><p id="a-done-p">The captain will contact you by email with the next steps.</p><a class="btn btn-ghost-navy" href="#home">Back to home</a></div></div></section>';
+      '<div class="locked" id="a-done" hidden><h2 id="a-done-h">Thanks, we have your details</h2><p id="a-done-p">The captain will contact you by email with the next steps.</p><a class="btn btn-ghost-navy" href="#home">Back to home</a></div></div></section>';
   }
   function applyAssociateView() {
     var opts = DEPTS.filter(function (d) { return d.id !== "board"; }).map(function (d) { return '<option value="' + d.id + '">' + esc(d.name) + '</option>'; }).join('');
-    return '<section class="band"><div class="wrap"><p class="eyebrow">Esade Sports recruitment</p><h1 class="display">Join the<br>association.</h1><p>Apply to up to two departments. Rank your preferences, tell us what motivates you and share the work that helps us understand how you could contribute.</p></div></section>' +
+    return '<section class="band"><div class="wrap"><h1 class="display">Join the<br>association.</h1><p>Apply to up to two departments. Rank your preferences, tell us what motivates you and share the work that helps us understand how you could contribute.</p></div></section>' +
       '<section class="al"><div class="wrap body"><form class="pform" id="assoc-form" novalidate>' +
       '<div class="fsec"><h2>Personal information</h2><div class="fgrid">' + fieldI("as-first", "First name", "", "required autocomplete=\"given-name\"") + fieldI("as-last", "Last name", "", "required autocomplete=\"family-name\"") + fieldI("as-email", "Esade email", "", 'type="email" required autocomplete="email"') + phoneField("as-phone", "Phone number", true) + fieldI("as-programme", "Programme", "", 'required list="as-progs" placeholder="BBA"') + '<datalist id="as-progs"><option value="BBA"><option value="Double degree BBA + Law"><option value="MSc"><option value="MBA"></datalist>' + '<label class="field" for="as-year">Year<select id="as-year" required><option value="">Choose your year</option>' + YEARS.map(function (y) { return '<option value="' + y + '">' + y + '</option>'; }).join('') + '</select></label>' + fieldI("as-linkedin", "LinkedIn profile", "", 'type="url" placeholder="https://linkedin.com/in/..."') + '</div></div>' +
       '<div class="fsec"><h2>Department preferences</h2><p class="muted" style="margin:0">You may apply to a maximum of two departments. Preference 1 is your strongest choice.</p><div class="fgrid"><label class="field" for="as-pref1">Preference 1<select id="as-pref1" required><option value="">Choose a department</option>' + opts + '</select></label><label class="field" for="as-pref2">Preference 2 <small>(optional)</small><select id="as-pref2"><option value="">No second preference</option>' + opts + '</select></label></div><label class="field full" for="as-motivation">Why do you want to join Esade Sports and why these departments?<textarea id="as-motivation" rows="6" required placeholder="Tell us what motivates you, what you could contribute and why you ranked these departments."></textarea></label></div>' +
       '<div class="fsec"><h2>Application materials</h2><div class="fgrid"><label class="field" for="as-cv">CV <small>(PDF required)</small><input id="as-cv" type="file" accept="application/pdf,.pdf" required></label><label class="field" for="as-video">Motivation video <small>(optional)</small><input id="as-video" type="file" accept="video/mp4,video/quicktime,.mp4,.mov"></label></div><p class="muted" style="margin:10px 0 0;font-size:13px">Video: MP4 or MOV, around 60–90 seconds. Explain who you are, why Esade Sports interests you and why your department preferences fit you.</p></div>' +
       '<div class="fsec"><label class="consent" for="as-redirect"><input type="checkbox" id="as-redirect" required><span>I understand that the Board may redirect my application to another department if it is a better fit for my profile and the association’s needs.</span></label><label class="consent" for="as-consent"><input type="checkbox" id="as-consent" required><span>I confirm that the information and documents submitted are accurate and may be reviewed by the Esade Sports recruitment team.</span></label></div>' +
       '<p class="err" id="as-err" hidden></p><div class="form-actions"><button class="btn btn-blue" type="submit">Submit application</button><span class="muted" style="font-size:13px">Your application will be reviewed by the Board and relevant department Heads.</span></div></form>' +
-      '<div class="locked" id="as-done" hidden><p class="eyebrow" style="color:var(--blue)">Application received</p><h2>Thanks for applying to Esade Sports</h2><p id="as-done-p">Your ranked preferences and application materials are ready for review.</p><a class="btn btn-ghost-navy" href="#home">Back to home</a></div></div></section>';
+      '<div class="locked" id="as-done" hidden><h2>Thanks for applying to Esade Sports</h2><p id="as-done-p">Your ranked preferences and application materials are ready for review.</p><a class="btn btn-ghost-navy" href="#home">Back to home</a></div></div></section>';
   }
   // ================= Contact form (footer "Contact") =================
   var CONTACT_TOPICS = ["Question", "Suggestion", "Feedback or complaint", "Try-outs", "Coaching", "Partnership or business", "Alumni", "Other"];
   function contactView() {
-    return '<section class="band"><div class="wrap"><p class="eyebrow">Contact</p><h1 class="display">Get in<br>touch.</h1><p>A question, a suggestion or an idea? Send us a message and the right person at Esade Sports will get back to you by email.</p></div></section>' +
+    return '<section class="band"><div class="wrap"><h1 class="display">Get in<br>touch.</h1><p>A question, a suggestion or an idea? Send us a message and the right person at Esade Sports will get back to you by email.</p></div></section>' +
       '<section class="al"><div class="wrap body"><form class="pform" id="contact-form" novalidate>' +
       '<div class="fsec"><h2>Your message</h2><div class="fgrid">' +
       '<label class="field" for="ct-topic">What is your message about?<select id="ct-topic" required><option value="">Choose a topic</option>' + CONTACT_TOPICS.map(function (t) { return '<option value="' + t + '">' + t + "</option>"; }).join("") + "</select></label>" +
@@ -646,7 +649,7 @@ export function initSite(backend, tools) {
       '<div class="hp" aria-hidden="true"><label for="ct-website">Website<input id="ct-website" tabindex="-1" autocomplete="off"></label></div></div>' +
       '<div class="fsec"><label class="consent" for="ct-consent"><input type="checkbox" id="ct-consent" required><span>I have read the <a href="#privacy">privacy policy</a> and agree that Esade Sports uses my details to answer this message.</span></label></div>' +
       '<p class="err" id="ct-err" hidden></p><div class="form-actions"><button class="btn btn-blue" type="submit">Send message</button><span class="muted" style="font-size:13px">We usually reply within a few days.</span></div></form>' +
-      '<div class="locked" id="ct-done" hidden><p class="eyebrow" style="color:var(--blue)">Message sent</p><h2>Thanks for your message</h2><p>We have received it and will reply by email.</p><a class="btn btn-ghost-navy" href="#home">Back to home</a></div></div></section>';
+      '<div class="locked" id="ct-done" hidden><h2>Thanks for your message</h2><p>We have received it and will reply by email.</p><a class="btn btn-ghost-navy" href="#home">Back to home</a></div></div></section>';
   }
   function bindContact() {
     var f = $("contact-form"); if (!f) return;
@@ -750,7 +753,7 @@ export function initSite(backend, tools) {
   function initials(a) { return esc((a.first || "?").charAt(0) + (a.last || "").charAt(0)); }
   function avatar(a) { return '<div class="av">' + (a.photo ? '<img src="' + a.photo + '" alt="">' : initials(a)) + "</div>"; }
   function alumniBand(extra) {
-    return '<section class="band"><div class="wrap"><p class="eyebrow">Esade alumni network</p><h1 class="display">A community<br>beyond sports.</h1><p>Part of an Esade alumni network ranked #6 by the Financial Times. Search the Esade Sports alumni network like a professional directory. Anyone can browse profiles. Alumni add their own profile, and it appears once the Esade Sports team has checked it.</p>' + (extra || "") + "</div></section>";
+    return '<section class="band"><div class="wrap"><h1 class="display">A community<br>beyond sports.</h1><p>Part of an Esade alumni network ranked #6 by the Financial Times. Search the Esade Sports alumni network like a professional directory. Anyone can browse profiles. Alumni add their own profile, and it appears once the Esade Sports team has checked it.</p>' + (extra || "") + "</div></section>";
   }
   // Graduation years: 1991 up to next year's class, newest first.
   function gradYears() { var out = [], top = new Date().getFullYear() + 1; for (var y = top; y >= 1991; y--) out.push(y); return out; }
@@ -851,7 +854,7 @@ export function initSite(backend, tools) {
   function formView() {
     var m = { programme: "BBA", sports: [], interns: [], assocs: [["Esade Sports", ""]] };
     draftPhoto = null;
-    return '<section class="band"><div class="wrap"><p class="eyebrow">Alumni corner</p><h1 class="display">Add your<br>profile.</h1><p>Share what you did at Esade and since, so other Esade alumni and students who played sport can find you. The Esade Sports team checks each profile before it appears in the directory. Your email and phone stay private.</p></div></section>' +
+    return '<section class="band"><div class="wrap"><h1 class="display">Add your<br>profile.</h1><p>Share what you did at Esade and since, so other Esade alumni and students who played sport can find you. The Esade Sports team checks each profile before it appears in the directory. Your email and phone stay private.</p></div></section>' +
       '<section class="al"><div class="wrap body"><form class="pform" id="pform" novalidate>' +
       '<div class="fsec"><h2>About you</h2><div class="photo-row"><div class="av" id="ph-prev">?</div><label class="field" for="f-photo">Profile photo <small>(optional)</small><input id="f-photo" type="file" accept="image/*"></label></div>' +
       '<div class="fgrid">' + fieldI("f-first", "First name", "", "required autocomplete=\"given-name\"") + fieldI("f-last", "Last name", "", "required autocomplete=\"family-name\"") + fieldI("f-nat", "Nationality", "", "required") +
@@ -917,7 +920,7 @@ export function initSite(backend, tools) {
         linkedin: v("f-li") || undefined, photo: draftPhoto || undefined, email: v("f-email"), phone: ph.value || undefined, consent: true, website: v("f-website") || undefined };
       var btn = $("f-submit"); btn.disabled = true; btn.textContent = "Sending…";
       function done() {
-        page.innerHTML = '<section class="band"><div class="wrap"><p class="eyebrow">Alumni corner</p><h1 class="display">Thank<br>you.</h1><p>We received your profile. It will appear in the alumni directory once the Esade Sports team has checked it, usually within a few days.</p><div class="ctas"><a class="btn btn-solid-white" href="#alumni">Back to the Alumni corner</a></div></div></section>';
+        page.innerHTML = '<section class="band"><div class="wrap"><h1 class="display">Thank<br>you.</h1><p>We received your profile. It will appear in the alumni directory once the Esade Sports team has checked it, usually within a few days.</p><div class="ctas"><a class="btn btn-solid-white" href="#alumni">Back to the Alumni corner</a></div></div></section>';
         window.scrollTo(0, 0);
       }
       if (!backend || !backend.submitAlumniProfile) { done(); return; }
@@ -939,7 +942,7 @@ export function initSite(backend, tools) {
       ["Your rights", "You can see, correct, export or delete your data. Write to esadesports@alumni.esade.edu and we reply within 30 days."],
       ["Cookies", "This site only stores your language and sign-in choice in your browser. No advertising or tracking cookies."]
     ];
-    return '<section class="band"><div class="wrap"><p class="eyebrow">Privacy</p><h1 class="display">Your data,<br>your call.</h1><p>How Esade Sports handles personal data. This page will be checked against Esade\u2019s data-protection rules before launch.</p></div></section>' +
+    return '<section class="band"><div class="wrap"><h1 class="display">Your data,<br>your call.</h1><p>How Esade Sports handles personal data. This page will be checked against Esade\u2019s data-protection rules before launch.</p></div></section>' +
       '<section class="al"><div class="wrap body"><div class="staff privacy">' + items.map(function (x) { return "<div><span>" + x[0] + "</span><span>" + x[1] + "</span></div>"; }).join("") + '</div><p class="muted" style="margin:0;font-size:13px">Contact: <a href="mailto:esadesports@alumni.esade.edu">esadesports@alumni.esade.edu</a></p></div></section>';
   }
 
@@ -1145,7 +1148,7 @@ export function initSite(backend, tools) {
       return '<a href="#' + v[0] + '"' + (v[0] === view ? ' aria-current="page"' : "") + ">" + (v[0] === "hub-teams" && !can("all") ? "My team" : v[1]) + (v[0] === "hub-expenses" && pending ? '<span class="count num">' + pending + "</span>" : "") + (v[0] === "hub-ideas" && newIdeas ? '<span class="count num">' + newIdeas + "</span>" : "") + (v[0] === "hub-applications" && visibleSportsApplications().length ? '<span class="count num">' + visibleSportsApplications().length + "</span>" : "") + "</a>";
     }).join("");
     var u = state.user, me = admin || captain, multi = !!admin || allowedViews().length > 1;
-    return '<div class="app"><aside class="rail"><div class="top"><a class="lock" href="#home" aria-label="Back to Esade Sports home">' + mono(38) + '<span>ESADE SPORTS<br>HUB</span></a><div class="history" aria-label="Page navigation"><button type="button" data-history="back" aria-label="Go back">←</button><button type="button" data-history="forward" aria-label="Go forward">→</button></div>' +
+    return '<div class="app"><aside class="rail"><div class="top"><a class="lock" href="#home" aria-label="Back to Esade Sports home">' + mono(38) + '<span>ESADE SPORTS<br>HUB</span></a><div class="history" aria-label="Page navigation"><button type="button" data-history="back" aria-label="Go back">' + ico("left") + '</button><button type="button" data-history="forward" aria-label="Go forward">' + ico("right") + '</button></div>' +
       '<div class="who"><p class="eyebrow">Signed in' + (admin ? " as admin" : "") + '</p><strong>' + esc(me.email) + "</strong><small>Viewing as " + esc(viewLabel(u)) + (hRO() ? " · read-only" : "") + "</small>" + (multi ? '<a class="back-site" href="#signin">Change view</a>' : "") + '<a class="back-site" href="#home">← Public site</a><button type="button" data-signout>Sign out</button>' + langSwitch() + '</div></div>' +
       '<nav aria-label="Hub">' + nav + "</nav></aside>" +
       '<main class="main">' + (admin ? demoBar(u) : '<div class="banner"><b>Prototype</b><span>Example figures and tasks. In the live version, access comes from an approved Esade login and data from a shared database.</span></div>') + inner + "</main></div>";
@@ -1177,13 +1180,13 @@ export function initSite(backend, tools) {
   function hubOverview() {
     var ts = visTeams(), budget = 0, paid = 0, pend = 0;
     if (!can("money")) // no finance view: teams and department only
-      return '<div class="ph-head"><div><p class="eyebrow">Season 2026–27</p><h1 class="display">Overview.</h1><p>' + esc(viewLabel(hv())) + ".</p></div></div>" +
+      return '<div class="ph-head"><div><h1 class="display">Overview.</h1><p>' + esc(viewLabel(hv())) + ".</p></div></div>" +
         '<div class="grid-2"><section class="panel"><div class="panel-head"><h2>' + (can("all") ? "Every team" : "Your teams") + '</h2><a class="btn sm" href="#hub-teams">Open</a></div><table><tbody>' +
         ts.map(function (t) { return '<tr><td class="tname">' + esc(tLabel(t)) + '</td><td class="r muted">' + esc(captainName(captainForTeam(t.id))) + "</td></tr>"; }).join("") + "</tbody></table></section>" + deptPanel() + "</div>";
     ts.forEach(function (t) { var o = totals(t.id); budget += t.budget; paid += o.paid; pend += o.pending; });
     var reqs = visExp().filter(function (e) { return e.status === "requested"; });
     var agreed = ts.filter(function (t) { return t.status === "agreed"; }).length;
-    return '<div class="ph-head"><div><p class="eyebrow">Season 2026–27</p><h1 class="display">' + (ts.length !== 1 ? "Overview." : esc(tLabel(ts[0])) + ".") + "</h1><p>" + (ts.length !== 1 ? "Where " + (can("all") ? "every team" : "your teams") + " and " + (hFull() ? "every department" : "your department") + " stand today." : "Your team's budget and expenses, handled by your Finance, Media and Operations associates.") + "</p></div></div>" +
+    return '<div class="ph-head"><div><h1 class="display">' + (ts.length !== 1 ? "Overview." : esc(tLabel(ts[0])) + ".") + "</h1><p>" + (ts.length !== 1 ? "Where " + (can("all") ? "every team" : "your teams") + " and " + (hFull() ? "every department" : "your department") + " stand today." : "Your team's budget and expenses, handled by your Finance, Media and Operations associates.") + "</p></div></div>" +
       '<div class="grid-4">' + stat("Season budget", EUR.format(budget), ts.length !== 1 ? ts.length + " teams" : "Agreed with you") + stat("Paid so far", EUR.format(paid), Math.round(paid / budget * 100) + "% of budget") +
       stat("Waiting", EUR.format(pend), reqs.length + " request" + (reqs.length === 1 ? "" : "s") + " to validate") + stat(ts.length !== 1 ? "Budgets agreed" : "Budget", ts.length !== 1 ? agreed + " / " + ts.length : BUDGET_STATUS[ts[0].status][1], ts.length !== 1 ? "with captains" : "status") + "</div>" +
       '<div class="grid-2"><section class="panel"><div class="panel-head"><h2>Requests waiting for Finance</h2>' + (hv().role === "captain" && can("submit") ? '<a class="btn sm solid" href="#hub-expenses" data-make-req>Make a request</a>' : '<a class="btn sm" href="#hub-expenses">All expenses</a>') + '</div>' + expTable(reqs, true) + "</section>" +
@@ -1232,7 +1235,7 @@ export function initSite(backend, tools) {
       '<span class="pill">Private: captain and Board only</span></div>' +
       (sizeSummary(pl) ? '<p class="muted" style="margin:0;font-size:13px">Shirt sizes: <b>' + esc(sizeSummary(pl)) + "</b></p>" : "") +
       '<div class="table-wrap"><table class="roster-t" data-roster="' + id + '"><thead><tr>' + PL_FIELDS.map(function (f) { return "<th>" + f[1] + "</th>"; }).join("") + "<th></th></tr></thead><tbody>" +
-      rows.map(function (p, i) { return '<tr data-pl="' + i + '">' + PL_FIELDS.map(function (f) { return "<td>" + plInput(f, p[f[0]], i) + "</td>"; }).join("") + '<td><button type="button" class="btn sm ghost" data-pl-del="' + i + '" aria-label="Remove player ' + (i + 1) + '">✕</button></td></tr>'; }).join("") +
+      rows.map(function (p, i) { return '<tr data-pl="' + i + '">' + PL_FIELDS.map(function (f) { return "<td>" + plInput(f, p[f[0]], i) + "</td>"; }).join("") + '<td><button type="button" class="btn sm ghost" data-pl-del="' + i + '" aria-label="Remove player ' + (i + 1) + '">' + ico("x") + '</button></td></tr>'; }).join("") +
       '</tbody></table></div><div class="roster-actions"><button type="button" class="btn sm" data-pl-add="' + id + '">+ Add player</button><button type="button" class="btn sm solid" data-pl-save="' + id + '">Save roster</button>' +
       (live() && ROSTER[id] && ROSTER[id].updatedBy ? '<small class="muted">Last saved by ' + esc(ROSTER[id].updatedBy) + " · " + esc(fmtWhen(ROSTER[id].updatedAt)) + "</small>" : "") + "</div></section>";
   }
@@ -1259,7 +1262,7 @@ export function initSite(backend, tools) {
   function hubTeams() {
     var ts = visTeams();
     if (!can("money")) // teams without the money columns (Finance only)
-      return '<div class="ph-head"><div><p class="eyebrow">Teams</p><h1 class="display">' + (can("all") ? "Every team." : "Your teams.") + '</h1><p>Budgets and expenses are handled by Finance.</p></div></div>' +
+      return '<div class="ph-head"><div><h1 class="display">' + (can("all") ? "Every team." : "Your teams.") + '</h1><p>Budgets and expenses are handled by Finance.</p></div></div>' +
         '<section class="panel"><div class="table-wrap"><table><thead><tr><th>Team</th><th>Captain</th></tr></thead><tbody>' +
         ts.map(function (t) { return '<tr><td class="tname">' + esc(tLabel(t)) + "</td><td>" + esc(captainName(captainForTeam(t.id))) + "</td></tr>"; }).join("") + "</tbody></table></div></section>";
     var open = state.teamOpen || (ts.length === 1 ? ts[0].id : null), detail = "";
@@ -1271,7 +1274,7 @@ export function initSite(backend, tools) {
         splitPanel(t) +
         expTable(visExp().filter(function (e) { return e.team === open; }), false) + "</section>" + teamInfoPanel(open) + rosterPanel(open);
     }
-    return '<div class="ph-head"><div><p class="eyebrow">Teams</p><h1 class="display">' + (can("all") ? "Every team." : "My team.") + "</h1><p>Each official team has a season budget agreed with its captain, and three dedicated associates.</p></div></div>" +
+    return '<div class="ph-head"><div><h1 class="display">' + (can("all") ? "Every team." : "My team.") + "</h1><p>Each official team has a season budget agreed with its captain, and three dedicated associates.</p></div></div>" +
       '<section class="panel"><div class="table-wrap"><table><thead><tr><th>Team</th><th>Budget</th><th class="r">Agreed</th><th class="r">Paid</th><th>Used (paid + waiting)</th></tr></thead><tbody>' +
       ts.map(function (t) { var o = totals(t.id), p = Math.min(100, o.paid / t.budget * 100), q = Math.min(100 - p, o.pending / t.budget * 100);
         return '<tr class="click" data-hteam="' + t.id + '" tabindex="0"><td class="tname">' + esc(tLabel(t)) + "</td><td>" + pill(BUDGET_STATUS, t.status) + '</td><td class="r num">' + EUR.format(t.budget) + '</td><td class="r num">' + EUR.format(o.paid) + '</td><td style="width:22%"><div class="bar"><i style="width:' + p + '%"></i><i class="pend" style="left:' + p + "%;width:" + q + '%"></i></div></td></tr>'; }).join("") +
@@ -1350,7 +1353,7 @@ export function initSite(backend, tools) {
     if (!list.length) return '<p class="empty">' + (live() && LIVE.exp === null ? "Loading…" : "Nothing here yet.") + "</p>";
     var multi = visTeams().length > 1;
     var act = list.some(function (e) { return canDecideE(e) || canPayE(e) || canReconE(e); });
-    return '<div class="table-wrap"><table class="exp"><thead><tr><th>Date</th>' + (multi ? "<th>Team</th>" : "") + '<th>Expense</th><th class="r">Amount</th><th>Status</th>' + (act ? '<th class="r">Action</th>' : "") + "</tr></thead><tbody>" +
+    return '<div class="table-wrap"><table class="ledger-t"><thead><tr><th>Date</th>' + (multi ? "<th>Team</th>" : "") + '<th>Expense</th><th class="r">Amount</th><th>Status</th>' + (act ? '<th class="r">Action</th>' : "") + "</tr></thead><tbody>" +
       list.slice().sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; }).map(function (e) {
         var id = String(e.id), btns = "";
         if (state.rejecting === id) btns = '<div class="reject-box"><textarea id="rj-' + id + '" rows="2" placeholder="Why is it rejected? (required)" aria-label="Reason for rejecting"></textarea><div><button class="btn sm solid" data-reject-confirm="' + id + '">Reject</button> <button class="btn sm" data-reject-cancel>Cancel</button></div></div>';
@@ -1360,7 +1363,7 @@ export function initSite(backend, tools) {
           if (canPayE(e)) btns = '<button class="btn sm solid" data-act="paid" data-id="' + id + '">Mark paid</button>';
           if (canReconE(e)) btns += (btns ? " " : "") + '<button class="btn sm ghost" data-act="reconsider" data-id="' + id + '">Reconsider</button>';
         }
-        var files = (e.link ? '<a href="' + esc(e.link) + '" target="_blank" rel="noopener">Link ↗</a>' : "") + (e.file ? (e.link ? " · " : "") + '<a href="' + esc(e.file.data) + '" target="_blank" rel="noopener" download="' + esc(e.file.name) + '">' + esc(e.file.name) + "</a>" : "");
+        var files = (e.link ? '<a href="' + esc(e.link) + '" target="_blank" rel="noopener">Link ' + ico("out") + '</a>' : "") + (e.file ? (e.link ? " · " : "") + '<a href="' + esc(e.file.data) + '" target="_blank" rel="noopener" download="' + esc(e.file.name) + '">' + esc(e.file.name) + "</a>" : "");
         var who = e.decidedBy && e.status !== "requested" ? '<br><small class="muted">' + (e.status === "rejected" ? "Rejected" : "Validated") + " by " + esc(e.decidedBy) + "</small>" : "";
         var why = e.status === "rejected" && e.reason ? '<br><small class="reason">“' + esc(e.reason) + "”</small>" : "";
         var reopened = (e.history || []).some(function (x) { return x.action === "reopened"; }) ? ' <span class="pill info">Reconsidered</span>' : "";
@@ -1371,12 +1374,12 @@ export function initSite(backend, tools) {
       }).join("") + "</tbody></table></div>";
   }
   function exportButtons(kind) {
-    return '<div class="exports"><button type="button" class="btn sm" data-export="xlsx" data-scope="' + kind + '">⬇ Excel</button><button type="button" class="btn sm" data-export="pptx" data-scope="' + kind + '">⬇ PowerPoint</button></div>';
+    return '<div class="exports"><button type="button" class="btn sm" data-export="xlsx" data-scope="' + kind + '">' + ico("down") + ' Excel</button><button type="button" class="btn sm" data-export="pptx" data-scope="' + kind + '">' + ico("down") + ' PowerPoint</button></div>';
   }
   function hubExpenses() {
     var list = visExp(), u = hv();
     var shown = state.hubFilter === "all" ? list : list.filter(function (e) { return e.status === state.hubFilter; });
-    var lines = '<option value="Operations"' + (u.dept === "med" ? "" : " selected") + '>Operations budget (kit, facilities, travel, tournaments)</option><option value="Media & Marketing"' + (u.dept === "med" ? " selected" : "") + ">Marketing budget (media, promotion, events)</option>";
+    var lines = '<option value="Operations"' + (u.dept === "med" ? "" : " selected") + '>Operations</option><option value="Media & Marketing"' + (u.dept === "med" ? " selected" : "") + ">Marketing</option>";
     var form = can("submit") ? '<section class="panel"><div class="panel-head"><h2>Request a payment</h2><span class="muted" style="font-size:12px">The association pays directly. No captain fronts money.</span></div><form class="form" id="req">' +
       (visTeams().length > 1 ? '<label for="r-team">Team<select id="r-team">' + visTeams().map(function (t) { return '<option value="' + t.id + '">' + esc(tLabel(t)) + "</option>"; }).join("") + "</select></label>" : "") +
       '<label for="r-item" style="grid-column:span 2">What is it for<input id="r-item" required maxlength="140" placeholder="e.g. Referee fees, November"></label>' +
@@ -1388,7 +1391,7 @@ export function initSite(backend, tools) {
     if (admin && live() && LIVE.exp) ex = LIVE.exp.some(function (e) { return e.example; })
       ? '<p class="muted ex-tools">Example rows are loaded for the demo. <button type="button" class="btn sm" data-examples="remove">Remove example expenses</button></p>'
       : '<p class="muted ex-tools">The ledger is empty. For a demo: <button type="button" class="btn sm" data-examples="load">Load example expenses</button> (marked “Example”, removable in one click).</p>';
-    return '<div class="ph-head"><div><p class="eyebrow">Expenses ledger · ' + esc(viewLabel(u)) + '</p><h1 class="display">Every euro, traced.</h1><p>Every request, decision and payment for ' + (hFull() ? "every team and department" : u.role === "head" ? (u.dept === "fin" ? "every team" : esc(deptName(u.dept)) + ", every team") : u.role === "associate" ? esc(deptName(u.dept)) + " · " + esc(teamsText(u.teams)) : "your team") + '. It updates as soon as a request is decided or reconsidered, and downloads as Excel or PowerPoint.</p></div>' + exportButtons("ledger") + "</div>" +
+    return '<div class="ph-head"><div><h1 class="display">Every euro, traced.</h1><p>Every request, decision and payment for ' + (hFull() ? "every team and department" : u.role === "head" ? (u.dept === "fin" ? "every team" : esc(deptName(u.dept)) + ", every team") : u.role === "associate" ? esc(deptName(u.dept)) + " · " + esc(teamsText(u.teams)) : "your team") + '. It updates as soon as a request is decided or reconsidered, and downloads as Excel or PowerPoint.</p></div>' + exportButtons("ledger") + "</div>" +
       '<div class="flow" aria-label="How an expense moves"><span>Captain or department requests</span><span>Finance validates or rejects (with a reason)</span><span>Association pays</span><span>Can be reconsidered</span></div>' + ex + form +
       '<section class="panel"><div class="chips" role="group" aria-label="Filter by status">' + [["all", "All"], ["requested", "Requested"], ["validated", "Validated"], ["paid", "Paid"], ["rejected", "Rejected"]].map(function (c) {
         var n = c[0] === "all" ? list.length : list.filter(function (e) { return e.status === c[0]; }).length;
@@ -1542,9 +1545,9 @@ export function initSite(backend, tools) {
     var hl = (state.deckNotes || {})[p.kind + "|" + p.key] || "";
     var deck = '<section class="panel"><div class="panel-head"><h2>Excel and PowerPoint</h2>' + exportButtons("checkup") + '</div><p class="muted" style="margin:0;font-size:13px">Both files are rebuilt from the live figures each time you download them, so they always include the latest decisions. The PowerPoint is a normal, fully editable deck (text, tables and charts), and the key messages below become its own slide.</p>' +
       '<label class="field-l" for="deck-notes">Key messages for the deck <small class="muted">(optional, saved in this browser)</small><textarea id="deck-notes" rows="3" maxlength="1500" placeholder="e.g. Volleyball over budget on travel; spring tournament needs a decision by December">' + esc(hl) + "</textarea></label></section>";
-    return '<div class="ph-head"><div><p class="eyebrow">Reports · ' + esc(viewLabel(u)) + '</p><h1 class="display">Reports.</h1><p>Weekly check-ups for associates, monthly for heads and the Board, every semester for all members. Each report has its Excel and PowerPoint, updated as soon as a request is decided or reconsidered.</p></div>' + exportButtons("checkup") + "</div>" +
+    return '<div class="ph-head"><div><h1 class="display">Reports.</h1><p>Weekly check-ups for associates, monthly for heads and the Board, every semester for all members. Each report has its Excel and PowerPoint, updated as soon as a request is decided or reconsidered.</p></div>' + exportButtons("checkup") + "</div>" +
       '<section class="panel ck-bar"><div class="chips" role="group" aria-label="Check-up type">' + kinds.map(function (k) { return '<button class="chip" data-ck-kind="' + k + '" aria-pressed="' + (k === p.kind) + '">' + CK_NAMES[k] + "</button>"; }).join("") + "</div>" +
-      '<div class="ck-nav"><button type="button" class="btn sm" data-ck-off="-1" aria-label="Previous">←</button><strong>' + esc(p.label) + '</strong><button type="button" class="btn sm" data-ck-off="1" aria-label="Next"' + ((state.ck.off || 0) >= 0 ? " disabled" : "") + ">→</button>" + ((state.ck.off || 0) ? '<button type="button" class="btn sm ghost" data-ck-off="0">Current</button>' : "") + '</div><p class="muted" style="margin:0;font-size:12px">' + esc(who) + "</p></section>" +
+      '<div class="ck-nav"><button type="button" class="btn sm" data-ck-off="-1" aria-label="Previous">' + ico("left") + '</button><strong>' + esc(p.label) + '</strong><button type="button" class="btn sm" data-ck-off="1" aria-label="Next"' + ((state.ck.off || 0) >= 0 ? " disabled" : "") + ">" + ico("right") + "</button>" + ((state.ck.off || 0) ? '<button type="button" class="btn sm ghost" data-ck-off="0">Current</button>' : "") + '</div><p class="muted" style="margin:0;font-size:12px">' + esc(who) + "</p></section>" +
       '<div class="grid-4 grid-5">' + m.kpis.map(function (k) { return stat(k.label, k.value, k.note); }).join("") + "</div>" +
       '<section class="panel"><div class="panel-head"><h2>Requests and decisions</h2><span class="muted" style="font-size:12px">' + esc(p.label) + "</span></div>" + decisions + "</section>" +
       '<section class="panel"><div class="panel-head"><h2>Check-up notes</h2>' + (notes.length ? '<span class="pill ' + (issues ? "bad" : "ok") + '">' + (issues ? issues + " issue" + (issues === 1 ? "" : "s") : "All OK") + "</span>" : "") + "</div>" +
@@ -1575,14 +1578,14 @@ export function initSite(backend, tools) {
         (i.opsNote || i.estimate ? '<div class="ops-note"><p class="eyebrow">Operations</p>' + (i.opsNote ? "<p>" + esc(i.opsNote) + "</p>" : "") + (i.estimate ? '<p><b>Estimated cost: ' + EUR.format(i.estimate) + "</b> <small class=\"muted\">(Finance checks it against the team's Operations budget)</small></p>" : "") + (i.updatedBy ? '<small class="muted">' + esc(i.updatedBy) + "</small>" : "") + "</div>" : "") +
         (edit ? '<form class="form idea-upd" data-idea="' + id + '"><label>Status<select name="status">' + Object.keys(IDEA_STATUS).map(function (k) { return '<option value="' + k + '"' + (k === i.status ? " selected" : "") + ">" + IDEA_STATUS[k][1] + "</option>"; }).join("") + '</select></label><label>Estimated cost (€)<input name="estimate" type="number" min="0" step="1" value="' + (i.estimate || "") + '"></label><label style="grid-column:1/-1">Research notes<textarea name="note" rows="2" maxlength="1000" placeholder="Options found, dates, prices negotiated">' + esc(i.opsNote || "") + '</textarea></label><div><button class="btn sm solid" type="submit">Save</button></div></form>' : "") + "</li>";
     }).join("") + "</ul>" : '<p class="empty">' + (live() && LIVE.ideas === null ? "Loading…" : "No ideas yet.") + "</p>";
-    return '<div class="ph-head"><div><p class="eyebrow">Ideas &amp; logistics · ' + esc(viewLabel(u)) + '</p><h1 class="display">Captains suggest, Operations delivers.</h1><p>Friendlies, tournaments, jerseys, travel, training and league facilities. The captain suggests, Operations researches and organises, Finance checks the cost against the team’s Operations budget, and the expense goes through the ledger.</p></div></div>' +
+    return '<div class="ph-head"><div><h1 class="display">Captains suggest, Operations delivers.</h1><p>Friendlies, tournaments, jerseys, travel, training and league facilities. The captain suggests, Operations researches and organises, Finance checks the cost against the team’s Operations budget, and the expense goes through the ledger.</p></div></div>' +
       '<div class="flow"><span>Captain suggests</span><span>Operations researches</span><span>Finance checks the budget</span><span>Expense request</span></div>' + form + rows;
   }
   function hubTeamEditor() {
     var ts = visTeams(), selected = state.teamOpen && teamOk(state.teamOpen) ? state.teamOpen : ts[0].id, t = team(selected), info = teamInfoFor(selected), results = teamResultsFor(selected);
     var teamField = ts.length > 1 ? '<label for="ti-team">Team<select id="ti-team">' + ts.map(function (x) { return '<option value="' + x.id + '"' + (x.id === selected ? ' selected' : '') + '>' + esc(tLabel(x)) + '</option>'; }).join('') + '</select></label>' : '<input type="hidden" id="ti-team" value="' + esc(selected) + '">';
     var rows = results.length ? results.slice().reverse().map(function (r) { return '<tr><td class="num">' + esc(r.date) + '</td><td class="opp">' + esc(r.opponent) + '</td><td>' + esc(r.side) + '</td><td class="num"><strong>' + esc(r.score) + '</strong></td><td>' + esc(r.status) + '</td></tr>'; }).join('') : '<tr><td colspan="5" class="muted">No manual results yet.</td></tr>';
-    return '<div class="ph-head"><div><p class="eyebrow">Captain workspace</p><h1 class="display">Team editor.</h1><p>Keep your team page current: team information, league source, venue and results. Manual updates are available immediately; live league syncing can be connected once the competition provides an API or approved feed.</p></div></div>' +
+    return '<div class="ph-head"><div><h1 class="display">Team editor.</h1><p>Keep your team page current: team information, league source, venue and results. Manual updates are available immediately; live league syncing can be connected once the competition provides an API or approved feed.</p></div></div>' +
       '<section class="panel"><div class="panel-head"><h2>Team information</h2><span class="muted">' + (can("teamEdit") ? "Saved for everyone" : "View only") + '</span></div><form class="form" id="team-info-form">' + teamField +
         '<label style="grid-column:span 2">Short description · public<textarea id="ti-about" rows="2" placeholder="Who the team is and what the season is about">' + esc(info.about || "") + '</textarea></label>' +
         '<label>Team contact email · public<input id="ti-contact" type="email" value="' + esc(info.contact || "") + '" placeholder="team@esade.edu"></label>' +
@@ -1617,7 +1620,7 @@ export function initSite(backend, tools) {
   }
   function hubApplications() {
     var apps = visibleSportsApplications(), t = state.user.role === "captain" ? team(firstTeam()) : null, recipient = t ? captainForTeam(t.id) : null;
-    return '<div class="ph-head"><div><p class="eyebrow">Applications for sports</p><h1 class="display">Try-outs inbox.</h1><p>' + (t ? 'Applications for ' + esc(tLabel(t)) + ' are routed to you as captain.' : 'Board view across every sports application folder. Each captain sees only applications for their own team.') + '</p></div></div>' +
+    return '<div class="ph-head"><div><h1 class="display">Try-outs inbox.</h1><p>' + (t ? 'Applications for ' + esc(tLabel(t)) + ' are routed to you as captain.' : 'Board view across every sports application folder. Each captain sees only applications for their own team.') + '</p></div></div>' +
       '<section class="panel"><div class="panel-head"><h2>' + (t ? 'Your team applications' : 'All team applications') + '</h2><span class="muted num">' + apps.length + ' received</span></div><p class="muted" style="margin:0 0 18px">Folder: <strong>' + esc(t ? sportsApplicationsFolder(t.id) : 'Applications for sports/*') + '</strong>' + (recipient ? ' · Captain recipient: <strong>' + esc(captainName(recipient)) + ' · ' + esc(recipient.email) + '</strong>' : '') + '</p>' + sportsApplicationsTable(apps) + '</section>' +
       '<section class="panel"><div class="panel-head"><h2>Routing rule</h2><span class="pill ok">Active in prototype</span></div><p class="muted" style="margin:0">When a student applies to a team, their try-out or coaching information is stored in that team’s Applications for sports folder and is visible to the active captain for that team. In production, this same event should also send the captain a notification email.</p></section>';
   }
@@ -1626,7 +1629,7 @@ export function initSite(backend, tools) {
     var rows = active.map(function (c) {
       return '<tr><td><strong>' + esc(captainName(c)) + '</strong><br><small class="muted">' + esc(c.email) + '</small></td><td class="tname">' + esc(tLabel(team(c.team))) + '</td><td>' + esc(c.role) + '</td><td>' + esc(c.programme) + '</td><td class="num">' + esc(c.start) + '</td><td class="r">' + (edit ? '<button class="btn sm" data-captain-deactivate="' + c.id + '">Deactivate</button>' : "") + '</td></tr>';
     }).join("");
-    return '<div class="ph-head"><div><p class="eyebrow">Board workspace</p><h1 class="display">Captains.</h1><p>One current record for every team, with a clear owner, role and start date. This demo stores changes in this browser; production data should move to the shared database.</p></div></div>' +
+    return '<div class="ph-head"><div><h1 class="display">Captains.</h1><p>One current record for every team, with a clear owner, role and start date. This demo stores changes in this browser; production data should move to the shared database.</p></div></div>' +
       '<section class="panel"><div class="panel-head"><h2>Active captains</h2><span class="muted">' + active.length + ' records</span></div><div class="table-wrap"><table><thead><tr><th>Captain</th><th>Team</th><th>Role</th><th>Programme</th><th>Since</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div></section>' +
       (edit ?       '<section class="panel"><div class="panel-head"><h2>Add a captain</h2><span class="muted">Board only</span></div><form class="form" id="captain-form"><label>First name<input id="c-first" required placeholder="First name"></label><label>Last name<input id="c-last" required placeholder="Last name"></label><label>Email<input id="c-email" type="email" required placeholder="name@esade.edu"></label><label>Team<select id="c-team">' + TEAMS.map(function (t) { return '<option value="' + t.id + '">' + esc(tLabel(t)) + '</option>'; }).join('') + '</select></label><label>Role<select id="c-role"><option>Captain</option><option>Vice-captain</option></select></label><label>Programme<input id="c-programme" required placeholder="BBA, MSc..."></label><div><button class="btn solid" type="submit">Add captain</button></div></form></section>' : '<p class="muted">View only: changes are made by the Board.</p>');
   }
@@ -1649,7 +1652,7 @@ export function initSite(backend, tools) {
         }).join("") + "</tbody></table></div></section>" +
         '<section class="panel"><div class="panel-head"><h2>Tasks and projects</h2><span class="muted" style="font-size:12px">' + (canAddTask(open.id) ? "You can add tasks here" : "Only the Board adds tasks") + '</span></div><ul class="tasks">' + ts.map(function (t) { return taskRow(t, open.id); }).join("") + "</ul>" + addTaskForm(open) + "</section>";
     }
-    return '<div class="ph-head"><div><p class="eyebrow">One Board, four departments</p><h1 class="display">Departments.</h1><p>Who leads each department, what it is responsible for, and where its work stands. Open a department to see its full team and who is working on what.</p></div></div>' +
+    return '<div class="ph-head"><div><h1 class="display">Departments.</h1><p>Who leads each department, what it is responsible for, and where its work stands. Open a department to see its full team and who is working on what.</p></div></div>' +
       '<div class="dept-grid">' + visDepts().map(function (d) {
         return '<section class="dept"><div class="dept-title"><h2><a href="#hub-departments" data-dept-open="' + d.id + '">' + d.name + '</a></h2><small>' + d.size + ' people</small></div><div class="panel"><p style="margin:0"><strong>' + d.head + ' · ' + esc(DEPT_PEOPLE[d.id].head) + '</strong><br><span class="muted">' + d.remit + '</span></p><ul class="tasks">' +
           deptTasks(d).map(function (t) { return taskRow(t, d.id); }).join("") + '</ul><a class="btn sm" href="#hub-departments" data-dept-open="' + d.id + '">Open team and tasks →</a>' + addTaskForm(d) + "</div></section>";
@@ -1804,7 +1807,7 @@ export function initSite(backend, tools) {
     var h = location.hash.slice(1), html = null;
     document.querySelector(".head").classList.remove("open");
     if (h.indexOf("hub-") === 0) {
-      if (admin === undefined && !captain) { page.innerHTML = '<section class="band"><div class="wrap"><p class="eyebrow">Hub</p><h1 class="display">Checking your login…</h1></div></section>'; show("page"); return; }
+      if (admin === undefined && !captain) { page.innerHTML = '<section class="band"><div class="wrap"><h1 class="display">Checking your login…</h1></div></section>'; show("page"); return; }
       if (!admin && !captain) { location.replace("#signin"); return; }
       if (demoPublic) { demoPublic = false; industryVisibility(); }
       if (!isHub() || !viewAllowed(state.user)) { var dv = allowedViews()[0]; if (!dv) { location.replace("#signin"); return; } state.user = dv; save(); renderAcct(); }

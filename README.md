@@ -95,3 +95,7 @@ convex/
 Real data (from the league sites, 12/11/2026): Football 7 Men (UniBall) and Basketball Men (css.cat). Everything else (other teams' rosters and schedules, alumni profiles) is **example data** and is flagged `isExample` / `dataStatus: "example"` in Convex. Do not present it as real.
 
 `convex/_generated/` was created without a live deployment, so its `api` is untyped until you run `npx convex dev` once; commit the regenerated files.
+
+## Design skill
+
+`.claude/skills/impeccable/` is the [Impeccable](https://github.com/pbakaus/impeccable) design skill (Apache 2.0, upstream commit in `UPSTREAM_COMMIT`), so Claude Code sessions in this repo follow its design rules (no eyebrow labels above headings, no emoji/glyph icons, themed browser surfaces, etc.). Its optional helper binary (`scripts/impeccable`) downloads an engine on first run; it is not needed for the design rules. Keep the Esade identity: Esade Navy / Esade Blue, Be Vietnam Pro, italic uppercase titles, slanted plates.

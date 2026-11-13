@@ -4,7 +4,7 @@ import { SOCIAL } from "@/lib/social";
 // "The Board" block: shown only in the Members area to signed-in admins (Quentin, 13 Nov 2026), not on public pages.
 export const BOARD_BLOCK = `
       <div class="about-board">
-        <div class="sec-head"><div><p class="eyebrow">The team</p><h3 class="h2">The Board</h3></div><span class="tbc-note">Names to be confirmed</span></div>
+        <div class="sec-head"><div><h3 class="h2">The Board</h3></div><span class="tbc-note">Names to be confirmed</span></div>
         <ul class="board-grid">
           <li><b>President</b><span>To be confirmed</span></li>
           <li><b>Vice-President</b><span>To be confirmed</span></li>
@@ -69,7 +69,6 @@ export const SITE_MARKUP = `
   <section class="hero navy" style="--mono-bg: var(--navy)">
     <div class="wrap">
       <div>
-        <p class="eyebrow rise">Season 2026–27 · Sign-ups open</p>
         <h1 class="display rise d1">Play for<br>Esade.</h1>
         <p class="sub rise d2">Competitive teams, social leagues and events for every Esade student. Find your sport and join a squad.</p>
         <div class="ctas rise d3">
@@ -81,8 +80,8 @@ export const SITE_MARKUP = `
         ${heroSlides}
         <div class="stripes"></div>
         <div class="slide-dots" role="group" aria-label="Choose a photo">${heroDots}</div>
-        <button type="button" class="slide-arrow prev" data-step="-1" aria-label="Previous photo">&#8592;</button>
-        <button type="button" class="slide-arrow next" data-step="1" aria-label="Next photo">&#8594;</button>
+        <button type="button" class="slide-arrow prev" data-step="-1" aria-label="Previous photo"><svg class="ico" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <button type="button" class="slide-arrow next" data-step="1" aria-label="Next photo"><svg class="ico" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       </div>
     </div>
   </section>
@@ -107,7 +106,6 @@ export const SITE_MARKUP = `
 
   <section class="sec pillars-sec about" id="about" aria-labelledby="about-title">
     <div class="wrap">
-      <p class="eyebrow" style="color:var(--blue);margin-bottom:16px">About Esade Sports</p>
       <h2 class="display about-title" id="about-title">The home of<br>sport at Esade.</h2>
       <div class="about-grid">
         <div class="about-text">
@@ -127,13 +125,13 @@ export const SITE_MARKUP = `
       <dl class="about-stats">
         <div><dt>Sports</dt><dd>7</dd></div>
         <div><dt>Teams</dt><dd>12</dd></div>
-        <div><dt>Departments</dt><dd>4</dd></div>
+        <div><dt>Departments</dt><dd>5</dd></div>
         <div><dt>Student-run</dt><dd>100%</dd></div>
       </dl>
       <div class="pillars">
-        <div class="pillar"><p class="eyebrow">Pillar 01</p><h3>Teams</h3><p>Well-run, well-supported and visible official teams. Every team gets a dedicated finance, media and operations associate.</p></div>
-        <div class="pillar"><p class="eyebrow">Pillar 02</p><h3>Events</h3><p>Tournaments for the community, and real sports-business events with people from the industry.</p></div>
-        <div class="pillar"><p class="eyebrow">Pillar 03</p><h3>Industry</h3><p>A bridge between Esade students and sports-industry companies, through the Industry Platform.</p></div>
+        <div class="pillar"><h3>Teams</h3><p>Well-run, well-supported and visible official teams. Every team gets a dedicated finance, media and operations associate.</p></div>
+        <div class="pillar"><h3>Events</h3><p>Tournaments for the community, and real sports-business events with people from the industry.</p></div>
+        <div class="pillar"><h3>Industry</h3><p>A bridge between Esade students and sports-industry companies, through the Industry Platform.</p></div>
       </div>
     </div>
   </section>
@@ -142,7 +140,6 @@ export const SITE_MARKUP = `
     <div class="wrap">
       <div class="sec-head">
         <div>
-          <p class="eyebrow">Twelve official teams, one family</p>
           <h2 class="h2">Our teams</h2>
         </div>
         <a class="link-arrow" href="#teams">All sports →</a>
@@ -166,7 +163,6 @@ export const SITE_MARKUP = `
     <div class="wrap">
       <div class="sec-head">
         <div>
-          <p class="eyebrow">Game schedules and results</p>
           <h2 class="h2">This week at Esade</h2>
         </div>
         <a class="link-arrow" href="#calendar">Full calendar →</a>
@@ -198,7 +194,6 @@ export const SITE_MARKUP = `
     <div class="wrap">
       <div class="sec-head">
         <div>
-          <p class="eyebrow">Events</p>
           <h2 class="h2">For the community and for the industry</h2>
         </div>
         <a class="link-arrow" href="#all-events">All events →</a>
@@ -212,7 +207,6 @@ export const SITE_MARKUP = `
     <div class="wrap">
       <div class="sec-head">
         <div>
-          <p class="eyebrow">Alumni corner</p>
           <h2 class="h2" id="alumni-home-title">A community beyond sports</h2>
         </div>
         <a class="link-arrow" href="#alumni">Open the Alumni corner →</a>
@@ -225,10 +219,9 @@ export const SITE_MARKUP = `
     <div class="wrap">
       <div class="top">
         <div style="display:grid;gap:14px">
-          <p class="eyebrow">Membership · Open recruitment</p>
           <h2 class="display">Build it<br>with us.</h2>
         </div>
-        <p>Join a team through try-outs or as a volunteer coach, or join the association as an associate in Finance, Media &amp; Marketing, Operations or Partnerships. Recruitment is in English and open to every Esade student, whatever their nationality or language.</p>
+        <p>Join a team through try-outs or as a volunteer coach, or join the association as an associate in Finance, Media &amp; Marketing, Operations, Partnerships or IT. Recruitment is in English and open to every Esade student, whatever their nationality or language.</p>
       </div>
       <ol class="steps" aria-label="How recruitment works">
         <li><span class="k">STEP 1</span><strong>Open call</strong><p>Published on every channel, in English.</p></li>
@@ -248,19 +241,17 @@ export const SITE_MARKUP = `
     <div class="wrap">
       <div class="sec-head">
         <div>
-          <p class="eyebrow">Partner with us!</p>
           <h2 class="h2">Partner with Esade Sports</h2>
         </div>
       </div>
       <p class="lede" style="margin-bottom:28px">Twelve student teams, tournaments open to the whole school, and a growing sports-business programme. Partners help the teams first, and meet Esade students who want to work in sport.</p>
       <div class="ptypes">
-        <article class="ptype"><p class="eyebrow">Teams</p><h3>Team sponsor</h3><p>Your logo on a team's kit and on its social media, and visibility at every home game.</p></article>
-        <article class="ptype"><p class="eyebrow">Events</p><h3>Event partner</h3><p>Co-host a tournament or a sports-business talk, panel or workshop with our students.</p></article>
-        <article class="ptype"><p class="eyebrow">Industry</p><h3>Industry Platform partner</h3><p>Meet Esade students interested in sport, share internships and jobs, and access the CV book.</p></article>
+        <article class="ptype"><h3>Team sponsor</h3><p>Your logo on a team's kit and on its social media, and visibility at every home game.</p></article>
+        <article class="ptype"><h3>Event partner</h3><p>Co-host a tournament or a sports-business talk, panel or workshop with our students.</p></article>
+        <article class="ptype"><h3>Industry Platform partner</h3><p>Meet Esade students interested in sport, share internships and jobs, and access the CV book.</p></article>
       </div>
       <div class="pgrid">
         <div class="plogos">
-          <p class="eyebrow">Our partners</p>
           <ul>
             <li>[Partner logo]</li><li>[Partner logo]</li><li>[Partner logo]</li><li>[Partner logo]</li>
           </ul>
@@ -278,7 +269,7 @@ export const SITE_MARKUP = `
           <p class="err" id="p-err" hidden>Please add your company, name and work email.</p>
           <div class="form-actions"><button class="btn btn-blue" type="submit">Contact us</button><span class="muted" style="font-size:13px">Or email <a href="mailto:esadesports@alumni.esade.edu">esadesports@alumni.esade.edu</a>.</span></div>
         </form>
-        <div class="locked" id="p-done" hidden><p class="eyebrow" style="color:var(--blue)">Ready</p><h2>Your email draft is ready</h2><p>Your email application should open with the proposal addressed to <a href="mailto:esadesports@alumni.esade.edu">esadesports@alumni.esade.edu</a>.</p></div>
+        <div class="locked" id="p-done" hidden><h2>Your email draft is ready</h2><p>Your email application should open with the proposal addressed to <a href="mailto:esadesports@alumni.esade.edu">esadesports@alumni.esade.edu</a>.</p></div>
       </div>
     </div>
   </section>

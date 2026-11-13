@@ -27,7 +27,7 @@ a { color: inherit; }
 
 .display { font-weight: 900; font-style: italic; text-transform: uppercase; letter-spacing: -0.02em; line-height: 0.92; text-wrap: balance; margin: 0; }
 .eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 0.24em; text-transform: uppercase; margin: 0; }
-.h2 { font-size: clamp(26px, 3.2vw, 36px); font-weight: 800; letter-spacing: -0.015em; line-height: 1.1; margin: 0; text-wrap: balance; }
+.h2 { font-size: clamp(26px, 3.2vw, 38px); font-weight: 900; font-style: italic; text-transform: uppercase; letter-spacing: -0.015em; line-height: 1; margin: 0; text-wrap: balance; }
 .lede { color: var(--ink-soft); max-width: 60ch; margin: 0; }
 
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 20px; font: 700 12px/1 var(--font); letter-spacing: 0.16em; text-transform: uppercase; text-decoration: none; border: 1.5px solid currentColor; cursor: pointer; transition: background .2s, color .2s, transform .2s; }
@@ -902,3 +902,16 @@ a { color: inherit; }
 #hub dl.facts div { background: var(--mist); padding: 10px 12px; }
 #hub dl.facts dt { font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
 #hub dl.facts dd { margin: 4px 0 0; font-size: 14px; overflow-wrap: anywhere; }
+
+/* Browser surfaces in the Esade palette (selection, caret, scrollbars, numerals, links, icons) */
+::selection { background: var(--blue); color: var(--white); }
+.navy ::selection, #hub .rail ::selection { background: var(--white); color: var(--navy); }
+html { scrollbar-color: var(--navy) var(--mist); accent-color: var(--blue); }
+input, textarea, select { caret-color: var(--blue); }
+a { text-underline-offset: .18em; text-decoration-thickness: 1.5px; }
+.num, td.num, .stat .v, #hub td.r, #hub table { font-variant-numeric: tabular-nums; }
+.ico { display: inline-block; vertical-align: -.2em; flex: none; }
+.btn .ico, #hub .btn .ico { margin: -2px 0; }
+#hub .history button .ico, .slide-arrow .ico { vertical-align: middle; }
+#hub .history button, .slide-arrow { display: inline-flex; align-items: center; justify-content: center; }
+#hub .ph-head .exports { flex: none; flex-wrap: nowrap; }
