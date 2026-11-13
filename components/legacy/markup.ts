@@ -24,6 +24,7 @@ export const SITE_MARKUP = `
       <a href="#teams">Teams</a>
       <a href="#fixtures">Fixtures</a>
       <a href="#events">Events</a>
+      <a href="#about">About</a>
       <a href="#alumni">Alumni</a>
       <a href="#join">Recruitment</a>
       <a href="#partners">Partner with us!</a>
@@ -138,14 +139,46 @@ export const SITE_MARKUP = `
     </div>
   </section>
 
-  <section class="sec pillars-sec" aria-labelledby="vision">
+  <section class="sec pillars-sec about" id="about" aria-labelledby="about-title">
     <div class="wrap">
-      <p class="eyebrow" style="color:var(--blue);margin-bottom:16px" id="vision">Who we are</p>
-      <p class="quote">The home of sport at Esade, and Esade’s entry point into the sports industry.</p>
+      <p class="eyebrow" style="color:var(--blue);margin-bottom:16px">About Esade Sports</p>
+      <h2 class="display about-title" id="about-title">The home of<br>sport at Esade.</h2>
+      <div class="about-grid">
+        <div class="about-text">
+          <p class="about-lead">Esade Sports is the student sports association of Esade. We run the official Esade teams, organise events for the community and connect students with the sports industry.</p>
+          <p>We are an amateur, student-run association: every player, captain, coach and associate is a volunteer. There are no professional players and no paid staff, just students and alumni who love their sport.</p>
+        </div>
+        <div class="about-what">
+          <p class="eyebrow">What we do</p>
+          <ul>
+            <li><b>Inform</b><span>Teams, fixtures, results and the Esade sports community, alumni included.</span></li>
+            <li><b>Recruit</b><span>Try-outs for players, volunteer coaches (Esade students or not) and associates for our departments.</span></li>
+            <li><b>Partner</b><span>Sponsors for the teams and companies for sports-business events.</span></li>
+            <li><b>Organise</b><span>One place for captains, the Board and the Student Council to share requests, decisions and follow-up.</span></li>
+          </ul>
+        </div>
+      </div>
+      <dl class="about-stats">
+        <div><dt>Sports</dt><dd>7</dd></div>
+        <div><dt>Teams</dt><dd>12</dd></div>
+        <div><dt>Departments</dt><dd>4</dd></div>
+        <div><dt>Student-run</dt><dd>100%</dd></div>
+      </dl>
       <div class="pillars">
         <div class="pillar"><p class="eyebrow">Pillar 01</p><h3>Teams</h3><p>Well-run, well-supported and visible official teams. Every team gets a dedicated finance, media and operations associate.</p></div>
         <div class="pillar"><p class="eyebrow">Pillar 02</p><h3>Events</h3><p>Tournaments for the community, and real sports-business events with people from the industry.</p></div>
         <div class="pillar"><p class="eyebrow">Pillar 03</p><h3>Industry</h3><p>A bridge between Esade students and sports-industry companies, through the Industry Platform.</p></div>
+      </div>
+      <div class="about-board">
+        <div class="sec-head"><div><p class="eyebrow">The team</p><h3 class="h2">The Board</h3></div><span class="tbc-note">Names to be confirmed</span></div>
+        <ul class="board-grid">
+          <li><b>President</b><span>To be confirmed</span></li>
+          <li><b>Vice-President</b><span>To be confirmed</span></li>
+          <li><b>Head of Finance</b><span>To be confirmed</span></li>
+          <li><b>Head of Media &amp; Marketing</b><span>To be confirmed</span></li>
+          <li><b>Head of Operations</b><span>To be confirmed</span></li>
+          <li><b>Head of Partnerships</b><span>To be confirmed</span></li>
+        </ul>
       </div>
     </div>
   </section>
@@ -188,7 +221,7 @@ export const SITE_MARKUP = `
       <ol class="steps" aria-label="How recruitment works">
         <li><span class="k">STEP 1</span><strong>Open call</strong><p>Published on every channel, in English.</p></li>
         <li><span class="k">STEP 2</span><strong>Apply</strong><p>CV, cover letter and a short video, through this website.</p></li>
-        <li><span class="k">STEP 3</span><strong>Shortlist</strong><p>Chosen by the Board: executive board and Heads.</p></li>
+        <li><span class="k">STEP 3</span><strong>Reviews/Screenings</strong><p>Chosen by the Board: executive board and Heads.</p></li>
         <li><span class="k">STEP 4</span><strong>Interview</strong><p>Formal, with set questions and a code of conduct.</p></li>
         <li><span class="k">STEP 5</span><strong>Offer</strong><p>Offer and onboarding into your department.</p></li>
       </ol>
