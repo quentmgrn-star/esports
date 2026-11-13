@@ -87,7 +87,7 @@ export const SITE_MARKUP = `
     </div>
   </section>
 
-  <section class="sec prototype-preview" id="industry" aria-label="Presentation-only industry platform preview">
+  <section class="sec prototype-preview" id="industry" hidden aria-label="Presentation-only industry platform preview">
     <div class="wrap industry">
       <div class="copy">
         <p class="eyebrow" style="color:var(--blue);margin:0">Presentation preview · Eva Morta / Student Council</p>

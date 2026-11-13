@@ -102,6 +102,27 @@ export default defineSchema({
     .index("by_email", ["email"])
     .index("by_status", ["status"]),
 
+  // Team information written by the captain (or the Board) in the Hub's Team editor.
+  // Public on the team page: about, league + page, venue + address, team contact email.
+  // Private (signed-in members who see the team): facility and league contact people.
+  teamInfo: defineTable({
+    teamId: v.string(),
+    about: v.optional(v.string()),
+    league: v.optional(v.string()),
+    leagueUrl: v.optional(v.string()),
+    leagueContactName: v.optional(v.string()),
+    leagueContactEmail: v.optional(v.string()),
+    leagueContactPhone: v.optional(v.string()),
+    venue: v.optional(v.string()),
+    venueAddress: v.optional(v.string()),
+    venueContactName: v.optional(v.string()),
+    venueContactEmail: v.optional(v.string()),
+    venueContactPhone: v.optional(v.string()),
+    contact: v.optional(v.string()), // team contact email, shown publicly
+    updatedBy: v.string(),
+    updatedAt: v.number(),
+  }).index("by_team", ["teamId"]),
+
   // Members' chat. channel: "general", "board", "dept:<Department>" or "sport:<Sport>".
   chatMessages: defineTable({
     channel: v.string(),

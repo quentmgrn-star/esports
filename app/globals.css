@@ -829,3 +829,10 @@ a { color: inherit; }
 .banner.demo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
 .banner.demo .demo-as { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; margin-left: auto; }
 .banner.demo select { font: 600 13px var(--font); padding: 6px 8px; border: 1.5px solid var(--navy); background: #fff; color: var(--navy); max-width: 100%; }
+
+/* Team page facts (league, venue, contact) and Team editor sub-headings */
+.tfacts { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px 24px; margin: 12px 0 0; }
+.tfacts dt { font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); }
+.tfacts dd { margin: 2px 0 0; font-weight: 600; overflow-wrap: anywhere; }
+#hub .form .form-sub { grid-column: 1 / -1; margin: 10px 0 -4px; font-size: 13px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--navy); border-top: 1px solid var(--mist); padding-top: 14px; }
+#industry[hidden] { display: none !important; }

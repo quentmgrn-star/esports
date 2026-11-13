@@ -242,7 +242,15 @@ export function initSite(backend) {
     return '<a class="admin-badge" href="/admin" title="Signed in as ' + esc(admin.email) + ' · open the admin area"><i>Admin</i><span>' + esc(admin.name || admin.email.split("@")[0]) + '</span></a>' +
       '<a href="#hub-overview">Hub</a><button type="button" class="signout" data-signout>Sign out</button>';
   }
+  // The Industry Platform preview is for the Eva Morta / Student Council presentation: admins and
+  // view-only accounts see it; students (and admins demoing the student view) don't.
+  var demoPublic = false;
+  function industryVisibility() {
+    var el = $("industry"); if (!el) return;
+    el.hidden = !((admin && !demoPublic) || (captain && captain.scope && captain.scope.viewer));
+  }
   function renderAcct() {
+    industryVisibility();
     var u = state.user, html;
     // Far right of the top bar: members sign-in, or the signed-in admin indicator.
     $("member").innerHTML = admin || captain ? adminBar() : '<a class="member-signin" href="#signin" title="Captains, associates, Board and Student Council">Sign in</a>';
@@ -580,7 +588,13 @@ export function initSite(backend) {
     } else if (tab === "records") {
       body = sec("t-rec", "Record book", "All-time team records", '<div class="staff">' + (D.records || ["Season highlight · Esade Sports squad", "Captain's award · selected by the team", "Best season record · prototype data", "Biggest win · prototype data"]).map(function (r) { var p = r.split(" · "); return "<div><span>" + esc(p[0]) + "</span><span>" + esc(p.slice(1).join(" · ")) + "</span></div>"; }).join("") + "</div>");
     }
-    var info = state.teamInfo[t.id], about = info && (info.about || info.leagueUrl) ? '<div class="tinfo">' + (info.about ? "<p>" + esc(info.about) + "</p>" : "") + (info.leagueUrl ? '<a class="link-arrow" href="' + esc(info.leagueUrl) + '" target="_blank" rel="noopener">League page →</a>' : "") + "</div>" : "";
+    var info = teamInfoFor(t.id), facts = [];
+    if (info.league) facts.push(["League", info.league + (info.leagueUrl ? "" : ""), info.leagueUrl]);
+    if (info.venue || info.venueAddress) facts.push(["Training venue", [info.venue, info.venueAddress].filter(Boolean).join(" · ")]);
+    if (info.contact) facts.push(["Team contact", info.contact, "mailto:" + info.contact]);
+    var about = info.about || facts.length || info.leagueUrl ? '<div class="tinfo">' + (info.about ? "<p>" + esc(info.about) + "</p>" : "") +
+      (facts.length ? '<dl class="tfacts">' + facts.map(function (f) { return "<div><dt>" + f[0] + "</dt><dd>" + (f[2] ? '<a href="' + esc(f[2]) + '"' + (f[2].indexOf("http") === 0 ? ' target="_blank" rel="noopener"' : "") + ">" + esc(f[1]) + "</a>" : esc(f[1])) + "</dd></div>"; }).join("") + "</dl>" : "") +
+      (info.leagueUrl && !info.league ? '<a class="link-arrow" href="' + esc(info.leagueUrl) + '" target="_blank" rel="noopener">League page →</a>' : "") + "</div>" : "";
     var exNote = L ? "" : '<p class="exnote"><b>Example data</b> <span>Names, results and stats on this page are examples for the presentation. The captain replaces them with the real roster and results.</span></p>';
     return head + nextStrip(t) + '<section class="tbody"><div class="wrap">' + exNote + about + body + "</div></section>";
   }
@@ -612,7 +626,7 @@ export function initSite(backend) {
       '<section class="al"><div class="wrap body"><form class="pform" id="assoc-form" novalidate>' +
       '<div class="fsec"><h2>Personal information</h2><div class="fgrid">' + fieldI("as-first", "First name", "", "required autocomplete=\"given-name\"") + fieldI("as-last", "Last name", "", "required autocomplete=\"family-name\"") + fieldI("as-email", "Esade email", "", 'type="email" required autocomplete="email"') + phoneField("as-phone", "Phone number", true) + fieldI("as-programme", "Programme", "", 'required list="as-progs" placeholder="BBA"') + '<datalist id="as-progs"><option value="BBA"><option value="Double degree BBA + Law"><option value="MSc"><option value="MBA"></datalist>' + '<label class="field" for="as-year">Year<select id="as-year" required><option value="">Choose your year</option>' + YEARS.map(function (y) { return '<option value="' + y + '">' + y + '</option>'; }).join('') + '</select></label>' + fieldI("as-linkedin", "LinkedIn profile", "", 'type="url" placeholder="https://linkedin.com/in/..."') + '</div></div>' +
       '<div class="fsec"><h2>Department preferences</h2><p class="muted" style="margin:0">You may apply to a maximum of two departments. Preference 1 is your strongest choice.</p><div class="fgrid"><label class="field" for="as-pref1">Preference 1<select id="as-pref1" required><option value="">Choose a department</option>' + opts + '</select></label><label class="field" for="as-pref2">Preference 2 <small>(optional)</small><select id="as-pref2"><option value="">No second preference</option>' + opts + '</select></label></div><label class="field full" for="as-motivation">Why do you want to join Esade Sports and why these departments?<textarea id="as-motivation" rows="6" required placeholder="Tell us what motivates you, what you could contribute and why you ranked these departments."></textarea></label></div>' +
-      '<div class="fsec"><h2>Application materials</h2><div class="fgrid"><label class="field" for="as-cv">CV <small>(PDF required)</small><input id="as-cv" type="file" accept="application/pdf,.pdf" required></label><label class="field" for="as-video">Short motivation video <small>(optional, MP4/MOV)</small><input id="as-video" type="file" accept="video/mp4,video/quicktime,.mp4,.mov"></label></div><p class="muted" style="margin:10px 0 0;font-size:13px">Keep the video short: around 60–90 seconds. Explain who you are, why Esade Sports interests you and why your department preferences fit you.</p></div>' +
+      '<div class="fsec"><h2>Application materials</h2><div class="fgrid"><label class="field" for="as-cv">CV <small>(PDF required)</small><input id="as-cv" type="file" accept="application/pdf,.pdf" required></label><label class="field" for="as-video">Motivation video <small>(optional)</small><input id="as-video" type="file" accept="video/mp4,video/quicktime,.mp4,.mov"></label></div><p class="muted" style="margin:10px 0 0;font-size:13px">Video: MP4 or MOV, around 60–90 seconds. Explain who you are, why Esade Sports interests you and why your department preferences fit you.</p></div>' +
       '<div class="fsec"><label class="consent" for="as-redirect"><input type="checkbox" id="as-redirect" required><span>I understand that the Board may redirect my application to another department if it is a better fit for my profile and the association’s needs.</span></label><label class="consent" for="as-consent"><input type="checkbox" id="as-consent" required><span>I confirm that the information and documents submitted are accurate and may be reviewed by the Esade Sports recruitment team.</span></label></div>' +
       '<p class="err" id="as-err" hidden></p><div class="form-actions"><button class="btn btn-blue" type="submit">Submit application</button><span class="muted" style="font-size:13px">Your application will be reviewed by the Board and relevant department Heads.</span></div></form>' +
       '<div class="locked" id="as-done" hidden><p class="eyebrow" style="color:var(--blue)">Application received</p><h2>Thanks for applying to Esade Sports</h2><p id="as-done-p">Your ranked preferences and application materials are ready for review.</p><a class="btn btn-ghost-navy" href="#home">Back to home</a></div></div></section>';
@@ -1034,6 +1048,7 @@ export function initSite(backend) {
     if (!admin) return; // demo mode is for signed-in admins only
     var d = null; DEMO.forEach(function (x) { if (x[0] === key) d = x; });
     if (!d) return;
+    demoPublic = key === "student"; industryVisibility();
     if (key === "student") { go("home"); toast("Public website: what every student sees. Use Hub in the top bar to come back."); return; }
     state.user = JSON.parse(JSON.stringify(d[2])); state.teamOpen = null; save(); renderAcct();
     if (location.hash === "#hub-overview") render(); else go("hub-overview");
@@ -1056,7 +1071,16 @@ export function initSite(backend) {
     });
     return out.sort(function (a, b) { return a.createdAt < b.createdAt ? 1 : -1; });
   }
-  function teamInfoFor(id) { return state.teamInfo[id] || { about: "", league: "", leagueUrl: "", venue: "", contact: "" }; }
+  // Team information: saved in Convex from the Team editor (public fields only on the website).
+  var TEAM_INFO = {};
+  function teamInfoFor(id) { return TEAM_INFO[id] || state.teamInfo[id] || {}; }
+  function loadTeamInfo() {
+    if (!backend || !backend.listTeamInfo) return Promise.resolve();
+    return Promise.resolve(backend.listTeamInfo()).then(function (rows) {
+      TEAM_INFO = {}; (rows || []).forEach(function (r) { TEAM_INFO[r.teamId] = r; });
+      var h = location.hash.slice(1); if (h.indexOf("team-") === 0) render();
+    }, console.error);
+  }
   function teamResultsFor(id) { return state.teamResults[id] || []; }
   function pill(map, k) { return '<span class="pill ' + map[k][0] + '">' + map[k][1] + "</span>"; }
   function stat(k, v, s) { return '<div class="stat"><p class="eyebrow">' + k + '</p><span class="v num">' + v + "</span><small>" + s + "</small></div>"; }
@@ -1143,7 +1167,19 @@ export function initSite(backend) {
     var teamField = ts.length > 1 ? '<label for="ti-team">Team<select id="ti-team">' + ts.map(function (x) { return '<option value="' + x.id + '"' + (x.id === selected ? ' selected' : '') + '>' + esc(tLabel(x)) + '</option>'; }).join('') + '</select></label>' : '<input type="hidden" id="ti-team" value="' + esc(selected) + '">';
     var rows = results.length ? results.slice().reverse().map(function (r) { return '<tr><td class="num">' + esc(r.date) + '</td><td class="opp">' + esc(r.opponent) + '</td><td>' + esc(r.side) + '</td><td class="num"><strong>' + esc(r.score) + '</strong></td><td>' + esc(r.status) + '</td></tr>'; }).join('') : '<tr><td colspan="5" class="muted">No manual results yet.</td></tr>';
     return '<div class="ph-head"><div><p class="eyebrow">Captain workspace</p><h1 class="display">Team editor.</h1><p>Keep your team page current: team information, league source, venue and results. Manual updates are available immediately; live league syncing can be connected once the competition provides an API or approved feed.</p></div></div>' +
-      '<section class="panel"><div class="panel-head"><h2>Team information</h2><span class="muted">Visible on the public team page</span></div><form class="form" id="team-info-form">' + teamField + '<label style="grid-column:span 2">Short description<textarea id="ti-about" rows="2" placeholder="Who the team is and what the season is about">' + esc(info.about) + '</textarea></label><label>League or tournament<input id="ti-league" value="' + esc(info.league) + '" placeholder="League name"></label><label>League page URL<input id="ti-league-url" type="url" value="' + esc(info.leagueUrl) + '" placeholder="https://..."></label><label>Home venue<input id="ti-venue" value="' + esc(info.venue) + '" placeholder="Training venue"></label><label>Team contact email<input id="ti-contact" type="email" value="' + esc(info.contact) + '" placeholder="team@esade.edu"></label><div><button class="btn solid" type="submit">Save team information</button></div></form></section>' +
+      '<section class="panel"><div class="panel-head"><h2>Team information</h2><span class="muted">' + (can("teamEdit") ? "Saved for everyone" : "View only") + '</span></div><form class="form" id="team-info-form">' + teamField +
+        '<label style="grid-column:span 2">Short description · public<textarea id="ti-about" rows="2" placeholder="Who the team is and what the season is about">' + esc(info.about || "") + '</textarea></label>' +
+        '<label>Team contact email · public<input id="ti-contact" type="email" value="' + esc(info.contact || "") + '" placeholder="team@esade.edu"></label>' +
+        '<p class="form-sub">Training facility</p>' +
+        '<label>Facility name · public<input id="ti-venue" value="' + esc(info.venue || "") + '" placeholder="e.g. Pavelló ..."></label>' +
+        '<label style="grid-column:span 2">Address · public<input id="ti-venue-address" value="' + esc(info.venueAddress || "") + '" placeholder="Street, city"></label>' +
+        '<label>Facility contact name<input id="ti-venue-cname" placeholder="Booking manager"></label><label>Facility contact email<input id="ti-venue-cemail" type="email" placeholder="bookings@..."></label><label>Facility contact phone<input id="ti-venue-cphone" type="tel" placeholder="+34 ..."></label>' +
+        '<p class="form-sub">League or tournament</p>' +
+        '<label>League name · public<input id="ti-league" value="' + esc(info.league || "") + '" placeholder="League name"></label>' +
+        '<label style="grid-column:span 2">League page URL · public<input id="ti-league-url" type="url" value="' + esc(info.leagueUrl || "") + '" placeholder="https://..."></label>' +
+        '<label>League contact name<input id="ti-league-cname" placeholder="Organiser"></label><label>League contact email<input id="ti-league-cemail" type="email" placeholder="league@..."></label><label>League contact phone<input id="ti-league-cphone" type="tel" placeholder="+34 ..."></label>' +
+        '<p class="muted" style="grid-column:1/-1;margin:0;font-size:12px">Fields marked public appear on the team page. Facility and league contact people are only visible to signed-in members of Esade Sports.</p>' +
+        (can("teamEdit") ? '<div><button class="btn solid" type="submit" id="ti-save">Save team information</button></div>' : "") + '</form></section>' +
       '<section class="panel"><div class="panel-head"><h2>Quick result update</h2><span class="muted">Fast manual fallback</span></div><form class="form" id="match-form"><input type="hidden" id="m-team" value="' + esc(selected) + '"><label>Date<input id="m-date" type="date" required></label><label>Opponent<input id="m-opponent" required placeholder="Opponent"></label><label>Home or away<select id="m-side"><option>Home</option><option>Away</option></select></label><label>Score<input id="m-score" placeholder="3–1"></label><label>Competition<input id="m-comp" placeholder="League or tournament"></label><label>Status<select id="m-status"><option>Final</option><option>Pending</option><option>Postponed</option></select></label><div><button class="btn solid" type="submit">Add result</button></div></form><div class="table-wrap" style="margin-top:20px"><table><thead><tr><th>Date</th><th>Opponent</th><th>Location</th><th>Score</th><th>Status</th></tr></thead><tbody>' + rows + '</tbody></table></div></section>' +
       '<section class="panel"><div class="panel-head"><h2>League connection</h2><span class="pill info">Manual mode active</span></div><p class="muted" style="margin:0">' + esc(tLabel(t)) + ' is ready for a league page URL now. Automatic live updates require a supported league API, feed or permission from the tournament provider. Until then, captains can update results here in seconds.</p></section>' + (can("all") ? syncPanel() : "");
   }
@@ -1225,10 +1261,25 @@ export function initSite(backend) {
       state.captains.push({ id: state.nextId++, first: $("c-first").value.trim(), last: $("c-last").value.trim(), email: $("c-email").value.trim(), team: $("c-team").value, role: $("c-role").value, programme: $("c-programme").value.trim(), start: "2026-11-12", active: true });
       save(); render(); toast("Captain added.");
     });
-    var tif = $("team-info-form"); if (tif) tif.addEventListener("submit", function (ev) {
-      ev.preventDefault(); var id = $("ti-team").value;
-      state.teamInfo[id] = { about: $("ti-about").value.trim(), league: $("ti-league").value.trim(), leagueUrl: $("ti-league-url").value.trim(), venue: $("ti-venue").value.trim(), contact: $("ti-contact").value.trim() };
-      state.teamOpen = id; save(); render(); toast("Team information saved.");
+    var tif = $("team-info-form");
+    if (tif && $("ti-team").tagName === "SELECT") $("ti-team").addEventListener("change", function () { state.teamOpen = $("ti-team").value; render(); });
+    if (tif && backend && backend.getTeamInfo) Promise.resolve(backend.getTeamInfo($("ti-team").value)).then(function (r) {
+      if (!r || !$("team-info-form")) return;
+      [["ti-about", "about"], ["ti-contact", "contact"], ["ti-venue", "venue"], ["ti-venue-address", "venueAddress"], ["ti-venue-cname", "venueContactName"], ["ti-venue-cemail", "venueContactEmail"], ["ti-venue-cphone", "venueContactPhone"], ["ti-league", "league"], ["ti-league-url", "leagueUrl"], ["ti-league-cname", "leagueContactName"], ["ti-league-cemail", "leagueContactEmail"], ["ti-league-cphone", "leagueContactPhone"]].forEach(function (f) { if ($(f[0]) && r[f[1]]) $(f[0]).value = r[f[1]]; });
+    }, console.error);
+    if (tif) tif.addEventListener("submit", function (ev) {
+      ev.preventDefault(); var id = $("ti-team").value, v = function (k) { return $(k).value.trim() || undefined; };
+      var data = { teamId: id, about: v("ti-about"), contact: v("ti-contact"), venue: v("ti-venue"), venueAddress: v("ti-venue-address"), venueContactName: v("ti-venue-cname"), venueContactEmail: v("ti-venue-cemail"), venueContactPhone: v("ti-venue-cphone"),
+        league: v("ti-league"), leagueUrl: v("ti-league-url"), leagueContactName: v("ti-league-cname"), leagueContactEmail: v("ti-league-cemail"), leagueContactPhone: v("ti-league-cphone") };
+      if (data.leagueUrl && !/^https?:\/\//i.test(data.leagueUrl)) data.leagueUrl = "https://" + data.leagueUrl;
+      state.teamOpen = id;
+      if (!backend || !backend.saveTeamInfo) { state.teamInfo[id] = data; save(); render(); toast("Team information saved in this browser (prototype)."); return; }
+      var btn = $("ti-save"); if (btn) { btn.disabled = true; btn.textContent = "Saving…"; }
+      Promise.resolve(backend.saveTeamInfo(data)).then(function () { return loadTeamInfo(); }).then(function () { render(); toast("Team information saved. It is on the team page now."); }, function (x) {
+        console.error(x); if (btn) { btn.disabled = false; btn.textContent = "Save team information"; }
+        var m2 = String((x && x.message) || "").match(/ConvexError: ([^\n]*)/);
+        toast(m2 ? m2[1] : "Could not save. Are you signed in with access to this team?");
+      });
     });
     var mf = $("match-form"); if (mf) mf.addEventListener("submit", function (ev) {
       ev.preventDefault(); var id = $("m-team").value;
@@ -1252,6 +1303,7 @@ export function initSite(backend) {
     if (h.indexOf("hub-") === 0) {
       if (admin === undefined && !captain) { page.innerHTML = '<section class="band"><div class="wrap"><p class="eyebrow">Hub</p><h1 class="display">Checking your login…</h1></div></section>'; show("page"); return; }
       if (!admin && !captain) { location.replace("#signin"); return; }
+      if (demoPublic) { demoPublic = false; industryVisibility(); }
       if (!isHub() || !viewAllowed(state.user)) { var dv = allowedViews()[0]; if (!dv) { location.replace("#signin"); return; } state.user = dv; save(); renderAcct(); }
       if (h === "hub-expenses" && !can("expenses")) h = "hub-overview";
       if (h === "hub-departments" && !can("depts")) h = "hub-overview";
@@ -1413,7 +1465,7 @@ export function initSite(backend) {
     secs.forEach(function (sct) { if (sct.id) spy.observe(sct); });
   })();
   window.addEventListener("hashchange", function () { state.teamOpen = null; render(); });
-  renderAcct(); render(); loadAlumni();
+  renderAcct(); render(); loadAlumni(); loadTeamInfo();
   return { setAdmin: setAdmin };
 
 }

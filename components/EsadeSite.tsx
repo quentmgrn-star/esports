@@ -67,6 +67,10 @@ export default function EsadeSite() {
       requestAccess: (a: Record<string, unknown>) => client.mutation(api.org.requestAccess, a as never),
       submitAlumniProfile: (a: Record<string, unknown>) => client.mutation(api.forms.submitAlumniProfile, a as never),
       listAlumni: () => client.query(api.alumni.listPublic, {}),
+      // Team editor: public fields for the team pages; full details only for members who see the team.
+      listTeamInfo: () => client.query(api.teamInfo.listPublic, {}),
+      getTeamInfo: (teamId: string) => client.query(api.teamInfo.get, { teamId }),
+      saveTeamInfo: (a: Record<string, unknown>) => client.mutation(api.teamInfo.save, a as never),
       // Uploads the CV (and optional video) to Convex storage, then stores the application.
       submitAssociationApplication: async (a: Record<string, unknown>, files: { cv: File; video?: File }) => {
         const upload = async (file: File) => {
