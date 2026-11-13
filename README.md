@@ -41,11 +41,21 @@ All rules live in one place, `convex/roles.ts` (`getAccess`, `canSee`, `canEdit`
 | Captain | Requests access, approved by the Board | Their own team(s): messages about their sport, try-outs, team expenses | Their team's data | — |
 | View only | Student Council, Eva Morta (added by an admin, not open yet) | Everything | Nothing | — |
 
-Department of each kind of data: expenses, budgets and the semester report belong to **Finance**; try-outs and coach sign-ups to **Operations**; team pages to **Media & Marketing**; partnership messages to **Partnerships**. Association applications are seen by the heads of the departments the applicant chose. Alumni profiles (with email and phone) and the captains list are for full access only. Departments list: `DEPARTMENTS` in `convex/roles.ts`.
+Departments: Finance, Media & Marketing, Operations, Partnerships, IT (`DEPARTMENTS` in `convex/roles.ts`). Department of each kind of data: try-outs, coach sign-ups and captains' ideas to **Operations**; team pages to **Media & Marketing**; partnership messages to **Partnerships**; each expense to its budget line (**Operations** or **Marketing**), and **Finance** sees and decides every expense. Association applications are seen by the heads of the departments the applicant chose. Alumni profiles (with email and phone) and the captains list are for full access only.
+
+### Expenses ledger, check-ups, ideas (Hub)
+
+| | Who sees it | Who acts |
+|---|---|---|
+| Expenses ledger (`convex/expenses.ts`) | Captains: their team · associates: their department for their teams · heads: their department for every team · Finance: every expense of its teams · President, VPs, admins, Student Council: all | Request: captains, Finance, Operations, Marketing for their teams. Validate / reject (a written reason is required): Finance for the team. Mark paid: Head of Finance, President, VPs, admins. Reconsider (back to "requested", reason kept in the history): whoever decided it, or the Head of Finance, President, VPs, admins |
+| Check-ups (`convex/checkups.ts`) | Notes follow the same department / team rules; Board notes are for the Board and the Student Council | Weekly: associates · monthly: heads and the Board · semester: every member |
+| Ideas & logistics (`convex/ideas.ts`) | The team's captains, Operations and Finance for the team, President, VPs, admins, Student Council | Captains (and Operations) suggest; Operations updates status, research notes and estimated cost |
+
+Every decision is stored with who, when and why. The ledger and check-ups download as Excel (.xlsx: Summary, Ledger, Decision history, Check-ups) and PowerPoint (.pptx, Esade Sports layout), built in the browser from exactly what the person may see, so they are always up to date. An admin can load or remove example expenses (marked "Example") for a demo.
 
 Admins: set or change the list with `npx convex env set ADMIN_EMAILS "a@alumni.esade.edu,b@alumni.esade.edu,c@alumni.esade.edu" --prod` (comma-separated). Removing an email removes admin rights at once.
 
-The Hub (`/#hub-overview`) shows each person only the views their role allows; admins can preview any role from the Members page. Its figures are still example data (marked Prototype).
+The Hub (`/#hub-overview`) shows each person only the views their role allows; admins can preview any role from the Members page. Expenses, check-ups and ideas are real data in Convex; budgets, tasks and people names are still example data (marked Prototype).
 
 ## Deploy on Vercel
 

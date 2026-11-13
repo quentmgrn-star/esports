@@ -11,7 +11,7 @@ import { sportOfTeam } from "./teamList";
 //   Associate .................................... their department, only their assigned teams
 //   Captain ...................................... their own team(s)
 //   Viewer (Student Council, Eva Morta) .......... everything, read-only
-export const DEPARTMENTS = ["Finance", "Media & Marketing", "Operations", "Partnerships"];
+export const DEPARTMENTS = ["Finance", "Media & Marketing", "Operations", "Partnerships", "IT"];
 
 export type Access = {
   email: string;

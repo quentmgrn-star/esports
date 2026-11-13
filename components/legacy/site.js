@@ -4,7 +4,7 @@ import { BOARD_BLOCK } from "./markup";
 import { GAMES } from "./games";
 import { EVENTS } from "./events";
 // Ported from the original prototype script. Runs once on the client after the markup mounts.
-export function initSite(backend) {
+export function initSite(backend, tools) {
 
   "use strict";
   var EUR = new Intl.NumberFormat("en-IE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
@@ -196,12 +196,12 @@ export function initSite(backend) {
   });
 
   // ================= State =================
-  var state = { user: null, me: null, expenses: null, captains: null, teamApplications: {}, teamInfo: {}, teamResults: {}, tasks: {}, nextId: 100, al: { q: "", sport: "All", year: "" }, hubFilter: "all", appFilter: "all", teamOpen: null };
+  var state = { user: null, me: null, expenses: null, captains: null, teamApplications: {}, teamInfo: {}, teamResults: {}, tasks: {}, checkups: [], deckNotes: {}, nextId: 100, al: { q: "", sport: "All", year: "" }, hubFilter: "all", appFilter: "all", teamOpen: null };
   try {
     var s = JSON.parse(localStorage.getItem("es-site") || "null");
-    if (s && s.v === 2) { state.user = s.user && s.user.role === "alumni" ? null : s.user; state.expenses = s.expenses; state.captains = s.captains || null; state.teamApplications = s.teamApplications || {}; state.teamInfo = s.teamInfo || {}; state.teamResults = s.teamResults || {}; state.tasks = s.tasks || {}; state.newTasks = s.newTasks || []; state.nextId = s.nextId || 100; }
+    if (s && s.v === 2) { state.user = s.user && s.user.role === "alumni" ? null : s.user; state.expenses = s.expenses; state.captains = s.captains || null; state.teamApplications = s.teamApplications || {}; state.teamInfo = s.teamInfo || {}; state.teamResults = s.teamResults || {}; state.tasks = s.tasks || {}; state.newTasks = s.newTasks || []; state.checkups = s.checkups || []; state.deckNotes = s.deckNotes || {}; state.ideas = s.ideas || null; state.nextId = s.nextId || 100; }
   } catch (e) {}
-  function save() { try { localStorage.setItem("es-site", JSON.stringify({ v: 2, user: state.user, expenses: state.expenses, captains: state.captains, teamApplications: state.teamApplications, teamInfo: state.teamInfo, teamResults: state.teamResults, tasks: state.tasks, newTasks: state.newTasks, nextId: state.nextId })); } catch (e) {} }
+  function save() { try { localStorage.setItem("es-site", JSON.stringify({ v: 2, user: state.user, expenses: state.expenses, captains: state.captains, teamApplications: state.teamApplications, teamInfo: state.teamInfo, teamResults: state.teamResults, tasks: state.tasks, newTasks: state.newTasks, checkups: state.checkups, ideas: state.ideas, deckNotes: state.deckNotes, nextId: state.nextId })); } catch (e) {} }
   // Hub views (same rules as convex/roles.ts; permissions table in README.md):
   //   admin / exec (president, VPs): everything · viewer (Student Council, Eva Morta): everything, read-only
   //   head: their department for every team · associate: their department, their teams · captain: their team(s)
@@ -271,7 +271,7 @@ export function initSite(backend) {
   }
   // "Request access": becomes a request that the right person approves in /admin
   // (associates: their head of department; captains: the Board). Board positions are added by the admin.
-  var REQ_DEPTS = ["Finance", "Media & Marketing", "Operations", "Partnerships"]; // same as convex/roles.ts
+  var REQ_DEPTS = ["Finance", "Media & Marketing", "Operations", "Partnerships", "IT"]; // same as convex/roles.ts
   function requestBlock() {
     return '<form class="acc req" id="req-form" novalidate><p class="eyebrow">New here?</p><strong>Request access</strong><p>Associates and captains: send a request. Once it is approved, sign in with the same email to create your account.</p>' +
       '<div class="fgrid">' + fieldI("rq-name", "Full name", "", 'required autocomplete="name"') + fieldI("rq-email", "Esade email", "", 'required type="email" autocomplete="email" placeholder="name@alumni.esade.edu"') +
@@ -969,12 +969,26 @@ export function initSite(backend) {
     [11, "volleyball-mixed", "Team shirts", "Kit", 540, "Captain", "2026-10-28", "paid"], [12, "futsal-men", "Futsal balls (10)", "Material", 310, "Operations", "2026-11-01", "validated"],
     [13, "padel-women", "Padel balls (24)", "Material", 150, "Captain", "2026-11-09", "requested"]
   ].map(function (r) { return { id: r[0], team: r[1], item: r[2], cat: r[3], amount: r[4], by: r[5], date: r[6], status: r[7] }; });
+  // Older saved prototype rows: give them a budget line (department) and a decision history.
+  state.expenses.forEach(function (e) {
+    if (!e.dept) e.dept = e.cat === "Media" || e.cat === "Promotion" ? "Media & Marketing" : "Operations";
+    if (!e.history) {
+      var at = Date.parse(e.date + "T10:00:00Z"); e.history = [{ action: "requested", by: e.by, at: at }];
+      if (e.status !== "requested") e.history.push({ action: e.status === "paid" ? "validated" : e.status, by: e.decidedBy || "Finance associate (example)", at: at + 86400000, reason: e.reason });
+      if (e.status === "paid") e.history.push({ action: "paid", by: "Head of Finance (example)", at: at + 3 * 86400000 });
+    }
+  });
+  if (!state.ideas) state.ideas = [
+    { id: 901, team: "basketball-men", kind: "Friendly game", text: "Friendly against another Barcelona business school before the league restarts in January.", status: "researching", opsNote: "Two schools contacted; waiting for a date. Court hire about €150.", estimate: 150, by: "Captain (example)", at: Date.parse("2026-11-03T10:00:00Z") },
+    { id: 902, team: "volleyball-mixed", kind: "Jerseys / kit", text: "New jerseys with numbers for the spring tournament.", status: "new", by: "Captain (example)", at: Date.parse("2026-11-09T10:00:00Z") }
+  ];
   var DEPTS = [
     { id: "board", name: "Board", head: "President + Vice-Presidents", size: "3", remit: "Oversees the association and owns the Student Council relationship.", tasks: [["Monthly check-in with the Student Council", "done"], ["Captains' meeting, all teams", "doing"], ["Semester budget report sign-off", "todo"]] },
-    { id: "fin", name: "Finance", head: "Head of Finance", size: "2–3", remit: "Agrees budgets with captains, pays fees and expenses directly, prepares reports.", tasks: [["Agree remaining season budgets (4 teams)", "doing"], ["Pay validated expenses", "doing"], ["Draft semester report for the Council", "todo"]] },
-    { id: "med", name: "Media & Marketing", head: "Head of Media & Marketing", size: "5–6", remit: "Runs every team's social media, covers games, results and try-outs.", tasks: [["Match-day posts for every home game", "doing"], ["Team intro reels (12 teams)", "todo"], ["Rebuild the Linktree", "done"]] },
-    { id: "ops", name: "Operations", head: "Head of Operations", size: "5–6", remit: "Trainings, try-outs, bookings, friendlies, registrations, jerseys and travel.", tasks: [["Book spring try-out slots", "todo"], ["Order jerseys for Volleyball Mixed", "doing"], ["Tournament travel plan", "todo"]] },
-    { id: "par", name: "Partnerships", head: "Head of Partnerships", size: "4–5", remit: "Sponsors for the teams first, partners for business events, Industry Platform.", tasks: [["Shortlist kit sponsors", "doing"], ["First sports-business talk: speaker", "todo"], ["Industry Platform: partner list", "todo"]] }
+    { id: "fin", name: "Finance", head: "Head of Finance", size: "2–3", remit: "Holds each team's budget, split between Operations and Marketing. Validates and pays expenses, researches prices to negotiate costs, prepares the reports.", tasks: [["Agree each team's budget split (Operations / Marketing)", "doing"], ["Negotiate court-hire prices for the spring", "todo"], ["Pay validated expenses", "doing"], ["Draft semester report for the Council", "todo"]] },
+    { id: "med", name: "Media & Marketing", head: "Head of Media & Marketing", size: "5–6", remit: "Runs every team's media accounts, and the communication and promotion of games and events.", tasks: [["Match-day posts for every home game", "doing"], ["Promote the spring tournament", "todo"], ["Team intro reels (12 teams)", "todo"], ["Rebuild the Linktree", "done"]] },
+    { id: "ops", name: "Operations", head: "Head of Operations", size: "5–6", remit: "Works with the captains: captains suggest, Operations researches and organises. Tournaments, friendlies, jerseys, logistics, training and league facilities.", tasks: [["Research a friendly for Basketball Men (captain's idea)", "doing"], ["Order jerseys for Volleyball Mixed", "doing"], ["Book spring try-out slots", "todo"], ["Tournament travel plan", "todo"]] },
+    { id: "par", name: "Partnerships", head: "Head of Partnerships", size: "4–5", remit: "Sponsors for the teams first, partners for business events, Industry Platform.", tasks: [["Shortlist kit sponsors", "doing"], ["First sports-business talk: speaker", "todo"], ["Industry Platform: partner list", "todo"]] },
+    { id: "it", name: "IT", head: "Head of IT", size: "2–3", remit: "The website, the Hub, member accounts, data and the tools every department uses.", tasks: [["Keep team pages and results up to date", "doing"], ["Excel and PowerPoint exports for check-ups", "done"], ["Back up the data at the end of each semester", "todo"]] }
   ];
   DEPTS.forEach(function (d) { d.tasks.forEach(function (t, i) { if (!state.tasks[d.id + i]) state.tasks[d.id + i] = t[1]; }); });
   var TASK_STATUS = { todo: "To do", doing: "In progress", done: "Done" };
@@ -986,10 +1000,11 @@ export function initSite(backend) {
     fin: { head: "Laura Gómez", associates: [["Pablo Ruiz", ["football7-men", "futsal-men", "futsal-women", "basketball-men"]], ["Nina Weber", ["basketball-women", "volleyball-men", "volleyball-women", "volleyball-mixed"]], ["Omar Haddad", ["padel-men", "padel-women", "rugby", "tennis"]]] },
     med: { head: "Julia Rossi", associates: [["Lucas Martin", ["football7-men", "futsal-men", "futsal-women"]], ["Mia Novak", ["basketball-men", "basketball-women", "rugby"]], ["Sara Lindqvist", ["volleyball-men", "volleyball-women", "volleyball-mixed"]], ["Diego Alves", ["padel-men", "padel-women", "tennis"]]] },
     ops: { head: "Marc Puig", associates: [["Elena Costa", ["football7-men", "futsal-men", "futsal-women"]], ["Hugo Petit", ["basketball-men", "basketball-women", "rugby"]], ["Aisha Khan", ["volleyball-men", "volleyball-women", "volleyball-mixed"]], ["Leo Fischer", ["padel-men", "padel-women", "tennis"]]] },
-    par: { head: "Sofia Bianco", associates: [["Ivan Horvat", ALL_IDS], ["Chloé Dubois", ALL_IDS], ["Noah Smith", ALL_IDS]] }
+    par: { head: "Sofia Bianco", associates: [["Ivan Horvat", ALL_IDS], ["Chloé Dubois", ALL_IDS], ["Noah Smith", ALL_IDS]] },
+    it: { head: "Daniel Kim", associates: [["Marta Soler", ALL_IDS], ["Yuki Tanaka", ALL_IDS]] }
   };
   // Who works on each of the starting tasks (index into [head, associates...]).
-  var TASK_OWNER = { board0: 0, board1: 1, board2: 0, fin0: 0, fin1: 2, fin2: 1, med0: 1, med1: 3, med2: 2, ops0: 1, ops1: 3, ops2: 2, par0: 1, par1: 0, par2: 3 };
+  var TASK_OWNER = { board0: 0, board1: 1, board2: 0, fin0: 0, fin1: 2, fin2: 3, fin3: 1, med0: 1, med1: 0, med2: 3, med3: 2, ops0: 2, ops1: 3, ops2: 1, ops3: 4, par0: 1, par1: 0, par2: 3, it0: 1, it1: 0, it2: 2 };
   function deptPeople(id) { var p = DEPT_PEOPLE[id]; return p ? [p.head].concat(p.associates.map(function (a) { return a[0]; })) : []; }
   function assocFor(deptId, teamId) { var p = DEPT_PEOPLE[deptId], n = ""; if (p) p.associates.forEach(function (a) { if (!n && a[1].indexOf(teamId) > -1) n = a[0]; }); return n; }
   function deptTasks(d) {
@@ -1011,7 +1026,7 @@ export function initSite(backend) {
   }
   function myRoleText() { var u = hv(); return u.role === "head" ? "Head of " + deptName(u.dept) : u.role === "associate" ? deptName(u.dept) + " associate" : u.role === "exec" ? "President" : u.role === "admin" ? "Admin" : u.role === "captain" ? "Captain" : ""; }
   var METRICS = [["Applications", "Number and diversity of applications"], ["Captains", "Captain satisfaction, surveyed each semester"], ["Events", "Sports-business events and attendance"], ["Income", "Sponsorship and partnership income"], ["Social", "Social media growth, for each team"], ["Reporting", "On-time, complete budget reports"], ["Industry", "Opportunities on the Industry Platform"]];
-  var DEPT_ID = { "Finance": "fin", "Media & Marketing": "med", "Operations": "ops", "Partnerships": "par" };
+  var DEPT_ID = { "Finance": "fin", "Media & Marketing": "med", "Operations": "ops", "Partnerships": "par", "IT": "it" };
   function hv() { return state.user; }
   function hFull() { var r = hv().role; return r === "admin" || r === "exec" || r === "viewer"; }
   function hRO() { return hv().role === "viewer"; }
@@ -1020,14 +1035,17 @@ export function initSite(backend) {
   function can(k) {
     var u = hv(), r = u.role, ro = hRO();
     if (k === "all") return hFull() || r === "head";
-    if (k === "expenses") return hDept("fin") || r === "captain";
-    if (k === "submit") return !ro && (hDept("fin") || r === "captain");
+    if (k === "expenses") return true; // the ledger: each person sees their own scope (seeExp)
+    if (k === "money") return hDept("fin") || r === "captain"; // budgets on the overview and team pages
+    if (k === "submit") return !ro && (r === "admin" || r === "exec" || r === "captain" || ["fin", "ops", "med"].indexOf(u.dept) > -1);
+    if (k === "ideas") return hDept("ops") || hDept("fin") || r === "captain";
+    if (k === "checkups") return true;
     if (k === "validate") return !ro && (r === "admin" || r === "exec" || ((r === "head" || r === "associate") && u.dept === "fin"));
     if (k === "pay") return !ro && (r === "admin" || r === "exec" || (r === "head" && u.dept === "fin"));
     if (k === "applications") return hDept("ops") || r === "captain";
     if (k === "teamEdit") return !ro && (r === "admin" || r === "exec" || hDept("med") || r === "captain");
     if (k === "captains") return hFull() || (r === "head" && u.dept === "ops");
-    if (k === "reports") return hFull() || (r === "head" && u.dept === "fin");
+    if (k === "reports") return true; // weekly / monthly / semester, each person for their own scope
     if (k === "depts") return r !== "captain";
     if (k === "tasks") return !ro && r !== "captain";
     return false;
@@ -1065,6 +1083,8 @@ export function initSite(backend) {
     ["exec", "2 · Board: President / Vice-president", { role: "exec" }],
     ["head-fin", "2 · Board: Head of Finance (all teams)", { role: "head", dept: "fin" }],
     ["head-ops", "2 · Board: Head of Operations (all teams)", { role: "head", dept: "ops" }],
+    ["head-it", "2 · Board: Head of IT", { role: "head", dept: "it" }],
+    ["assoc-ops", "3 · Associate: Operations, Basketball Women", { role: "associate", dept: "ops", teams: ["basketball-women"] }],
     ["assoc", "3 · Associate: Finance, Basketball Women", { role: "associate", dept: "fin", teams: ["basketball-women"] }],
     ["captain", "4 · Captain: Basketball Women", { role: "captain", teams: ["basketball-women"] }],
     ["viewer", "Student Council (Eva Morta), view only", { role: "viewer" }],
@@ -1091,7 +1111,7 @@ export function initSite(backend) {
     if (admin) return true;
     return allowedViews().some(function (v) { return v.role === u.role && v.dept === u.dept && (v.teams || []).join() === (u.teams || []).join(); });
   }
-  function totals(id) { var o = { paid: 0, pending: 0 }; state.expenses.forEach(function (e) { if (e.team !== id) return; if (e.status === "paid") o.paid += e.amount; else if (e.status !== "rejected") o.pending += e.amount; }); return o; }
+  function totals(id) { var o = { paid: 0, pending: 0 }; allExp().forEach(function (e) { if (e.team !== id) return; if (e.status === "paid") o.paid += e.amount; else if (e.status !== "rejected") o.pending += e.amount; }); return o; }
   function captainForTeam(id) { for (var i = 0; i < state.captains.length; i++) if (state.captains[i].team === id && state.captains[i].active && state.captains[i].role === "Captain") return state.captains[i]; return null; }
   function captainName(c) { return c ? (c.first + (c.last ? " " + c.last : "")) : "Unassigned"; }
   function sportsApplicationsFolder(id) { return "Applications for sports/" + id; }
@@ -1117,37 +1137,18 @@ export function initSite(backend) {
   function teamResultsFor(id) { return state.teamResults[id] || []; }
   function pill(map, k) { return '<span class="pill ' + map[k][0] + '">' + map[k][1] + "</span>"; }
   function stat(k, v, s) { return '<div class="stat"><p class="eyebrow">' + k + '</p><span class="v num">' + v + "</span><small>" + s + "</small></div>"; }
-  var HUBV = [["hub-overview", "Overview"], ["hub-teams", "Teams"], ["hub-team-editor", "Team editor"], ["hub-applications", "Sports applications"], ["hub-captains", "Captains"], ["hub-expenses", "Expenses"], ["hub-departments", "Departments"], ["hub-report", "Semester report"]];
+  var HUBV = [["hub-overview", "Overview"], ["hub-teams", "Teams"], ["hub-team-editor", "Team editor"], ["hub-applications", "Sports applications"], ["hub-captains", "Captains"], ["hub-ideas", "Ideas & logistics"], ["hub-expenses", "Expenses ledger"], ["hub-departments", "Departments"], ["hub-report", "Reports"]];
 
   function hubShell(view, inner) {
-    var pending = state.expenses.filter(function (e) { return e.status === "requested" && teamOk(e.team); }).length;
-    var nav = HUBV.filter(function (v) { return (v[0] !== "hub-expenses" || can("expenses")) && (v[0] !== "hub-departments" || can("depts")) && (v[0] !== "hub-report" || can("reports")) && (v[0] !== "hub-captains" || can("captains")) && (v[0] !== "hub-team-editor" || can("teamEdit")) && (v[0] !== "hub-applications" || can("applications")); }).map(function (v) {
-      return '<a href="#' + v[0] + '"' + (v[0] === view ? ' aria-current="page"' : "") + ">" + (v[0] === "hub-teams" && !can("all") ? "My team" : v[1]) + (v[0] === "hub-expenses" && pending ? '<span class="count num">' + pending + "</span>" : "") + (v[0] === "hub-applications" && visibleSportsApplications().length ? '<span class="count num">' + visibleSportsApplications().length + "</span>" : "") + "</a>";
+    var pending = visExp().filter(canDecideE).length, newIdeas = can("ideas") ? visIdeas().filter(function (i) { return i.status === "new"; }).length : 0;
+    var nav = HUBV.filter(function (v) { return (v[0] !== "hub-expenses" || can("expenses")) && (v[0] !== "hub-departments" || can("depts")) && (v[0] !== "hub-report" || can("reports")) && (v[0] !== "hub-captains" || can("captains")) && (v[0] !== "hub-team-editor" || can("teamEdit")) && (v[0] !== "hub-applications" || can("applications")) && (v[0] !== "hub-ideas" || can("ideas")); }).map(function (v) {
+      return '<a href="#' + v[0] + '"' + (v[0] === view ? ' aria-current="page"' : "") + ">" + (v[0] === "hub-teams" && !can("all") ? "My team" : v[1]) + (v[0] === "hub-expenses" && pending ? '<span class="count num">' + pending + "</span>" : "") + (v[0] === "hub-ideas" && newIdeas ? '<span class="count num">' + newIdeas + "</span>" : "") + (v[0] === "hub-applications" && visibleSportsApplications().length ? '<span class="count num">' + visibleSportsApplications().length + "</span>" : "") + "</a>";
     }).join("");
     var u = state.user, me = admin || captain, multi = !!admin || allowedViews().length > 1;
     return '<div class="app"><aside class="rail"><div class="top"><a class="lock" href="#home" aria-label="Back to Esade Sports home">' + mono(38) + '<span>ESADE SPORTS<br>HUB</span></a><div class="history" aria-label="Page navigation"><button type="button" data-history="back" aria-label="Go back">←</button><button type="button" data-history="forward" aria-label="Go forward">→</button></div>' +
       '<div class="who"><p class="eyebrow">Signed in' + (admin ? " as admin" : "") + '</p><strong>' + esc(me.email) + "</strong><small>Viewing as " + esc(viewLabel(u)) + (hRO() ? " · read-only" : "") + "</small>" + (multi ? '<a class="back-site" href="#signin">Change view</a>' : "") + '<a class="back-site" href="#home">← Public site</a><button type="button" data-signout>Sign out</button>' + langSwitch() + '</div></div>' +
       '<nav aria-label="Hub">' + nav + "</nav></aside>" +
       '<main class="main">' + (admin ? demoBar(u) : '<div class="banner"><b>Prototype</b><span>Example figures and tasks. In the live version, access comes from an approved Esade login and data from a shared database.</span></div>') + inner + "</main></div>";
-  }
-  function expTable(list, compact) {
-    if (!list.length) return '<p class="empty">Nothing here. Every request has been handled.</p>';
-    var act = can("validate") || can("pay");
-    return '<div class="table-wrap"><table><thead><tr><th>Date</th>' + (can("all") ? "<th>Team</th>" : "") + '<th>Expense</th><th class="r">Amount</th><th>Status</th>' + (act ? '<th class="r">Action</th>' : "") + "</tr></thead><tbody>" +
-      list.slice().sort(function (a, b) { return a.date < b.date ? 1 : -1; }).map(function (e) {
-        var btns = "";
-        if (e.status === "requested" && can("validate")) {
-          btns = state.rejecting === e.id
-            ? '<div class="reject-box"><textarea id="rj-' + e.id + '" rows="2" placeholder="Why is it rejected? (required)" aria-label="Reason for rejecting"></textarea><div><button class="btn sm solid" data-reject-confirm="' + e.id + '">Reject</button> <button class="btn sm" data-reject-cancel>Cancel</button></div></div>'
-            : '<button class="btn sm" data-act="validated" data-id="' + e.id + '">Validate</button> <button class="btn sm" data-act="reject" data-id="' + e.id + '">Reject</button>';
-        } else if (e.status === "validated" && can("pay")) btns = '<button class="btn sm solid" data-act="paid" data-id="' + e.id + '">Mark paid</button>';
-        var files = (e.link ? '<a href="' + esc(e.link) + '" target="_blank" rel="noopener">Link ↗</a>' : "") + (e.file ? (e.link ? " · " : "") + '<a href="' + e.file.data + '" download="' + esc(e.file.name) + '">' + esc(e.file.name) + "</a>" : "");
-        var who = e.decidedBy ? '<br><small class="muted">' + (e.status === "rejected" ? "Rejected" : "Validated") + " by " + esc(e.decidedBy) + "</small>" : "";
-        var why = e.status === "rejected" && e.reason ? '<br><small class="reason">“' + esc(e.reason) + "”</small>" : "";
-        return '<tr><td class="num muted">' + e.date.slice(5).split("-").reverse().join("/") + "</td>" + (can("all") ? '<td class="tname">' + esc(tLabel(team(e.team))) + "</td>" : "") +
-          "<td>" + esc(e.item) + (compact ? "" : '<br><small class="muted">' + esc(e.cat) + " · by " + esc(e.by) + "</small>") + (files && !compact ? '<br><small class="files">' + files + "</small>" : "") + '</td><td class="r num"><strong>' + EUR.format(e.amount) + "</strong></td><td>" + pill(EXP_STATUS, e.status) + who + why + "</td>" +
-          (act ? '<td class="r">' + btns + "</td>" : "") + "</tr>";
-      }).join("") + "</tbody></table></div>";
   }
   // People responsible for a team in each department (captain view, team detail).
   function teamContacts(teamId) {
@@ -1175,22 +1176,22 @@ export function initSite(backend) {
   }
   function hubOverview() {
     var ts = visTeams(), budget = 0, paid = 0, pend = 0;
-    if (!can("expenses")) // no finance view: teams and department only
+    if (!can("money")) // no finance view: teams and department only
       return '<div class="ph-head"><div><p class="eyebrow">Season 2026–27</p><h1 class="display">Overview.</h1><p>' + esc(viewLabel(hv())) + ".</p></div></div>" +
         '<div class="grid-2"><section class="panel"><div class="panel-head"><h2>' + (can("all") ? "Every team" : "Your teams") + '</h2><a class="btn sm" href="#hub-teams">Open</a></div><table><tbody>' +
         ts.map(function (t) { return '<tr><td class="tname">' + esc(tLabel(t)) + '</td><td class="r muted">' + esc(captainName(captainForTeam(t.id))) + "</td></tr>"; }).join("") + "</tbody></table></section>" + deptPanel() + "</div>";
     ts.forEach(function (t) { var o = totals(t.id); budget += t.budget; paid += o.paid; pend += o.pending; });
-    var reqs = state.expenses.filter(function (e) { return e.status === "requested" && teamOk(e.team); });
+    var reqs = visExp().filter(function (e) { return e.status === "requested"; });
     var agreed = ts.filter(function (t) { return t.status === "agreed"; }).length;
     return '<div class="ph-head"><div><p class="eyebrow">Season 2026–27</p><h1 class="display">' + (ts.length !== 1 ? "Overview." : esc(tLabel(ts[0])) + ".") + "</h1><p>" + (ts.length !== 1 ? "Where " + (can("all") ? "every team" : "your teams") + " and " + (hFull() ? "every department" : "your department") + " stand today." : "Your team's budget and expenses, handled by your Finance, Media and Operations associates.") + "</p></div></div>" +
       '<div class="grid-4">' + stat("Season budget", EUR.format(budget), ts.length !== 1 ? ts.length + " teams" : "Agreed with you") + stat("Paid so far", EUR.format(paid), Math.round(paid / budget * 100) + "% of budget") +
       stat("Waiting", EUR.format(pend), reqs.length + " request" + (reqs.length === 1 ? "" : "s") + " to validate") + stat(ts.length !== 1 ? "Budgets agreed" : "Budget", ts.length !== 1 ? agreed + " / " + ts.length : BUDGET_STATUS[ts[0].status][1], ts.length !== 1 ? "with captains" : "status") + "</div>" +
-      '<div class="grid-2"><section class="panel"><div class="panel-head"><h2>Requests waiting for Finance</h2><a class="btn sm" href="#hub-expenses">All expenses</a></div>' + expTable(reqs, true) + "</section>" +
+      '<div class="grid-2"><section class="panel"><div class="panel-head"><h2>Requests waiting for Finance</h2>' + (hv().role === "captain" && can("submit") ? '<a class="btn sm solid" href="#hub-expenses" data-make-req>Make a request</a>' : '<a class="btn sm" href="#hub-expenses">All expenses</a>') + '</div>' + expTable(reqs, true) + "</section>" +
       deptPanel() + "</div>";
   }
   function hubTeams() {
     var ts = visTeams();
-    if (!can("expenses")) // teams without the money columns (Finance only)
+    if (!can("money")) // teams without the money columns (Finance only)
       return '<div class="ph-head"><div><p class="eyebrow">Teams</p><h1 class="display">' + (can("all") ? "Every team." : "Your teams.") + '</h1><p>Budgets and expenses are handled by Finance.</p></div></div>' +
         '<section class="panel"><div class="table-wrap"><table><thead><tr><th>Team</th><th>Captain</th></tr></thead><tbody>' +
         ts.map(function (t) { return '<tr><td class="tname">' + esc(tLabel(t)) + "</td><td>" + esc(captainName(captainForTeam(t.id))) + "</td></tr>"; }).join("") + "</tbody></table></div></section>";
@@ -1200,7 +1201,8 @@ export function initSite(backend) {
       detail = '<section class="panel" id="team-detail"><div class="panel-head"><h2>' + esc(tLabel(t)) + "</h2>" + pill(BUDGET_STATUS, t.status) + "</div>" +
         '<div class="people">' + [["Captain", captainName(captainForTeam(open)), "Runs the team"], ["Finance associate", assocFor("fin", open), "Budget and payments"], ["Media associate", assocFor("med", open), "Social media and coverage"], ["Operations associate", assocFor("ops", open), "Bookings, kit, travel"]].map(function (p) { return '<div class="person"><p class="eyebrow">' + p[0] + "</p><strong>" + esc(p[1]) + "</strong><small>" + p[2] + "</small></div>"; }).join("") + "</div>" +
         '<p class="muted" style="margin:0">Budget ' + EUR.format(t.budget) + " · paid " + EUR.format(o.paid) + " · waiting " + EUR.format(o.pending) + " · left " + EUR.format(Math.max(0, t.budget - o.paid - o.pending)) + "</p>" +
-        expTable(state.expenses.filter(function (e) { return e.team === open; }), false) + "</section>";
+        splitPanel(t) +
+        expTable(visExp().filter(function (e) { return e.team === open; }), false) + "</section>";
     }
     return '<div class="ph-head"><div><p class="eyebrow">Teams</p><h1 class="display">' + (can("all") ? "Every team." : "My team.") + "</h1><p>Each official team has a season budget agreed with its captain, and three dedicated associates.</p></div></div>" +
       '<section class="panel"><div class="table-wrap"><table><thead><tr><th>Team</th><th>Budget</th><th class="r">Agreed</th><th class="r">Paid</th><th>Used (paid + waiting)</th></tr></thead><tbody>' +
@@ -1208,19 +1210,294 @@ export function initSite(backend) {
         return '<tr class="click" data-hteam="' + t.id + '" tabindex="0"><td class="tname">' + esc(tLabel(t)) + "</td><td>" + pill(BUDGET_STATUS, t.status) + '</td><td class="r num">' + EUR.format(t.budget) + '</td><td class="r num">' + EUR.format(o.paid) + '</td><td style="width:22%"><div class="bar"><i style="width:' + p + '%"></i><i class="pend" style="left:' + p + "%;width:" + q + '%"></i></div></td></tr>'; }).join("") +
       "</tbody></table></div>" + (can("all") ? '<p class="muted" style="margin:0;font-size:12px">Select a team to see its associates and expenses.</p>' : "") + "</section>" + detail;
   }
+  // ---- Expenses ledger -------------------------------------------------------------------------
+  // Signed in with Convex: rows come from the database (only what this account may see, kept live).
+  // Without Convex (local preview): the example rows saved in this browser.
+  var LIVE = { exp: null, ideas: null, checks: {}, unExp: null, unIdeas: null, dirty: false };
+  function live() { return !!(backend && backend.watchExpenses && (admin || captain)); }
+  function meEmail() { var m = admin || captain; return m ? m.email : ""; }
+  function errText(x, d) { var m = String((x && x.data) || (x && x.message) || ""), m2 = m.match(/ConvexError: (.*)/); return (m2 ? m2[1] : x && x.data ? m : "") || d || "Something went wrong. Try again."; }
+  function fromServer(r) {
+    return { id: r._id, team: r.team, dept: r.dept, item: r.item, cat: r.cat, amount: r.amount, by: r.by, byEmail: r.byEmail, date: r.date, status: r.status, link: r.link,
+      file: r.fileUrl ? { name: r.fileName || "Attachment", data: r.fileUrl } : null, decidedBy: r.decidedBy, decidedByEmail: r.decidedByEmail, reason: r.reason,
+      history: r.history || [], example: r.isExample, sv: { d: r.canDecide, p: r.canPay, r: r.canReconsider } };
+  }
+  function hubBusy() { var a = document.activeElement; return !!(a && hub.contains(a) && (a.tagName === "TEXTAREA" || (a.tagName === "INPUT" && a.type !== "button" && a.type !== "submit") || a.tagName === "SELECT")); }
+  function hubRefresh() { if (location.hash.indexOf("#hub-") !== 0) return; if (hubBusy()) { LIVE.dirty = true; return; } LIVE.dirty = false; render(); }
+  function startLive() {
+    if (!backend || !backend.watchExpenses) return;
+    var on = !!(admin || captain);
+    if (on && !LIVE.unExp) {
+      LIVE.unExp = backend.watchExpenses(function (rows) { if (rows === undefined) return; LIVE.exp = (rows || []).map(fromServer); hubRefresh(); });
+      LIVE.unIdeas = backend.watchIdeas(function (rows) { if (rows === undefined) return; LIVE.ideas = rows || []; hubRefresh(); });
+    } else if (!on && LIVE.unExp) {
+      LIVE.unExp(); LIVE.unIdeas(); LIVE.unExp = LIVE.unIdeas = null; LIVE.exp = LIVE.ideas = null; LIVE.checks = {};
+    }
+  }
+  function allExp() { return live() ? LIVE.exp || [] : state.expenses; }
+  function visExp() { return allExp().filter(seeExp); }
+  // Who sees an expense: Finance for the team (it validates everything), the expense's own department
+  // (heads: every team; associates: their teams), the team's captains; President, VPs, admins, Student Council: all.
+  function seeExp(e) {
+    var u = hv(), d = DEPT_ID[e.dept], mine = (u.teams || []).indexOf(e.team) > -1;
+    if (hFull()) return true;
+    if (u.role === "head") return u.dept === "fin" || u.dept === d;
+    if (u.role === "associate") return mine && (u.dept === "fin" || u.dept === d);
+    return u.role === "captain" && mine;
+  }
+  function srv(e, k) { return !e.sv || !!e.sv[k]; } // live rows: the server's answer for this account
+  function canDecideE(e) { var u = hv(); return e.status === "requested" && can("validate") && (u.role !== "associate" || (u.teams || []).indexOf(e.team) > -1) && srv(e, "d"); }
+  function canPayE(e) { return e.status === "validated" && can("pay") && srv(e, "p"); }
+  function meLabel() { return myName() + " (" + myRoleText() + ")"; }
+  // Reconsider: whoever decided it, or anyone above them (Head of Finance, President, VPs, admins).
+  function canReconE(e) {
+    if (hRO() || e.status === "requested") return false;
+    var mine = live() ? !!e.decidedByEmail && e.decidedByEmail === meEmail() : e.decidedBy === meLabel();
+    return (can("pay") || (e.status !== "paid" && mine && canDecideE({ status: "requested", team: e.team }))) && srv(e, "r");
+  }
+  var ACTION = { requested: "Requested", validated: "Validated", rejected: "Rejected", paid: "Paid", reopened: "Reopened for review" };
+  var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  function fmtDay(ms) { var d = new Date(ms); return d.getDate() + " " + MONTHS[d.getMonth()] + " " + d.getFullYear(); }
+  function fmtWhen(ms) { var d = new Date(ms); return fmtDay(ms) + ", " + ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2); }
+  // Budget lines: each team's budget is split between Operations and Marketing (example split 70 / 30).
+  function budgetLines(t) { var o = Math.round(t.budget * 0.7); return { ops: o, med: t.budget - o }; }
+  function lineUse(teamId) {
+    var u = { ops: 0, med: 0 };
+    allExp().forEach(function (e) { if (e.team !== teamId || e.status === "rejected" || e.status === "requested") return; if (e.dept === "Media & Marketing") u.med += e.amount; else if (e.dept === "Operations") u.ops += e.amount; });
+    return u;
+  }
+  function splitPanel(t) {
+    var b = budgetLines(t), u = lineUse(t.id);
+    return '<div class="split">' + [["Operations", b.ops, u.ops, "Kit, facilities, travel, tournaments"], ["Marketing", b.med, u.med, "Media, promotion, events"]].map(function (x) {
+      var pc = x[1] ? Math.min(100, x[2] / x[1] * 100) : 0;
+      return '<div><p class="eyebrow">' + x[0] + ' budget</p><strong class="num">' + EUR.format(x[2]) + ' <span class="muted">/ ' + EUR.format(x[1]) + '</span></strong><div class="bar"><i style="width:' + pc + '%"></i></div><small class="muted">' + x[3] + "</small></div>";
+    }).join("") + '<small class="muted split-note">Split agreed by Finance (example: 70 / 30). Validated and paid expenses count against it.</small></div>';
+  }
+  function histList(e) {
+    var h = e.history || []; if (!h.length) return "";
+    return '<details class="hist"><summary>History (' + h.length + ")</summary><ol>" + h.map(function (x) {
+      return "<li><b>" + esc(ACTION[x.action] || x.action) + "</b> · " + esc(fmtWhen(x.at)) + " · " + esc(x.by) + (x.reason ? '<br><span class="reason">“' + esc(x.reason) + "”</span>" : "") + "</li>";
+    }).join("") + "</ol></details>";
+  }
+  function expTable(list, compact) {
+    if (!list.length) return '<p class="empty">' + (live() && LIVE.exp === null ? "Loading…" : "Nothing here yet.") + "</p>";
+    var multi = visTeams().length > 1;
+    var act = list.some(function (e) { return canDecideE(e) || canPayE(e) || canReconE(e); });
+    return '<div class="table-wrap"><table class="exp"><thead><tr><th>Date</th>' + (multi ? "<th>Team</th>" : "") + '<th>Expense</th><th class="r">Amount</th><th>Status</th>' + (act ? '<th class="r">Action</th>' : "") + "</tr></thead><tbody>" +
+      list.slice().sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; }).map(function (e) {
+        var id = String(e.id), btns = "";
+        if (state.rejecting === id) btns = '<div class="reject-box"><textarea id="rj-' + id + '" rows="2" placeholder="Why is it rejected? (required)" aria-label="Reason for rejecting"></textarea><div><button class="btn sm solid" data-reject-confirm="' + id + '">Reject</button> <button class="btn sm" data-reject-cancel>Cancel</button></div></div>';
+        else if (state.reconsidering === id) btns = '<div class="reject-box"><textarea id="rc-' + id + '" rows="2" placeholder="Why reconsider this decision? (required)" aria-label="Reason for reconsidering"></textarea><div><button class="btn sm solid" data-recon-confirm="' + id + '">Reopen</button> <button class="btn sm" data-reject-cancel>Cancel</button></div></div>';
+        else {
+          if (canDecideE(e)) btns = '<button class="btn sm" data-act="validated" data-id="' + id + '">Validate</button> <button class="btn sm" data-act="reject" data-id="' + id + '">Reject</button>';
+          if (canPayE(e)) btns = '<button class="btn sm solid" data-act="paid" data-id="' + id + '">Mark paid</button>';
+          if (canReconE(e)) btns += (btns ? " " : "") + '<button class="btn sm ghost" data-act="reconsider" data-id="' + id + '">Reconsider</button>';
+        }
+        var files = (e.link ? '<a href="' + esc(e.link) + '" target="_blank" rel="noopener">Link ↗</a>' : "") + (e.file ? (e.link ? " · " : "") + '<a href="' + esc(e.file.data) + '" target="_blank" rel="noopener" download="' + esc(e.file.name) + '">' + esc(e.file.name) + "</a>" : "");
+        var who = e.decidedBy && e.status !== "requested" ? '<br><small class="muted">' + (e.status === "rejected" ? "Rejected" : "Validated") + " by " + esc(e.decidedBy) + "</small>" : "";
+        var why = e.status === "rejected" && e.reason ? '<br><small class="reason">“' + esc(e.reason) + "”</small>" : "";
+        var reopened = (e.history || []).some(function (x) { return x.action === "reopened"; }) ? ' <span class="pill info">Reconsidered</span>' : "";
+        return '<tr><td class="num muted">' + e.date.slice(5).split("-").reverse().join("/") + "</td>" + (multi ? '<td class="tname">' + esc(tLabel(team(e.team)) || e.team) + "</td>" : "") +
+          "<td>" + esc(e.item) + (e.example ? ' <span class="pill">Example</span>' : "") + (compact ? "" : '<br><small class="muted">' + esc(e.cat) + " · " + esc(e.dept === "Media & Marketing" ? "Marketing budget" : e.dept === "Operations" ? "Operations budget" : e.dept) + " · by " + esc(e.by) + "</small>") + (files && !compact ? '<br><small class="files">' + files + "</small>" : "") + (compact ? "" : histList(e)) +
+          '</td><td class="r num"><strong>' + EUR.format(e.amount) + "</strong></td><td>" + pill(EXP_STATUS, e.status) + reopened + who + why + "</td>" +
+          (act ? '<td class="r">' + btns + "</td>" : "") + "</tr>";
+      }).join("") + "</tbody></table></div>";
+  }
+  function exportButtons(kind) {
+    return '<div class="exports"><button type="button" class="btn sm" data-export="xlsx" data-scope="' + kind + '">⬇ Excel</button><button type="button" class="btn sm" data-export="pptx" data-scope="' + kind + '">⬇ PowerPoint</button></div>';
+  }
   function hubExpenses() {
-    var list = state.expenses.filter(function (e) { return teamOk(e.team); });
+    var list = visExp(), u = hv();
     var shown = state.hubFilter === "all" ? list : list.filter(function (e) { return e.status === state.hubFilter; });
+    var lines = '<option value="Operations"' + (u.dept === "med" ? "" : " selected") + '>Operations budget (kit, facilities, travel, tournaments)</option><option value="Media & Marketing"' + (u.dept === "med" ? " selected" : "") + ">Marketing budget (media, promotion, events)</option>";
     var form = can("submit") ? '<section class="panel"><div class="panel-head"><h2>Request a payment</h2><span class="muted" style="font-size:12px">The association pays directly. No captain fronts money.</span></div><form class="form" id="req">' +
       (visTeams().length > 1 ? '<label for="r-team">Team<select id="r-team">' + visTeams().map(function (t) { return '<option value="' + t.id + '">' + esc(tLabel(t)) + "</option>"; }).join("") + "</select></label>" : "") +
-      '<label for="r-item" style="grid-column:span 2">What is it for<input id="r-item" required placeholder="e.g. Referee fees, November"></label><label for="r-cat">Category<select id="r-cat"><option>League fees</option><option>Facilities</option><option>Kit</option><option>Material</option><option>Travel</option></select></label>' +
+      '<label for="r-item" style="grid-column:span 2">What is it for<input id="r-item" required maxlength="140" placeholder="e.g. Referee fees, November"></label>' +
+      '<label for="r-dept">Budget line<select id="r-dept">' + lines + '</select></label><label for="r-cat">Category<select id="r-cat"><option>League fees</option><option>Facilities</option><option>Kit</option><option>Material</option><option>Travel</option><option>Media</option><option>Promotion</option><option>Events</option></select></label>' +
       '<label for="r-amt">Amount (€)<input id="r-amt" type="number" min="1" step="1" required inputmode="numeric" placeholder="0"></label>' +
       '<label for="r-link" style="grid-column:span 2">Link to the product or quote (optional)<input id="r-link" type="url" placeholder="https://..."></label><label for="r-file">Picture, screenshot or PDF (optional)<input id="r-file" type="file" accept="image/*,application/pdf"></label>' +
-      '<div><button class="btn solid" type="submit" style="width:100%">Send request</button></div></form></section>' : "";
-    return '<div class="ph-head"><div><p class="eyebrow">Expenses</p><h1 class="display">Every euro, traced.</h1><p>Every expense is linked to a team, validated by the Finance associate and the Head of Finance, then paid by the association.</p></div><div class="flow" aria-label="How an expense moves"><span>Captain or Ops request</span><span>Finance validates</span><span>Association pays</span></div></div>' + form +
+      '<div><button class="btn solid" type="submit" id="r-send" style="width:100%">Send request</button></div></form></section>' : "";
+    var ex = "";
+    if (admin && live() && LIVE.exp) ex = LIVE.exp.some(function (e) { return e.example; })
+      ? '<p class="muted ex-tools">Example rows are loaded for the demo. <button type="button" class="btn sm" data-examples="remove">Remove example expenses</button></p>'
+      : '<p class="muted ex-tools">The ledger is empty. For a demo: <button type="button" class="btn sm" data-examples="load">Load example expenses</button> (marked “Example”, removable in one click).</p>';
+    return '<div class="ph-head"><div><p class="eyebrow">Expenses ledger · ' + esc(viewLabel(u)) + '</p><h1 class="display">Every euro, traced.</h1><p>Every request, decision and payment for ' + (hFull() ? "every team and department" : u.role === "head" ? (u.dept === "fin" ? "every team" : esc(deptName(u.dept)) + ", every team") : u.role === "associate" ? esc(deptName(u.dept)) + " · " + esc(teamsText(u.teams)) : "your team") + '. It updates as soon as a request is decided or reconsidered, and downloads as Excel or PowerPoint.</p></div>' + exportButtons("ledger") + "</div>" +
+      '<div class="flow" aria-label="How an expense moves"><span>Captain or department requests</span><span>Finance validates or rejects (with a reason)</span><span>Association pays</span><span>Can be reconsidered</span></div>' + ex + form +
       '<section class="panel"><div class="chips" role="group" aria-label="Filter by status">' + [["all", "All"], ["requested", "Requested"], ["validated", "Validated"], ["paid", "Paid"], ["rejected", "Rejected"]].map(function (c) {
         var n = c[0] === "all" ? list.length : list.filter(function (e) { return e.status === c[0]; }).length;
         return '<button class="chip" data-filter="' + c[0] + '" aria-pressed="' + (state.hubFilter === c[0]) + '">' + c[1] + ' <span class="num">' + n + "</span></button>"; }).join("") + "</div>" + expTable(shown, false) + "</section>";
+  }
+  // Decide / pay / reconsider: Convex when signed in, else this browser (prototype).
+  function expAct(kind, id, reason) {
+    var msg = kind === "validated" ? "Validated. Ready to pay." : kind === "paid" ? "Marked as paid." : kind === "rejected" ? "Request rejected. The requester sees your reason." : "Reopened. It can be decided again.";
+    state.rejecting = state.reconsidering = null;
+    if (live()) {
+      var p = kind === "reopen" ? backend.reconsiderExpense({ id: id, reason: reason }) : backend.decideExpense({ id: id, status: kind, reason: reason || undefined });
+      return Promise.resolve(p).then(function () { toast(msg); render(); }, function (x) { toast(errText(x)); render(); });
+    }
+    state.expenses.forEach(function (e) {
+      if (String(e.id) !== id) return;
+      var me = meLabel(), now = Date.now();
+      e.history = e.history || [];
+      if (kind === "reopen") { e.status = "requested"; e.decidedBy = e.reason = undefined; e.history.push({ action: "reopened", by: me, at: now, reason: reason }); }
+      else if (kind === "paid") { e.status = "paid"; e.history.push({ action: "paid", by: me, at: now }); }
+      else { e.status = kind; e.decidedBy = me; e.reason = kind === "rejected" ? reason : undefined; e.history.push({ action: kind, by: me, at: now, reason: reason || undefined }); }
+    });
+    save(); render(); toast(msg);
+  }
+
+  // ---- Reports (Excel / PowerPoint) ------------------------------------------------------------
+  function inRange(ms, r) { return !r || (ms >= r.start && ms < r.end); }
+  function buildModel(title, per, notes) {
+    var r = per || null, list = visExp(), now = Date.now();
+    var rows = list.filter(function (e) { return !r || inRange(Date.parse(e.date + "T12:00:00Z"), r) || (e.history || []).some(function (h) { return inRange(h.at, r); }); })
+      .sort(function (a, b) { return a.date < b.date ? 1 : -1; });
+    var hist = [];
+    list.forEach(function (e) { (e.history || []).forEach(function (h) { if (inRange(h.at, r)) hist.push({ t: h.at, at: fmtWhen(h.at), team: tLabel(team(e.team)) || e.team, item: e.item, action: ACTION[h.action] || h.action, by: h.by, reason: h.reason || "" }); }); });
+    hist.sort(function (a, b) { return b.t - a.t; });
+    function sum(arr, st) { return arr.filter(function (e) { return st.indexOf(e.status) > -1; }).reduce(function (n, e) { return n + e.amount; }, 0); }
+    var teams = visTeams().map(function (t) {
+      var es = list.filter(function (e) { return e.team === t.id; }), ap = sum(es, ["validated", "paid"]), w = sum(es, ["requested"]);
+      return { team: tLabel(t), budget: t.budget, approved: ap, paid: sum(es, ["paid"]), waiting: w, rejected: sum(es, ["rejected"]), left: Math.max(0, t.budget - ap - w) };
+    });
+    var depts = [];
+    ["Operations", "Media & Marketing", "Partnerships", "IT", "Finance"].forEach(function (d) {
+      var es = rows.filter(function (e) { return e.dept === d; }); if (!es.length) return;
+      depts.push({ dept: d === "Media & Marketing" ? "Marketing" : d, count: es.length, approved: sum(es, ["validated", "paid"]), paid: sum(es, ["paid"]), waiting: sum(es, ["requested"]), rejected: sum(es, ["rejected"]) });
+    });
+    var decided = hist.filter(function (h) { return h.action === "Validated" || h.action === "Rejected"; }).length, reop = hist.filter(function (h) { return h.action === ACTION.reopened; }).length;
+    var kpis = [
+      { label: "Requested", value: EUR.format(rows.reduce(function (n, e) { return n + e.amount; }, 0)), note: rows.length + " request" + (rows.length === 1 ? "" : "s") + (r ? " this period" : " this season") },
+      { label: "Validated", value: EUR.format(sum(rows, ["validated", "paid"])), note: decided + " decision" + (decided === 1 ? "" : "s") + (reop ? " · " + reop + " reconsidered" : "") },
+      { label: "Paid", value: EUR.format(sum(rows, ["paid"])), note: "by the association" },
+      { label: "Rejected", value: String(rows.filter(function (e) { return e.status === "rejected"; }).length), note: "each with a written reason" },
+      { label: "Waiting", value: EUR.format(sum(list, ["requested"])), note: "to decide today" }
+    ];
+    var scope = viewLabel(hv()).replace("Eva Morta · ", "");
+    return {
+      file: ("esade-sports-" + title + "-" + (r ? r.key : "season-2026-27")).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/-+$/, ""),
+      title: title, scope: scope, period: r ? r.label : "Season 2026–27, to date", generated: fmtDay(now),
+      example: rows.some(function (e) { return e.example || !live(); }), kpis: kpis, teams: teams, depts: depts,
+      rows: rows.map(function (e) { return { date: e.date, team: tLabel(team(e.team)) || e.team, dept: e.dept, item: e.item, cat: e.cat, amount: e.amount, status: EXP_STATUS[e.status][1], by: e.by, decidedBy: e.decidedBy || "", reason: e.reason || "", link: e.link || "" }; }),
+      history: hist.map(function (h) { delete h.t; return h; }),
+      checkups: (notes || []).map(function (c) { return { at: fmtWhen(c.at), scope: ckScopeText(c), status: c.status === "issues" ? "Issues" : "OK", note: c.note || "", by: c.by }; })
+    };
+  }
+  function runExport(fmt, scope) {
+    if (!tools || !tools.exportXlsx) { toast("Downloads are available on the live site."); return; }
+    var m;
+    if (scope === "checkup") { var p = ckPeriod(); m = buildModel(CK_NAMES[state.ck.kind] + " report", p, ckNotes(p)); m.highlights = (state.deckNotes || {})[p.kind + "|" + p.key] || ""; }
+    else m = buildModel("Expenses ledger", null, []);
+    toast(fmt === "xlsx" ? "Preparing the Excel file…" : "Preparing the PowerPoint…");
+    Promise.resolve(fmt === "xlsx" ? tools.exportXlsx(m) : tools.exportPptx(m)).catch(function (x) { console.error(x); toast("The download failed. Try again."); });
+  }
+
+  // ---- Check-ups ---------------------------------------------------------------------------------
+  // Weekly: associates · monthly: heads and the Board · every semester: all members.
+  var CK_NAMES = { weekly: "Weekly", monthly: "Monthly", semester: "Semester" };
+  function ckKinds() { var r = hv().role; return r === "captain" ? ["semester"] : r === "associate" ? ["weekly", "semester"] : ["weekly", "monthly", "semester"]; }
+  function ckDefault() { var r = hv().role; return r === "captain" ? "semester" : r === "associate" ? "weekly" : "monthly"; }
+  function pad2(n) { return ("0" + n).slice(-2); }
+  function ckPeriod() {
+    var k = state.ck.kind, off = state.ck.off || 0, now = new Date(), s, e, key, label;
+    if (k === "weekly") {
+      s = new Date(now.getFullYear(), now.getMonth(), now.getDate()); s.setDate(s.getDate() - ((s.getDay() + 6) % 7) + 7 * off); e = new Date(s); e.setDate(e.getDate() + 7);
+      var th = new Date(s); th.setDate(th.getDate() + 3); var y0 = new Date(th.getFullYear(), 0, 1), wk = Math.ceil(((th - y0) / 86400000 + 1) / 7), last = new Date(e); last.setDate(last.getDate() - 1);
+      key = th.getFullYear() + "-W" + pad2(wk); label = "Week " + wk + " · " + s.getDate() + " " + MONTHS[s.getMonth()] + " – " + fmtDay(last.getTime());
+    } else if (k === "monthly") {
+      s = new Date(now.getFullYear(), now.getMonth() + off, 1); e = new Date(s.getFullYear(), s.getMonth() + 1, 1);
+      key = s.getFullYear() + "-" + pad2(s.getMonth() + 1); label = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][s.getMonth()] + " " + s.getFullYear();
+    } else {
+      var m = now.getMonth(), acad = m >= 8 ? now.getFullYear() : now.getFullYear() - 1, idx = acad * 2 + (m >= 8 || m === 0 ? 0 : 1) + off;
+      acad = Math.floor(idx / 2); var sem = idx % 2 + 1;
+      s = sem === 1 ? new Date(acad, 8, 1) : new Date(acad + 1, 1, 1); e = sem === 1 ? new Date(acad + 1, 1, 1) : new Date(acad + 1, 8, 1);
+      key = acad + "-" + pad2((acad + 1) % 100) + " S" + sem; label = "Semester " + sem + " · " + acad + "–" + pad2((acad + 1) % 100) + (sem === 1 ? " (Sep–Jan)" : " (Feb–Aug)");
+    }
+    return { kind: k, key: key, label: label, start: s.getTime(), end: e.getTime() };
+  }
+  // The scope a note is written for: associate = department + team, head = department, captain = team, President/VPs/admins = the Board.
+  function ckScope() {
+    var u = hv();
+    if (u.role === "associate") return { dept: deptName(u.dept), team: state.ck.team && (u.teams || []).indexOf(state.ck.team) > -1 ? state.ck.team : (u.teams || [])[0] };
+    if (u.role === "head") return { dept: deptName(u.dept) };
+    if (u.role === "captain") return { team: firstTeam() };
+    return {};
+  }
+  function ckScopeText(c) { var t = c.team ? tLabel(team(c.team)) || c.team : ""; return c.dept && t ? c.dept + " · " + t : c.dept ? c.dept + " · every team" : t ? t : "Board · everything"; }
+  function seeCheck(c) {
+    var u = hv(), d = c.dept ? DEPT_ID[c.dept] : null, mine = c.team && (u.teams || []).indexOf(c.team) > -1;
+    if (hFull()) return true;
+    if (!c.dept && !c.team) return u.role === "head";
+    if (u.role === "head") return !!d && d === u.dept;
+    if (u.role === "associate") return !!d && d === u.dept && (!c.team || mine);
+    return u.role === "captain" && !!mine;
+  }
+  function ckNotes(p) {
+    var k = p.kind + "|" + p.key;
+    if (live()) {
+      if (LIVE.checks[k] === undefined && backend.listCheckups) {
+        LIVE.checks[k] = null;
+        Promise.resolve(backend.listCheckups(p.kind, p.key)).then(function (rows) { LIVE.checks[k] = rows || []; hubRefresh(); }, function (x) { console.error(x); LIVE.checks[k] = []; });
+      }
+      return (LIVE.checks[k] || []).filter(seeCheck);
+    }
+    return state.checkups.filter(function (c) { return c.period === p.kind && c.key === p.key && seeCheck(c); }).sort(function (a, b) { return b.at - a.at; });
+  }
+  function hubCheckups() {
+    var kinds = ckKinds(), u = hv();
+    if (!state.ck || kinds.indexOf(state.ck.kind) < 0) state.ck = { kind: ckDefault(), off: 0 };
+    var p = ckPeriod(), m = buildModel(CK_NAMES[p.kind] + " check-up", p, []), notes = ckNotes(p), sc = ckScope();
+    var loading = live() && LIVE.checks[p.kind + "|" + p.key] === null;
+    var issues = notes.filter(function (c) { return c.status === "issues"; }).length;
+    var who = { weekly: "Associates, for their department and teams", monthly: "Heads for their department; the President and VPs for everything", semester: "Every member: how the year is going" }[p.kind];
+    var form = hRO() ? "" : '<form class="form ck-form" id="ck-form"><p class="form-sub">Your check-up for ' + esc(ckScopeText(sc)) + "</p>" +
+      (u.role === "associate" && (u.teams || []).length > 1 ? '<label for="ck-team">Team<select id="ck-team">' + u.teams.map(function (t) { return '<option value="' + t + '"' + (t === sc.team ? " selected" : "") + ">" + esc(tLabel(team(t))) + "</option>"; }).join("") + "</select></label>" : "") +
+      '<fieldset class="ck-status"><legend>How is it going?</legend><label><input type="radio" name="ck-st" value="ok" checked> All OK</label><label><input type="radio" name="ck-st" value="issues"> Issues to flag</label></fieldset>' +
+      '<label for="ck-note" style="grid-column:1/-1">Notes <small>(required if there are issues)</small><textarea id="ck-note" rows="3" maxlength="1000" placeholder="What went well, what is blocked, what needs the Board"></textarea></label>' +
+      '<div><button class="btn solid" type="submit" id="ck-send">Save check-up</button></div></form>';
+    var decisions = m.history.length ? '<div class="table-wrap"><table><thead><tr><th>When</th><th>Team</th><th>Expense</th><th>Action</th><th>By</th></tr></thead><tbody>' +
+      m.history.map(function (h) { return '<tr><td class="num muted">' + esc(h.at) + '</td><td class="tname">' + esc(h.team) + "</td><td>" + esc(h.item) + (h.reason ? '<br><small class="reason">“' + esc(h.reason) + "”</small>" : "") + "</td><td>" + esc(h.action) + '</td><td class="muted">' + esc(h.by) + "</td></tr>"; }).join("") + "</tbody></table></div>"
+      : '<p class="empty">No requests or decisions in this period.</p>';
+    var budget = can("money") || hDept("ops") || hDept("med") ? '<section class="panel"><div class="panel-head"><h2>Budget so far</h2><span class="muted" style="font-size:12px">Season to date</span></div><div class="table-wrap"><table><thead><tr><th>Team</th><th class="r">Budget</th><th class="r">Validated</th><th class="r">Waiting</th><th class="r">Left</th></tr></thead><tbody>' +
+      m.teams.map(function (t) { return '<tr><td class="tname">' + esc(t.team) + '</td><td class="r num">' + EUR.format(t.budget) + '</td><td class="r num">' + EUR.format(t.approved) + '</td><td class="r num">' + EUR.format(t.waiting) + '</td><td class="r num">' + EUR.format(t.left) + "</td></tr>"; }).join("") + "</tbody></table></div></section>" : "";
+    var hl = (state.deckNotes || {})[p.kind + "|" + p.key] || "";
+    var deck = '<section class="panel"><div class="panel-head"><h2>Excel and PowerPoint</h2>' + exportButtons("checkup") + '</div><p class="muted" style="margin:0;font-size:13px">Both files are rebuilt from the live figures each time you download them, so they always include the latest decisions. The PowerPoint is a normal, fully editable deck (text, tables and charts), and the key messages below become its own slide.</p>' +
+      '<label class="field-l" for="deck-notes">Key messages for the deck <small class="muted">(optional, saved in this browser)</small><textarea id="deck-notes" rows="3" maxlength="1500" placeholder="e.g. Volleyball over budget on travel; spring tournament needs a decision by December">' + esc(hl) + "</textarea></label></section>";
+    return '<div class="ph-head"><div><p class="eyebrow">Reports · ' + esc(viewLabel(u)) + '</p><h1 class="display">Reports.</h1><p>Weekly check-ups for associates, monthly for heads and the Board, every semester for all members. Each report has its Excel and PowerPoint, updated as soon as a request is decided or reconsidered.</p></div>' + exportButtons("checkup") + "</div>" +
+      '<section class="panel ck-bar"><div class="chips" role="group" aria-label="Check-up type">' + kinds.map(function (k) { return '<button class="chip" data-ck-kind="' + k + '" aria-pressed="' + (k === p.kind) + '">' + CK_NAMES[k] + "</button>"; }).join("") + "</div>" +
+      '<div class="ck-nav"><button type="button" class="btn sm" data-ck-off="-1" aria-label="Previous">←</button><strong>' + esc(p.label) + '</strong><button type="button" class="btn sm" data-ck-off="1" aria-label="Next"' + ((state.ck.off || 0) >= 0 ? " disabled" : "") + ">→</button>" + ((state.ck.off || 0) ? '<button type="button" class="btn sm ghost" data-ck-off="0">Current</button>' : "") + '</div><p class="muted" style="margin:0;font-size:12px">' + esc(who) + "</p></section>" +
+      '<div class="grid-4 grid-5">' + m.kpis.map(function (k) { return stat(k.label, k.value, k.note); }).join("") + "</div>" +
+      '<section class="panel"><div class="panel-head"><h2>Requests and decisions</h2><span class="muted" style="font-size:12px">' + esc(p.label) + "</span></div>" + decisions + "</section>" +
+      '<section class="panel"><div class="panel-head"><h2>Check-up notes</h2>' + (notes.length ? '<span class="pill ' + (issues ? "bad" : "ok") + '">' + (issues ? issues + " issue" + (issues === 1 ? "" : "s") : "All OK") + "</span>" : "") + "</div>" +
+      (loading ? '<p class="empty">Loading…</p>' : notes.length ? '<ul class="notes">' + notes.map(function (c) { return '<li><span class="pill ' + (c.status === "issues" ? "bad" : "ok") + '">' + (c.status === "issues" ? "Issues" : "OK") + "</span><div><strong>" + esc(ckScopeText(c)) + "</strong>" + (c.note ? "<p>" + esc(c.note) + "</p>" : "") + '<small class="muted">' + esc(c.by) + " · " + esc(fmtWhen(c.at)) + "</small></div></li>"; }).join("") + "</ul>" : '<p class="empty">No notes yet for this period.</p>') +
+      form + "</section>" + deck + budget + (p.kind === "semester" && (hFull() || u.role === "head") ? metricsPanel() : "");
+  }
+  function metricsPanel() {
+    return '<section style="display:grid;gap:12px"><h2 style="margin:0;font-size:15px;font-weight:800">Seven metrics for the Student Council</h2><ul class="metrics">' + METRICS.map(function (m) { return '<li class="metric"><p class="eyebrow">' + m[0] + "</p><strong>—</strong><small>" + m[1] + "</small></li>"; }).join("") + '</ul><p class="muted" style="margin:0;font-size:12px">Metrics fill in once the association is running. Shown empty on purpose.</p></section>';
+  }
+
+  // ---- Ideas & logistics: captains suggest, Operations researches, Finance sees the cost -----------
+  var IDEA_KINDS = ["Friendly game", "Tournament", "Jerseys / kit", "Travel / logistics", "Training facility", "League facility", "Other"];
+  var IDEA_STATUS = { "new": ["warn", "New"], researching: ["info", "Operations researching"], planned: ["ok", "Planned"], dropped: ["bad", "Not going ahead"] };
+  function allIdeas() { return live() ? LIVE.ideas || [] : state.ideas || []; }
+  function seeIdea(i) { var u = hv(), mine = (u.teams || []).indexOf(i.team) > -1; if (hFull()) return true; if (u.role === "head") return u.dept === "ops" || u.dept === "fin"; if (u.role === "associate") return mine && (u.dept === "ops" || u.dept === "fin"); return u.role === "captain" && mine; }
+  function visIdeas() { return allIdeas().filter(seeIdea); }
+  function canRunIdea(i) { var u = hv(); return !hRO() && (u.role === "admin" || u.role === "exec" || (u.role === "head" && u.dept === "ops") || (u.role === "associate" && u.dept === "ops" && (u.teams || []).indexOf(i.team) > -1)) && (!live() || !!i.canUpdate); }
+  function canSuggest() { var u = hv(); return !hRO() && (u.role === "captain" || u.role === "admin" || u.role === "exec" || u.dept === "ops"); }
+  function hubIdeas() {
+    var list = visIdeas(), u = hv();
+    var form = canSuggest() ? '<section class="panel"><div class="panel-head"><h2>Suggest something</h2><span class="muted" style="font-size:12px">Goes to the Operations associate of the team</span></div><form class="form" id="idea-form">' +
+      (visTeams().length > 1 ? '<label for="id-team">Team<select id="id-team">' + visTeams().map(function (t) { return '<option value="' + t.id + '">' + esc(tLabel(t)) + "</option>"; }).join("") + "</select></label>" : "") +
+      '<label for="id-kind">Type<select id="id-kind">' + IDEA_KINDS.map(function (k) { return "<option>" + esc(k) + "</option>"; }).join("") + "</select></label>" +
+      '<label for="id-text" style="grid-column:1/-1">The idea<textarea id="id-text" rows="2" maxlength="600" required placeholder="e.g. A friendly against another business school in December"></textarea></label><div><button class="btn solid" type="submit" id="id-send">Send to Operations</button></div></form></section>' : "";
+    var rows = list.length ? '<ul class="ideas">' + list.map(function (i) {
+      var id = String(i._id || i.id), edit = canRunIdea(i);
+      return '<li class="panel idea"><div class="idea-head"><span class="pill">' + esc(i.kind) + '</span><strong class="tname">' + esc(tLabel(team(i.team)) || i.team) + "</strong>" + pill(IDEA_STATUS, i.status) + "</div><p>" + esc(i.text) + '</p><small class="muted">Suggested by ' + esc(i.by) + " · " + esc(fmtDay(i.at)) + "</small>" +
+        (i.opsNote || i.estimate ? '<div class="ops-note"><p class="eyebrow">Operations</p>' + (i.opsNote ? "<p>" + esc(i.opsNote) + "</p>" : "") + (i.estimate ? '<p><b>Estimated cost: ' + EUR.format(i.estimate) + "</b> <small class=\"muted\">(Finance checks it against the team's Operations budget)</small></p>" : "") + (i.updatedBy ? '<small class="muted">' + esc(i.updatedBy) + "</small>" : "") + "</div>" : "") +
+        (edit ? '<form class="form idea-upd" data-idea="' + id + '"><label>Status<select name="status">' + Object.keys(IDEA_STATUS).map(function (k) { return '<option value="' + k + '"' + (k === i.status ? " selected" : "") + ">" + IDEA_STATUS[k][1] + "</option>"; }).join("") + '</select></label><label>Estimated cost (€)<input name="estimate" type="number" min="0" step="1" value="' + (i.estimate || "") + '"></label><label style="grid-column:1/-1">Research notes<textarea name="note" rows="2" maxlength="1000" placeholder="Options found, dates, prices negotiated">' + esc(i.opsNote || "") + '</textarea></label><div><button class="btn sm solid" type="submit">Save</button></div></form>' : "") + "</li>";
+    }).join("") + "</ul>" : '<p class="empty">' + (live() && LIVE.ideas === null ? "Loading…" : "No ideas yet.") + "</p>";
+    return '<div class="ph-head"><div><p class="eyebrow">Ideas &amp; logistics · ' + esc(viewLabel(u)) + '</p><h1 class="display">Captains suggest, Operations delivers.</h1><p>Friendlies, tournaments, jerseys, travel, training and league facilities. The captain suggests, Operations researches and organises, Finance checks the cost against the team’s Operations budget, and the expense goes through the ledger.</p></div></div>' +
+      '<div class="flow"><span>Captain suggests</span><span>Operations researches</span><span>Finance checks the budget</span><span>Expense request</span></div>' + form + rows;
   }
   function hubTeamEditor() {
     var ts = visTeams(), selected = state.teamOpen && teamOk(state.teamOpen) ? state.teamOpen : ts[0].id, t = team(selected), info = teamInfoFor(selected), results = teamResultsFor(selected);
@@ -1299,13 +1576,6 @@ export function initSite(backend) {
           deptTasks(d).map(function (t) { return taskRow(t, d.id); }).join("") + '</ul><a class="btn sm" href="#hub-departments" data-dept-open="' + d.id + '">Open team and tasks →</a>' + addTaskForm(d) + "</div></section>";
       }).join("") + "</div>";
   }
-  function hubReport() {
-    var budget = 0, paid = 0; TEAMS.forEach(function (t) { budget += t.budget; paid += totals(t.id).paid; });
-    return '<div class="ph-head"><div><p class="eyebrow">For the Student Council · Semester 1, 2026–27</p><h1 class="display">Semester report.</h1><p>The budget report shared with the Student Council every semester, and the seven metrics the association reports on. No targets at this stage.</p></div></div>' +
-      '<section class="panel"><div class="panel-head"><h2>Budget by team</h2><span class="muted num">' + EUR.format(paid) + " paid of " + EUR.format(budget) + '</span></div><div class="table-wrap"><table><thead><tr><th>Team</th><th class="r">Budget</th><th class="r">Paid</th><th class="r">Waiting</th><th class="r">Left</th></tr></thead><tbody>' +
-      TEAMS.map(function (t) { var o = totals(t.id); return '<tr><td class="tname">' + esc(tLabel(t)) + '</td><td class="r num">' + EUR.format(t.budget) + '</td><td class="r num">' + EUR.format(o.paid) + '</td><td class="r num">' + EUR.format(o.pending) + '</td><td class="r num">' + EUR.format(Math.max(0, t.budget - o.paid - o.pending)) + "</td></tr>"; }).join("") + "</tbody></table></div></section>" +
-      '<section style="display:grid;gap:12px"><h2 style="margin:0;font-size:15px;font-weight:800">Seven metrics</h2><ul class="metrics">' + METRICS.map(function (m) { return '<li class="metric"><p class="eyebrow">' + m[0] + "</p><strong>—</strong><small>" + m[1] + "</small></li>"; }).join("") + '</ul><p class="muted" style="margin:0;font-size:12px">Metrics fill in once the association is running. Shown empty on purpose.</p></section>';
-  }
   function bindHub() {
     var da = $("demo-as"); if (da) da.addEventListener("change", function () { setDemo(da.value); });
     hub.querySelectorAll("[data-demo]").forEach(function (b) { b.addEventListener("click", function () { setDemo(b.getAttribute("data-demo")); }); });
@@ -1321,19 +1591,54 @@ export function initSite(backend) {
       if (!title || !canAddTask(d)) return;
       state.newTasks.push({ id: state.nextId++, dept: d, title: title.slice(0, 120), owner: f.elements.owner.value, status: "todo" }); save(); render(); toast("Task added.");
     }); });
-    hub.querySelectorAll("[data-reject-cancel]").forEach(function (b) { b.addEventListener("click", function () { state.rejecting = null; render(); }); });
+    hub.querySelectorAll("[data-reject-cancel]").forEach(function (b) { b.addEventListener("click", function () { state.rejecting = state.reconsidering = null; render(); }); });
     hub.querySelectorAll("[data-reject-confirm]").forEach(function (b) { b.addEventListener("click", function () {
-      var id = +b.getAttribute("data-reject-confirm"), box = $("rj-" + id), why = box ? box.value.trim() : "";
+      var id = b.getAttribute("data-reject-confirm"), box = $("rj-" + id), why = box ? box.value.trim() : "";
       if (!why) { if (box) { box.focus(); box.classList.add("invalid"); } toast("Write why the request is rejected."); return; }
-      state.expenses.forEach(function (e) { if (e.id === id) { e.status = "rejected"; e.reason = why.slice(0, 300); e.decidedBy = myName() + " (" + myRoleText() + ")"; } });
-      state.rejecting = null; save(); render(); toast("Request rejected. The captain sees your reason.");
+      expAct("rejected", id, why.slice(0, 300));
+    }); });
+    hub.querySelectorAll("[data-recon-confirm]").forEach(function (b) { b.addEventListener("click", function () {
+      var id = b.getAttribute("data-recon-confirm"), box = $("rc-" + id), why = box ? box.value.trim() : "";
+      if (!why) { if (box) { box.focus(); box.classList.add("invalid"); } toast("Write why the decision is reconsidered."); return; }
+      expAct("reopen", id, why.slice(0, 300));
     }); });
     hub.querySelectorAll("[data-act]").forEach(function (b) { b.addEventListener("click", function () {
-      var id = +b.getAttribute("data-id"), a = b.getAttribute("data-act");
-      if (a === "reject") { state.rejecting = id; render(); var bx = $("rj-" + id); if (bx) bx.focus(); return; }
-      if (a === "validated") state.expenses.forEach(function (e) { if (e.id === id) e.decidedBy = myName() + " (" + myRoleText() + ")"; });
-      state.expenses.forEach(function (e) { if (e.id === id) e.status = a; }); save(); render();
-      toast(a === "validated" ? "Validated. Ready to pay." : a === "paid" ? "Marked as paid." : "Request rejected."); }); });
+      var id = b.getAttribute("data-id"), a = b.getAttribute("data-act");
+      if (a === "reject" || a === "reconsider") { state.rejecting = a === "reject" ? id : null; state.reconsidering = a === "reconsider" ? id : null; render(); var bx = $((a === "reject" ? "rj-" : "rc-") + id); if (bx) bx.focus(); return; }
+      b.disabled = true; expAct(a, id);
+    }); });
+    hub.querySelectorAll("[data-export]").forEach(function (b) { b.addEventListener("click", function () { runExport(b.getAttribute("data-export"), b.getAttribute("data-scope")); }); });
+    hub.querySelectorAll("[data-examples]").forEach(function (b) { b.addEventListener("click", function () {
+      b.disabled = true; var rm = b.getAttribute("data-examples") === "remove";
+      Promise.resolve(backend.exampleExpenses(rm)).then(function () { toast(rm ? "Example expenses removed." : "Example expenses loaded."); }, function (x) { b.disabled = false; toast(errText(x)); });
+    }); });
+    hub.querySelectorAll("[data-ck-kind]").forEach(function (b) { b.addEventListener("click", function () { state.ck = { kind: b.getAttribute("data-ck-kind"), off: 0 }; render(); }); });
+    hub.querySelectorAll("[data-ck-off]").forEach(function (b) { b.addEventListener("click", function () { var d = +b.getAttribute("data-ck-off"); state.ck.off = d ? (state.ck.off || 0) + d : 0; render(); }); });
+    hub.querySelectorAll("[data-make-req]").forEach(function (b) { b.addEventListener("click", function () { state.focusReq = true; }); });
+    if (state.focusReq && $("r-item")) { state.focusReq = false; var rf = $("req"); if (rf) rf.scrollIntoView({ block: "start" }); $("r-item").focus(); }
+    var dn = $("deck-notes"); if (dn) dn.addEventListener("input", function () { var p = ckPeriod(); state.deckNotes = state.deckNotes || {}; state.deckNotes[p.kind + "|" + p.key] = dn.value; save(); });
+    var ckt = $("ck-team"); if (ckt) ckt.addEventListener("change", function () { state.ck.team = ckt.value; });
+    var ckf = $("ck-form"); if (ckf) ckf.addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      var st = (ckf.querySelector("input[name=ck-st]:checked") || {}).value || "ok", note = $("ck-note").value.trim(), p = ckPeriod(), sc = ckScope();
+      if (st === "issues" && !note) { $("ck-note").focus(); toast("Describe the issue."); return; }
+      var row = { period: p.kind, key: p.key, dept: sc.dept, team: sc.team, status: st, note: note };
+      if (!live()) { row.by = meLabel(); row.at = Date.now(); state.checkups.push(row); save(); render(); toast("Check-up saved."); return; }
+      $("ck-send").disabled = true;
+      Promise.resolve(backend.saveCheckup(row)).then(function () { delete LIVE.checks[p.kind + "|" + p.key]; render(); toast("Check-up saved. Your head and the Board see it."); }, function (x) { $("ck-send").disabled = false; toast(errText(x)); });
+    });
+    var idf = $("idea-form"); if (idf) idf.addEventListener("submit", function (ev) {
+      ev.preventDefault(); var text = $("id-text").value.trim(); if (!text) return;
+      var row = { team: $("id-team") ? $("id-team").value : firstTeam(), kind: $("id-kind").value, text: text.slice(0, 600) };
+      if (!live()) { row.id = state.nextId++; row.status = "new"; row.by = meLabel(); row.at = Date.now(); state.ideas.unshift(row); save(); render(); toast("Sent to Operations."); return; }
+      $("id-send").disabled = true;
+      Promise.resolve(backend.suggestIdea(row)).then(function () { toast("Sent to Operations."); }, function (x) { $("id-send").disabled = false; toast(errText(x)); });
+    });
+    hub.querySelectorAll("form[data-idea]").forEach(function (f) { f.addEventListener("submit", function (ev) {
+      ev.preventDefault(); var id = f.getAttribute("data-idea"), st = f.elements.status.value, note = f.elements.note.value.trim(), est = Math.round(+f.elements.estimate.value) || 0;
+      if (!live()) { state.ideas.forEach(function (i) { if (String(i.id) === id) { i.status = st; i.opsNote = note || undefined; i.estimate = est || undefined; i.updatedBy = meLabel(); } }); save(); render(); toast("Saved."); return; }
+      Promise.resolve(backend.updateIdea({ id: id, status: st, opsNote: note || undefined, estimate: est || undefined })).then(function () { toast("Saved."); }, function (x) { toast(errText(x)); });
+    }); });
     hub.querySelectorAll("[data-hteam]").forEach(function (r) {
       function open() { state.teamOpen = r.getAttribute("data-hteam"); render(); var d = $("team-detail"); if (d) d.scrollIntoView({ behavior: "smooth", block: "start" }); }
       r.addEventListener("click", open); r.addEventListener("keydown", function (e) { if (e.key === "Enter") open(); });
@@ -1342,10 +1647,20 @@ export function initSite(backend) {
     hub.querySelectorAll("[data-task]").forEach(function (s) { s.addEventListener("change", function () { state.tasks[s.getAttribute("data-task")] = s.value; save(); toast("Task updated."); }); });
     var f = $("req"); if (f) f.addEventListener("submit", function (ev) {
       ev.preventDefault(); var amt = Math.round(+$("r-amt").value), item = $("r-item").value.trim(); if (!item || !(amt > 0)) return;
-      var link = $("r-link").value.trim(), file = $("r-file").files[0];
+      var link = $("r-link").value.trim(), file = $("r-file").files[0], tm = $("r-team") ? $("r-team").value : firstTeam(), dept = $("r-dept").value, cat = $("r-cat").value;
       if (link && !/^https?:\/\//i.test(link)) link = "https://" + link;
+      if (link) link = link.replace(/^http:/i, "https:");
+      if (live()) {
+        if (file && file.size > 10 * 1024 * 1024) { toast("The file is too big (max 10 MB)."); return; }
+        var btn = $("r-send"); btn.disabled = true; btn.textContent = "Sending…";
+        Promise.resolve(file ? backend.uploadFile(file) : null).then(function (fid) {
+          return backend.requestExpense({ team: tm, dept: dept, item: item, cat: cat, amount: amt, link: link || undefined, fileId: fid || undefined, fileName: file ? file.name : undefined });
+        }).then(function () { state.hubFilter = "all"; toast("Request sent to Finance."); render(); }, function (x) { btn.disabled = false; btn.textContent = "Send request"; toast(errText(x)); });
+        return;
+      }
       function done(att) {
-        state.expenses.push({ id: state.nextId++, team: $("r-team") ? $("r-team").value : firstTeam(), item: item, cat: $("r-cat").value, amount: amt, by: myName() + " (" + myRoleText() + ")", date: "2026-11-12", status: "requested", link: link || undefined, file: att || undefined });
+        var now = Date.now(), d = new Date(now), day = d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
+        state.expenses.push({ id: state.nextId++, team: tm, dept: dept, item: item, cat: cat, amount: amt, by: meLabel(), date: day, status: "requested", link: link || undefined, file: att || undefined, history: [{ action: "requested", by: meLabel(), at: now }] });
         state.hubFilter = "all"; save(); render(); toast("Request sent to Finance.");
       }
       if (!file) { done(null); return; }
@@ -1410,7 +1725,8 @@ export function initSite(backend) {
       if (h === "hub-captains" && !can("captains")) h = "hub-overview";
       if (h === "hub-team-editor" && !can("teamEdit")) h = "hub-overview";
       if (h === "hub-applications" && !can("applications")) h = "hub-overview";
-      var inner = h === "hub-teams" ? hubTeams() : h === "hub-team-editor" ? hubTeamEditor() : h === "hub-applications" ? hubApplications() : h === "hub-captains" ? hubCaptains() : h === "hub-expenses" ? hubExpenses() : h === "hub-departments" ? hubDepts() : h === "hub-report" ? hubReport() : hubOverview();
+      if (h === "hub-ideas" && !can("ideas")) h = "hub-overview";
+      var inner = h === "hub-teams" ? hubTeams() : h === "hub-team-editor" ? hubTeamEditor() : h === "hub-applications" ? hubApplications() : h === "hub-captains" ? hubCaptains() : h === "hub-expenses" ? hubExpenses() : h === "hub-departments" ? hubDepts() : h === "hub-report" || h === "hub-checkups" ? hubCheckups() : h === "hub-ideas" ? hubIdeas() : hubOverview();
       hub.innerHTML = hubShell(h, inner); show("hub"); bindHub(); return;
     }
     if (h === "signin") html = signinView();
@@ -1507,6 +1823,7 @@ export function initSite(backend) {
     if (e.target.closest && e.target.closest("#member [data-signout]")) signOut();
   });
   function setAdmin(a) {
+    setTimeout(startLive, 0);
     var c = a && a.captain ? a : null; if (c) a = null;
     if ((c ? c.email + c.label : null) !== (captain ? captain.email + captain.label : null)) { captain = c; renderAcct(); var hh = location.hash.slice(1); if (hh === "signin" || hh.indexOf("hub-") === 0) render(); }
     if (a === admin || (a && admin && a.email === admin.email)) return;
@@ -1564,6 +1881,8 @@ export function initSite(backend) {
     secs.forEach(function (sct) { if (sct.id) spy.observe(sct); });
   })();
   window.addEventListener("hashchange", function () { state.teamOpen = null; render(); });
+  // A live update that arrived while someone was typing in the Hub is shown once they leave the field.
+  hub.addEventListener("focusout", function () { if (LIVE.dirty) setTimeout(function () { if (LIVE.dirty && !hubBusy()) { LIVE.dirty = false; render(); } }, 400); });
   renderAcct(); render(); loadAlumni(); loadTeamInfo();
   return { setAdmin: setAdmin };
 

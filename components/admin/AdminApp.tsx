@@ -1471,7 +1471,7 @@ function Organisation() {
   );
 }
 
-const DEPARTMENT_LIST = ["Finance", "Media & Marketing", "Operations", "Partnerships"]; // same as convex/roles.ts
+const DEPARTMENT_LIST = ["Finance", "Media & Marketing", "Operations", "Partnerships", "IT"]; // same as convex/roles.ts
 
 function Requests({ me, rows }: { me: NonNullable<Me>; rows: MemberRow[] | undefined }) {
   const decide = useMutation(api.org.decide);

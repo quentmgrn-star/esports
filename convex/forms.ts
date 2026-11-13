@@ -44,7 +44,7 @@ export const submitPartnerInquiry = mutation({
   handler: async (ctx, args) => ctx.db.insert("partnerInquiries", args),
 });
 
-const DEPARTMENTS = ["Finance", "Media & Marketing", "Operations", "Partnerships"];
+const DEPARTMENTS = ["Finance", "Media & Marketing", "Operations", "Partnerships", "IT"];
 
 // Upload URL for the CV and optional video of an association application.
 export const generateUploadUrl = mutation({

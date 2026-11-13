@@ -229,4 +229,60 @@ export default defineSchema({
     // Email copy to the captains (sport messages) or admins (general): "sent", "skipped: …" or "failed: …".
     emailStatus: v.optional(v.string()),
   }).index("by_email", ["email"]),
+
+  // Expenses ledger (Hub). Every decision is kept in history: who, when, and why.
+  // Visible per convex/roles.ts: the team's captains, the expense's department, and Finance for the team.
+  expenses: defineTable({
+    team: v.string(), // team id, convex/teamList.ts
+    dept: v.string(), // department the money is for (one of DEPARTMENTS)
+    item: v.string(),
+    cat: v.string(),
+    amount: v.number(), // euros
+    date: v.string(), // YYYY-MM-DD, day of the request
+    status: v.union(v.literal("requested"), v.literal("validated"), v.literal("paid"), v.literal("rejected")),
+    by: v.string(), // "Name (role)"
+    byEmail: v.string(),
+    link: v.optional(v.string()),
+    fileId: v.optional(v.id("_storage")),
+    fileName: v.optional(v.string()),
+    decidedBy: v.optional(v.string()),
+    decidedByEmail: v.optional(v.string()),
+    decidedAt: v.optional(v.number()),
+    reason: v.optional(v.string()), // required for a rejection
+    history: v.array(
+      v.object({ action: v.string(), by: v.string(), at: v.number(), reason: v.optional(v.string()) }),
+    ),
+    isExample: v.boolean(),
+  })
+    .index("by_team", ["team"])
+    .index("by_status", ["status"]),
+
+  // Check-up notes: weekly (associates), monthly (heads, Board), semester (everyone).
+  checkups: defineTable({
+    period: v.union(v.literal("weekly"), v.literal("monthly"), v.literal("semester")),
+    key: v.string(), // "2026-W46", "2026-11", "2026-27 S1"
+    dept: v.optional(v.string()),
+    team: v.optional(v.string()),
+    status: v.union(v.literal("ok"), v.literal("issues")),
+    note: v.string(),
+    by: v.string(),
+    byEmail: v.string(),
+    at: v.number(),
+  }).index("by_period_key", ["period", "key"]),
+
+  // Captains' ideas (friendly, tournament, jerseys, logistics, facilities): the captain suggests,
+  // Operations researches and organises, Finance sees what it may cost. Visible per convex/roles.ts.
+  ideas: defineTable({
+    team: v.string(),
+    kind: v.string(),
+    text: v.string(),
+    status: v.union(v.literal("new"), v.literal("researching"), v.literal("planned"), v.literal("dropped")),
+    opsNote: v.optional(v.string()), // what Operations found: options, dates, estimated cost
+    estimate: v.optional(v.number()), // euros
+    by: v.string(),
+    byEmail: v.string(),
+    at: v.number(),
+    updatedBy: v.optional(v.string()),
+    updatedAt: v.optional(v.number()),
+  }).index("by_team", ["team"]),
 });

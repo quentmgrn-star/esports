@@ -852,3 +852,42 @@ a { color: inherit; }
 #hub .dept-title h2 a { color: inherit; text-decoration: none; }
 #hub .dept-title h2 a:hover { text-decoration: underline; }
 #hub .people > div small { display: block; }
+
+/* Expenses ledger, check-ups, ideas */
+#hub .exports { display: flex; gap: 8px; flex-wrap: wrap; align-self: flex-start; }
+#hub .btn.ghost { border-color: var(--line); color: var(--ink-soft); }
+#hub .btn.ghost:hover { border-color: var(--navy); color: var(--white); }
+#hub .ex-tools { margin: 0; font-size: 13px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+#hub .split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 12px 0; }
+#hub .split > div { background: var(--mist); padding: 10px 12px; display: grid; gap: 4px; }
+#hub .split strong { font-size: 15px; }
+#hub .split .bar { background: var(--white); }
+#hub .split-note { grid-column: 1 / -1; font-size: 11px; }
+#hub details.hist { margin-top: 4px; font-size: 12px; }
+#hub details.hist summary { cursor: pointer; color: var(--blue); font-weight: 600; width: max-content; }
+#hub details.hist ol { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 4px; color: var(--ink-soft); }
+#hub details.hist b { color: var(--navy); }
+#hub .ck-bar { display: grid; gap: 10px; }
+#hub .ck-nav { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+#hub .ck-nav strong { font-size: 15px; }
+#hub .grid-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+#hub ul.notes { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 10px; }
+#hub ul.notes li { display: flex; gap: 10px; align-items: flex-start; border-bottom: 1px solid var(--line); padding-bottom: 10px; }
+#hub ul.notes p { margin: 4px 0; font-size: 13px; white-space: pre-wrap; }
+#hub .ck-form { border-top: 1.5px solid var(--navy); padding-top: 12px; }
+#hub .ck-status { border: 0; padding: 0; margin: 0; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; font-size: 13px; }
+#hub .ck-status legend { font-weight: 700; margin-bottom: 4px; padding: 0; }
+#hub .ck-status label { display: inline-flex; gap: 6px; align-items: center; font-weight: 600; }
+#hub ul.ideas { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+#hub .idea p { margin: 8px 0 4px; }
+#hub .idea-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+#hub .ops-note { margin-top: 10px; background: var(--mist); padding: 10px 12px; font-size: 13px; }
+#hub .ops-note p { margin: 2px 0; }
+#hub .idea-upd { margin-top: 10px; }
+@media (max-width: 900px) { #hub .grid-5 { grid-template-columns: repeat(2, minmax(0, 1fr)); } #hub .split { grid-template-columns: 1fr; } }
+#hub .grid-5 .stat .v { font-size: 22px; }
+@media (min-width: 901px) and (max-width: 1100px) { #hub .grid-5 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+#hub .field-l { display: grid; gap: 6px; font-size: 13px; font-weight: 700; }
+#hub .field-l textarea { font: inherit; font-weight: 400; padding: 8px 10px; border: 1.5px solid var(--line); resize: vertical; }
+#hub .ck-form { grid-template-columns: 1fr; }
+#hub .ck-form .ck-status label, #hub .ck-form .ck-status legend { text-transform: none; letter-spacing: 0; white-space: nowrap; font-size: 13px; }

@@ -71,6 +71,34 @@ export default function EsadeSite() {
       listTeamInfo: () => client.query(api.teamInfo.listPublic, {}),
       getTeamInfo: (teamId: string) => client.query(api.teamInfo.get, { teamId }),
       saveTeamInfo: (a: Record<string, unknown>) => client.mutation(api.teamInfo.save, a as never),
+      // Expenses ledger, check-ups and captains' ideas. Convex only returns what the signed-in account may see,
+      // and the watch callbacks fire again whenever anyone changes the data (the ledger and reports stay up to date).
+      watchExpenses: (cb: (rows: unknown) => void) => {
+        const w = client.watchQuery(api.expenses.list, {});
+        const push = () => { try { cb(w.localQueryResult()); } catch (e) { console.error(e); } };
+        push();
+        return w.onUpdate(push);
+      },
+      requestExpense: (a: Record<string, unknown>) => client.mutation(api.expenses.request, a as never),
+      decideExpense: (a: Record<string, unknown>) => client.mutation(api.expenses.decide, a as never),
+      reconsiderExpense: (a: Record<string, unknown>) => client.mutation(api.expenses.reconsider, a as never),
+      exampleExpenses: (remove: boolean) => client.mutation(api.expenses.loadExamples, { remove }),
+      uploadFile: async (file: File) => {
+        const url: string = await client.mutation(api.forms.generateUploadUrl, {});
+        const res = await fetch(url, { method: "POST", headers: { "Content-Type": file.type || "application/octet-stream" }, body: file });
+        if (!res.ok) throw new Error("Upload failed");
+        return ((await res.json()) as { storageId: string }).storageId;
+      },
+      listCheckups: (period: string, key: string) => client.query(api.checkups.list, { period: period as never, key }),
+      saveCheckup: (a: Record<string, unknown>) => client.mutation(api.checkups.save, a as never),
+      watchIdeas: (cb: (rows: unknown) => void) => {
+        const w = client.watchQuery(api.ideas.list, {});
+        const push = () => { try { cb(w.localQueryResult()); } catch (e) { console.error(e); } };
+        push();
+        return w.onUpdate(push);
+      },
+      suggestIdea: (a: Record<string, unknown>) => client.mutation(api.ideas.suggest, a as never),
+      updateIdea: (a: Record<string, unknown>) => client.mutation(api.ideas.update, a as never),
       // Uploads the CV (and optional video) to Convex storage, then stores the application.
       submitAssociationApplication: async (a: Record<string, unknown>, files: { cv: File; video?: File }) => {
         const upload = async (file: File) => {
@@ -88,7 +116,12 @@ export default function EsadeSite() {
         return client.mutation(api.forms.submitAssociationApplication, { ...a, cvId, videoId } as never);
       },
     };
-    site = initSite(backend);
+    // Excel and PowerPoint downloads (loaded on click; they work with or without Convex).
+    const tools = {
+      exportXlsx: (m: unknown) => import("./reports").then((r) => r.exportXlsx(m as never)),
+      exportPptx: (m: unknown) => import("./reports").then((r) => r.exportPptx(m as never)),
+    };
+    site = initSite(backend, tools);
     site.setAdmin(client ? admin : null);
     initI18n();
   }, []);
