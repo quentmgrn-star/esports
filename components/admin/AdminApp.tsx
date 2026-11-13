@@ -90,12 +90,18 @@ type Me = {
   name: string;
   email: string;
   isAdmin: boolean;
-  teams: string[];
-  board: string[];
-  associate: string[];
-  seesAll: boolean;
+  exec: boolean; // president or vice-president
+  heads: string[]; // departments they head
+  assoc: { department: string; teams: string[] }[];
+  teams: string[]; // teams they captain
+  viewer: boolean;
+  full: boolean; // sees everything
+  readOnly: boolean;
+  board: boolean;
   label: string;
 } | null;
+// Same rules as convex/roles.ts (the server enforces them; this only decides which tabs to show).
+const deptsOf = (me: NonNullable<Me>) => [...me.heads, ...me.assoc.map((x) => x.department)];
 const roleLabel = (me: NonNullable<Me>) => me.label || (me.isAdmin ? "Admin" : "Member");
 
 export default function AdminApp() {
@@ -339,22 +345,25 @@ const SECTION_TITLE: Record<Section, string> = {
 };
 
 function Dashboard({ me }: { me: NonNullable<Me> }) {
-  const runsTeams = me.seesAll || me.teams.length > 0; // admin, Board or captain
-  const approves = me.isAdmin || me.board.length > 0;
-  const [section, setSection] = useState<Section>(me.isAdmin ? "applications" : runsTeams ? "messages" : "organisation");
-  const messages = useQuery(api.admin.listContactMessages, runsTeams ? {} : "skip") as ContactMessage[] | undefined;
+  const d = deptsOf(me);
+  const seesTryouts = me.full || me.teams.length > 0 || d.includes("Operations");
+  const seesMessages = seesTryouts || d.includes("Partnerships");
+  const seesApplications = me.full || me.heads.length > 0;
+  const approves = me.board && !me.readOnly;
+  const [section, setSection] = useState<Section>(seesApplications ? "applications" : seesMessages ? "messages" : "organisation");
+  const messages = useQuery(api.admin.listContactMessages, seesMessages ? {} : "skip") as ContactMessage[] | undefined;
   const requests = useQuery(api.org.manageable, approves ? {} : "skip") as MemberRow[] | null | undefined;
   const unread = (messages ?? []).filter((m) => m.status === "new").length;
   const waiting = (requests ?? []).filter((r) => r.status === "requested").length;
   const tabs: [Section, boolean, number?][] = [
-    ["applications", me.isAdmin],
-    ["tryouts", runsTeams],
-    ["messages", runsTeams, unread],
+    ["applications", seesApplications],
+    ["tryouts", seesTryouts],
+    ["messages", seesMessages, unread],
     ["organisation", true],
     ["requests", approves, waiting],
     ["chat", true],
-    ["captains", me.isAdmin],
-    ["alumni", me.isAdmin],
+    ["captains", me.full],
+    ["alumni", me.full],
   ];
   const label = (k: Section) => (k === "applications" ? "Association applications" : SECTION_TITLE[k]);
   return (
@@ -385,19 +394,22 @@ function Dashboard({ me }: { me: NonNullable<Me> }) {
             </button>
           ))}
       </nav>
-      {section === "applications" && me.isAdmin ? (
+      {me.readOnly && (
+        <p className="adm-p adm-readonly">View-only access: you can see everything, but not change anything.</p>
+      )}
+      {section === "applications" && seesApplications ? (
         <Applications />
-      ) : section === "tryouts" && runsTeams ? (
+      ) : section === "tryouts" && seesTryouts ? (
         <Tryouts me={me} />
-      ) : section === "messages" && runsTeams ? (
+      ) : section === "messages" && seesMessages ? (
         <Messages messages={messages} />
       ) : section === "requests" && approves ? (
         <Requests me={me} rows={requests ?? undefined} />
       ) : section === "chat" ? (
         <Chat />
-      ) : section === "captains" && me.isAdmin ? (
+      ) : section === "captains" && me.full ? (
         <Captains />
-      ) : section === "alumni" && me.isAdmin ? (
+      ) : section === "alumni" && me.full ? (
         <AlumniProfiles />
       ) : (
         <Organisation />
@@ -878,7 +890,8 @@ function TeamStatusSelect({ app }: { app: TeamApp }) {
 }
 
 function Tryouts({ me }: { me: NonNullable<Me> }) {
-  const myTeams = me.seesAll ? TEAMS : TEAMS.filter((t) => me.teams.includes(t.id));
+  const opsTeams = me.assoc.filter((x) => x.department === "Operations").flatMap((x) => x.teams);
+  const myTeams = me.full || me.heads.includes("Operations") ? TEAMS : TEAMS.filter((t) => me.teams.includes(t.id) || opsTeams.includes(t.id));
   const apps = useQuery(api.admin.listTeamApplications, {}) as TeamApp[] | undefined;
   const [team, setTeam] = useState(""); // "" = all teams
   const [name, setName] = useState("");
@@ -1337,12 +1350,13 @@ function AlumniProfiles() {
 }
 
 // ---------- Organisation, requests and chat ----------
-type Person = { name: string | null; email: string };
+type Person = { name: string | null; email: string; teams?: string[]; position?: string };
 type MemberRow = {
   _id: string;
   email: string;
   name: string;
-  role: "board" | "associate" | "captain";
+  role: "board" | "associate" | "captain" | "viewer";
+  position?: Position;
   department?: string;
   teams?: string[];
   note?: string;
@@ -1351,9 +1365,13 @@ type MemberRow = {
   decidedBy?: string;
   decidedAt?: number;
 };
-const ROLE_LABEL = { board: "Board (head of department)", associate: "Associate", captain: "Captain" };
-const whereOf = (m: Pick<MemberRow, "role" | "department" | "teams">) =>
-  m.role === "captain" ? (m.teams ?? []).map(teamLabel).join(", ") : m.department ?? "";
+type Position = "president" | "vice-president" | "head";
+const ROLE_LABEL = { board: "Board", associate: "Associate", captain: "Captain", viewer: "View only (Student Council)" };
+const POSITION_LABEL: Record<Position, string> = { president: "President", "vice-president": "Vice-president", head: "Head of department" };
+const whereOf = (m: Pick<MemberRow, "role" | "department" | "teams" | "position">) =>
+  [m.role === "board" ? POSITION_LABEL[m.position ?? "head"] : "", m.department ?? "", (m.teams ?? []).map(teamLabel).join(", ")]
+    .filter(Boolean)
+    .join(" · ");
 const errText = (err: unknown) => (err instanceof Error ? err.message.replace(/^[\s\S]*ConvexError:\s*/, "").split("\n")[0] : String(err));
 
 function PersonLine({ p, tag }: { p: Person; tag?: string }) {
@@ -1370,7 +1388,13 @@ function PersonLine({ p, tag }: { p: Person; tag?: string }) {
 
 function Organisation() {
   const o = useQuery(api.org.overview, {}) as
-    | { admins: Person[]; departments: { name: string; heads: Person[]; associates: Person[] }[]; teams: { id: string; captains: Person[] }[] }
+    | {
+        admins: Person[];
+        exec: Person[];
+        departments: { name: string; heads: Person[]; associates: Person[] }[];
+        teams: { id: string; captains: Person[] }[];
+        viewers: Person[];
+      }
     | null
     | undefined;
   if (o === undefined) return <p className="adm-p">Loading…</p>;
@@ -1387,7 +1411,13 @@ function Organisation() {
         </ul>
       </section>
       <section>
-        <h2 className="adm-h3">The Board and departments</h2>
+        <h2 className="adm-h3">President and vice-presidents</h2>
+        <ul className="adm-people">
+          {o.exec.length ? o.exec.map((p) => <PersonLine key={p.email} p={p} tag={p.position} />) : <li className="adm-sub">Not set yet</li>}
+        </ul>
+      </section>
+      <section>
+        <h2 className="adm-h3">Departments (head first, then associates)</h2>
         <div className="adm-org-grid">
           {o.departments.map((d) => (
             <article key={d.name} className="adm-org-card">
@@ -1395,7 +1425,7 @@ function Organisation() {
               <ul className="adm-people">
                 {d.heads.length ? d.heads.map((p) => <PersonLine key={p.email} p={p} tag="Head" />) : <li className="adm-sub">No head yet</li>}
                 {d.associates.map((p) => (
-                  <PersonLine key={p.email} p={p} />
+                  <PersonLine key={p.email} p={p} tag={(p.teams ?? []).map(teamLabel).join(", ")} />
                 ))}
               </ul>
               {!d.associates.length && <p className="adm-sub">No associates yet</p>}
@@ -1403,6 +1433,16 @@ function Organisation() {
           ))}
         </div>
       </section>
+      {o.viewers.length > 0 && (
+        <section>
+          <h2 className="adm-h3">View only</h2>
+          <ul className="adm-people">
+            {o.viewers.map((p) => (
+              <PersonLine key={p.email} p={p} tag="Student Council" />
+            ))}
+          </ul>
+        </section>
+      )}
       <section>
         <h2 className="adm-h3">Team captains</h2>
         <div className="adm-org-grid">
@@ -1439,8 +1479,10 @@ function Requests({ me, rows }: { me: NonNullable<Me>; rows: MemberRow[] | undef
   const [tab, setTab] = useState<"requested" | "approved" | "closed">("requested");
   const [error, setError] = useState("");
   const roles: MemberRow["role"][] = me.isAdmin ? ["board", "associate", "captain"] : ["associate", "captain"];
-  const depts = me.isAdmin ? DEPARTMENT_LIST : me.board;
-  const [f, setF] = useState({ email: "", name: "", role: roles[0], department: depts[0] ?? "", teams: [] as string[] });
+  const depts = me.isAdmin || me.exec ? DEPARTMENT_LIST : me.heads;
+  const [f, setF] = useState({ email: "", name: "", role: roles[0], position: "head" as Position, department: depts[0] ?? "", teams: [] as string[] });
+  const needsDept = f.role === "associate" || (f.role === "board" && f.position === "head");
+  const needsTeams = f.role === "associate" || f.role === "captain";
   const [busy, setBusy] = useState(false);
   const list = (rows ?? []).filter((r) => (tab === "closed" ? r.status === "rejected" || r.status === "revoked" : r.status === tab));
   async function act(id: string, decision: "approved" | "rejected" | "revoked") {
@@ -1456,7 +1498,14 @@ function Requests({ me, rows }: { me: NonNullable<Me>; rows: MemberRow[] | undef
     setError("");
     setBusy(true);
     try {
-      await add({ email: f.email, name: f.name, role: f.role, department: f.role === "captain" ? undefined : f.department, teams: f.role === "captain" ? f.teams : undefined });
+      await add({
+        email: f.email,
+        name: f.name,
+        role: f.role,
+        position: f.role === "board" ? f.position : undefined,
+        department: needsDept ? f.department : undefined,
+        teams: needsTeams ? f.teams : undefined,
+      });
       setF({ ...f, email: "", name: "", teams: [] });
     } catch (err) {
       setError(errText(err));
@@ -1467,8 +1516,10 @@ function Requests({ me, rows }: { me: NonNullable<Me>; rows: MemberRow[] | undef
     <>
       <p className="adm-p">
         {me.isAdmin
-          ? "As admin you approve the Board (heads of department) and can approve anyone."
-          : `As head of ${me.board.join(", ")} you approve your department's associates, and captain requests.`}{" "}
+          ? "As admin you approve the Board (president, vice-presidents, heads of department) and can approve anyone."
+          : me.exec
+            ? "As president or vice-president you approve associates and captains."
+            : `As head of ${me.heads.join(", ")} you approve your department's associates, and captain requests.`}{" "}
         People request access on the Members page of the website; once approved they create their account on /admin with the
         same email.
       </p>
@@ -1572,7 +1623,17 @@ function Requests({ me, rows }: { me: NonNullable<Me>; rows: MemberRow[] | undef
               ))}
             </select>
           </label>
-          {f.role !== "captain" && (
+          {f.role === "board" && (
+            <label className="field">
+              Position
+              <select value={f.position} onChange={(e) => setF({ ...f, position: e.target.value as Position })}>
+                <option value="head">Head of department</option>
+                <option value="vice-president">Vice-president</option>
+                <option value="president">President</option>
+              </select>
+            </label>
+          )}
+          {needsDept && (
             <label className="field">
               Department
               <select value={f.department} onChange={(e) => setF({ ...f, department: e.target.value })}>
@@ -1583,9 +1644,9 @@ function Requests({ me, rows }: { me: NonNullable<Me>; rows: MemberRow[] | undef
             </label>
           )}
         </div>
-        {f.role === "captain" && (
+        {needsTeams && (
           <fieldset className="adm-team-checks">
-            <legend>Teams</legend>
+            <legend>{f.role === "associate" ? "Teams they work with" : "Teams"}</legend>
             {TEAMS.map((t) => (
               <label key={t.id}>
                 <input
@@ -1598,7 +1659,7 @@ function Requests({ me, rows }: { me: NonNullable<Me>; rows: MemberRow[] | undef
             ))}
           </fieldset>
         )}
-        <button className="btn btn-blue" type="submit" disabled={busy || !f.email || !f.name || (f.role === "captain" && !f.teams.length)}>
+        <button className="btn btn-blue" type="submit" disabled={busy || !f.email || !f.name || (needsTeams && !f.teams.length)}>
           {busy ? "Saving…" : "Add"}
         </button>
       </form>
@@ -1616,6 +1677,7 @@ type ChatMsg = {
   editedAt?: number;
   mine: boolean;
   canDelete: boolean;
+  canPost: boolean;
 };
 const seenKey = (id: string) => `es-chat-seen:${id}`;
 const getSeen = (id: string) => {
@@ -1749,6 +1811,9 @@ function Chat() {
           )}
         </div>
         {error && <p className="err">{error}</p>}
+        {msgs && msgs.length > 0 && !msgs[0].canPost ? (
+          <p className="adm-sub">View-only access: you can read but not post.</p>
+        ) : (
         <form className="adm-chat-form" onSubmit={submit}>
           <textarea
             value={text}
@@ -1768,6 +1833,7 @@ function Chat() {
             Send
           </button>
         </form>
+        )}
         <p className="adm-sub">
           Be kind and keep it about Esade Sports. Messages are seen by everyone in the channel; the Board and admins can remove
           messages.

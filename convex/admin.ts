@@ -3,14 +3,38 @@ import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/s
 import type { Id } from "./_generated/dataModel";
 import { authComponent, isAdminEmail } from "./auth";
 import { stageValidator, TEAM_STATUSES } from "./stages";
-import { getAccess, requireAccess, sportsOf } from "./roles";
+import { canEdit, canSee, getAccess, isExecEditor, requireAccess, type Access, type Resource } from "./roles";
 import { TEAMS } from "./teamList";
 
-async function requireAdmin(ctx: QueryCtx | MutationCtx) {
-  const user = await authComponent.safeGetAuthUser(ctx);
-  if (!user || !isAdminEmail(user.email)) throw new ConvexError("Not authorised.");
-  return user;
+// Every rule below goes through canSee / canEdit in convex/roles.ts.
+const deny = (a: Access) => new ConvexError(a.readOnly ? "Your access is view-only." : "Not authorised.");
+async function requireFull(ctx: QueryCtx | MutationCtx) {
+  const a = await requireAccess(ctx);
+  if (!a.full) throw deny(a);
+  return a;
 }
+// Admin, president and vice-presidents.
+async function requireExecEdit(ctx: QueryCtx | MutationCtx) {
+  const a = await requireAccess(ctx);
+  if (!isExecEditor(a)) throw deny(a);
+  return a;
+}
+// Association applications belong to the departments the applicant chose. Heads see those for their
+// department; associates don't see recruitment.
+const seesApp = (a: Access, app: { pref1: string; pref2?: string }) =>
+  a.full || a.heads.includes(app.pref1) || (!!app.pref2 && a.heads.includes(app.pref2));
+async function editableApp(ctx: MutationCtx, id: Id<"associationApplications">) {
+  const a = await requireAccess(ctx);
+  const app = await ctx.db.get(id);
+  if (!app) throw new ConvexError("Application not found.");
+  if (a.readOnly || !seesApp(a, app)) throw deny(a);
+  return app;
+}
+// Contact messages: the sport's captains, plus the department the topic belongs to.
+const TOPIC_DEPT: Record<string, string> = { "Partnership or business": "Partnerships", "Try-outs": "Operations", Coaching: "Operations" };
+const messageRes = (m: { sport?: string; topic: string }): Resource => ({ sport: m.sport, captains: true, dept: TOPIC_DEPT[m.topic] });
+// Try-out and coach sign-ups: the team's captains and Operations.
+const tryoutRes = (x: { teamSlug: string }): Resource => ({ team: x.teamSlug, captains: true, dept: "Operations" });
 
 // Who is signed in: admin (ADMIN_EMAILS) and/or the teams they captain.
 export const me = query({
@@ -23,10 +47,14 @@ export const me = query({
       name: user.name,
       email: user.email,
       isAdmin: isAdminEmail(user.email),
+      exec: access?.exec ?? false,
+      heads: access?.heads ?? [],
+      assoc: access?.assoc ?? [],
       teams: access?.teams ?? [],
-      board: access?.board ?? [],
-      associate: access?.associate ?? [],
-      seesAll: access?.seesAll ?? false,
+      viewer: access?.viewer ?? false,
+      full: access?.full ?? false,
+      readOnly: access?.readOnly ?? false,
+      board: access?.board ?? false,
       label: access?.label ?? "",
     };
   },
@@ -36,8 +64,8 @@ export const me = query({
 export const listAssociationApplications = query({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
-    const apps = await ctx.db.query("associationApplications").order("desc").collect();
+    const a = await requireAccess(ctx);
+    const apps = (await ctx.db.query("associationApplications").order("desc").collect()).filter((x) => seesApp(a, x));
     return Promise.all(
       apps.map(async (a) => ({
         ...a,
@@ -52,9 +80,7 @@ export const listAssociationApplications = query({
 export const setApplicationStage = mutation({
   args: { id: v.id("associationApplications"), stage: stageValidator },
   handler: async (ctx, { id, stage }) => {
-    await requireAdmin(ctx);
-    const app = await ctx.db.get(id);
-    if (!app) throw new ConvexError("Application not found.");
+    const app = await editableApp(ctx, id);
     if ((app.stage ?? "applied") === stage) return;
     await ctx.db.patch(id, { stage, stageChangedAt: Date.now() });
   },
@@ -64,8 +90,7 @@ export const setApplicationStage = mutation({
 export const setApplicationNotes = mutation({
   args: { id: v.id("associationApplications"), notes: v.string() },
   handler: async (ctx, { id, notes }) => {
-    await requireAdmin(ctx);
-    if (!(await ctx.db.get(id))) throw new ConvexError("Application not found.");
+    await editableApp(ctx, id);
     await ctx.db.patch(id, { notes: notes.trim().slice(0, 5000) || undefined });
   },
 });
@@ -76,9 +101,7 @@ export const listContactMessages = query({
   handler: async (ctx) => {
     const a = await requireAccess(ctx);
     const all = await ctx.db.query("contactMessages").order("desc").collect();
-    if (a.seesAll) return all;
-    const sports = sportsOf(a.teams);
-    return all.filter((m) => m.sport && sports.has(m.sport));
+    return all.filter((m) => canSee(a, messageRes(m)));
   },
 });
 
@@ -91,7 +114,7 @@ export const setContactStatus = mutation({
     const a = await requireAccess(ctx);
     const m = await ctx.db.get(id);
     if (!m) throw new ConvexError("Message not found.");
-    if (!a.seesAll && !(m.sport && sportsOf(a.teams).has(m.sport))) throw new ConvexError("Not authorised.");
+    if (!canEdit(a, messageRes(m))) throw deny(a);
     await ctx.db.patch(id, { status });
   },
 });
@@ -102,7 +125,7 @@ export const listTeamApplications = query({
   handler: async (ctx) => {
     const a = await requireAccess(ctx);
     const all = await ctx.db.query("teamApplications").order("desc").collect();
-    return a.seesAll ? all : all.filter((x) => a.teams.includes(x.teamSlug));
+    return all.filter((x) => canSee(a, tryoutRes(x)));
   },
 });
 
@@ -110,7 +133,7 @@ async function editableTeamApp(ctx: MutationCtx, id: Id<"teamApplications">) {
   const a = await requireAccess(ctx);
   const app = await ctx.db.get(id);
   if (!app) throw new ConvexError("Sign-up not found.");
-  if (!a.seesAll && !a.teams.includes(app.teamSlug)) throw new ConvexError("Not authorised.");
+  if (!canEdit(a, tryoutRes(app))) throw deny(a);
   return app;
 }
 
@@ -131,11 +154,11 @@ export const setTeamApplicationNotes = mutation({
   },
 });
 
-// ---------- Captains (admins only) ----------
+// ---------- Captains (seen by admin, president, VPs, viewers; changed by admin, president, VPs) ----------
 export const listCaptains = query({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireFull(ctx);
     return ctx.db.query("captains").collect();
   },
 });
@@ -144,7 +167,7 @@ export const listCaptains = query({
 export const saveCaptain = mutation({
   args: { email: v.string(), name: v.optional(v.string()), teams: v.array(v.string()) },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireExecEdit(ctx);
     const email = args.email.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new ConvexError("Enter a valid email address.");
     const teams = [...new Set(args.teams)].filter((t) => TEAMS.some((x) => x.id === t));
@@ -159,16 +182,16 @@ export const saveCaptain = mutation({
 export const removeCaptain = mutation({
   args: { id: v.id("captains") },
   handler: async (ctx, { id }) => {
-    await requireAdmin(ctx);
+    await requireExecEdit(ctx);
     await ctx.db.delete(id);
   },
 });
 
-// Alumni profiles sent from the website, newest first. Admins only (they see email and phone).
+// Alumni profiles sent from the website, newest first. Full access only (they include email and phone).
 export const listAlumniProfiles = query({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireFull(ctx);
     return ctx.db.query("alumniProfiles").order("desc").collect();
   },
 });
@@ -177,7 +200,7 @@ export const listAlumniProfiles = query({
 export const setAlumniStatus = mutation({
   args: { id: v.id("alumniProfiles"), status: v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected")) },
   handler: async (ctx, { id, status }) => {
-    await requireAdmin(ctx);
+    await requireExecEdit(ctx);
     if (!(await ctx.db.get(id))) throw new ConvexError("Profile not found.");
     await ctx.db.patch(id, { status });
   },
@@ -187,7 +210,7 @@ export const setAlumniStatus = mutation({
 export const deleteAlumniProfile = mutation({
   args: { id: v.id("alumniProfiles") },
   handler: async (ctx, { id }) => {
-    await requireAdmin(ctx);
+    await requireExecEdit(ctx);
     await ctx.db.delete(id);
   },
 });

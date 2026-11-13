@@ -126,3 +126,5 @@
   .adm-chat-channels { display: flex; overflow-x: auto; gap: 16px; }
   .adm-chat-channels > div { flex: none; }
 }
+
+.adm-readonly { background: var(--mist); padding: 10px 14px; border-left: 3px solid var(--blue); }

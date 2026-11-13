@@ -202,12 +202,15 @@ export function initSite(backend) {
     if (s && s.v === 2) { state.user = s.user && s.user.role === "alumni" ? null : s.user; state.expenses = s.expenses; state.captains = s.captains || null; state.teamApplications = s.teamApplications || {}; state.teamInfo = s.teamInfo || {}; state.teamResults = s.teamResults || {}; state.tasks = s.tasks || {}; state.nextId = s.nextId || 100; }
   } catch (e) {}
   function save() { try { localStorage.setItem("es-site", JSON.stringify({ v: 2, user: state.user, expenses: state.expenses, captains: state.captains, teamApplications: state.teamApplications, teamInfo: state.teamInfo, teamResults: state.teamResults, tasks: state.tasks, nextId: state.nextId })); } catch (e) {} }
-  var HUB_ROLES = { captain: 1, board: 1, associate: 1, council: 1 };
+  // Hub views (same rules as convex/roles.ts; permissions table in README.md):
+  //   admin / exec (president, VPs): everything · viewer (Student Council, Eva Morta): everything, read-only
+  //   head: their department for every team · associate: their department, their teams · captain: their team(s)
+  var HUB_ROLES = { admin: 1, exec: 1, head: 1, associate: 1, captain: 1, viewer: 1 };
   // Real admin login (Better Auth, /admin). undefined = still checking, null = not an admin, else { email, name }.
   // The Hub is only open to a signed-in admin; the role picker only previews what a captain, the Board or the Council sees.
   var admin;
   if (state.user && (HUB_ROLES[state.user.role] || state.user.role === "guest")) state.user = null; // roles from before the real login existed
-  function isHub() { return !!admin && !!state.user && HUB_ROLES[state.user.role]; }
+  function isHub() { return !!(admin || captain) && !!state.user && HUB_ROLES[state.user.role]; }
   // Approved profiles from Convex (no email/phone), then the example profiles.
   var REAL = [];
   function allAlumni() { return REAL.concat(ALUMNI); }
@@ -234,7 +237,7 @@ export function initSite(backend) {
   var captain = null; // signed-in captain (not admin): badge + inbox link, no Hub
   function adminBar() {
     if (captain) return '<a class="admin-badge" href="/admin" title="Signed in as ' + esc(captain.email) + ' · open the members area"><i>' + esc(captain.label || "Member") + '</i><span>' + esc(captain.name || captain.email.split("@")[0]) + '</span></a>' +
-      '<a href="/admin">Members area</a><button type="button" class="signout" data-signout>Sign out</button>';
+      '<a href="#hub-overview">Hub</a><a href="/admin">Members area</a><button type="button" class="signout" data-signout>Sign out</button>';
     if (!admin) return "";
     return '<a class="admin-badge" href="/admin" title="Signed in as ' + esc(admin.email) + ' · open the admin area"><i>Admin</i><span>' + esc(admin.name || admin.email.split("@")[0]) + '</span></a>' +
       '<a href="#hub-overview">Hub</a><button type="button" class="signout" data-signout>Sign out</button>';
@@ -250,14 +253,9 @@ export function initSite(backend) {
   // ================= Members (low-key, linked from the footer) =================
   // Public browsing never needs a login. This page is only for the people who run Esade Sports.
   function signinView() {
-    var opts = TEAMS.map(function (t) { return '<option value="' + t.id + '">' + esc(tLabel(t)) + "</option>"; }).join("");
     return '<section class="band"><div class="wrap"><p class="eyebrow">Members</p><h1 class="display">Members<br>area.</h1><p>For captains, Board members, associates and the Student Council: requests, decisions and follow-up in one place. Visitors don\u2019t need an account, everything public is open.</p></div></section>' +
       '<section class="signin"><div class="wrap"><div class="access">' +
-      (admin ?
-        '<div class="acc"><p class="eyebrow">Signed in</p><strong>Esade Sports Hub</strong><p>You are signed in as ' + esc(admin.email) + '. Pick which view of the Hub to open.</p><div class="opts">' +
-        '<label class="field" for="hub-role">View the Hub as<select id="hub-role"><option value="board">Board member</option><option value="captain">Team captain</option><option value="associate">Associate (department member)</option><option value="council">Student Council (Eva Morta)</option></select></label>' +
-        '<label class="field" for="hub-team" id="hub-team-wrap" hidden>Team<select id="hub-team">' + opts + "</select></label></div>" +
-        '<button class="btn btn-blue" data-go="hub">Open the Hub</button></div>'
+      (admin || captain ? hubPicker() + (captain && !admin ? requestBlock() : "")
       : '<div class="acc"><p class="eyebrow">Captains · Board · Associates</p><strong>Sign in to the Hub</strong><p>Expenses and budgets, team updates, try-out applications, department tasks and reports for the Student Council.</p>' +
         '<a class="btn btn-blue" href="/admin">' + (admin === undefined ? "Checking your login\u2026" : "Sign in") + '</a></div>' + requestBlock()) +
       '</div><p class="hint">Only accounts approved by the Board can sign in.</p>' +
@@ -265,13 +263,13 @@ export function initSite(backend) {
   }
   // "Request access": becomes a request that the right person approves in /admin
   // (associates: their head of department; captains: the Board). Board positions are added by the admin.
-  var DEPTS = ["Finance", "Media & Marketing", "Operations", "Partnerships"]; // same as convex/roles.ts
+  var REQ_DEPTS = ["Finance", "Media & Marketing", "Operations", "Partnerships"]; // same as convex/roles.ts
   function requestBlock() {
     return '<form class="acc req" id="req-form" novalidate><p class="eyebrow">New here?</p><strong>Request access</strong><p>Associates and captains: send a request. Once it is approved, sign in with the same email to create your account.</p>' +
       '<div class="fgrid">' + fieldI("rq-name", "Full name", "", 'required autocomplete="name"') + fieldI("rq-email", "Esade email", "", 'required type="email" autocomplete="email" placeholder="name@alumni.esade.edu"') +
       '<label class="field" for="rq-role">I am<select id="rq-role"><option value="associate">An associate of a department</option><option value="captain">A team captain</option></select></label>' +
-      '<label class="field" for="rq-dept" id="rq-dept-wrap">Department<select id="rq-dept">' + DEPTS.map(function (d) { return "<option>" + esc(d) + "</option>"; }).join("") + "</select></label></div>" +
-      '<div class="field" id="rq-teams-wrap" hidden>Team(s)<div class="checks">' + TEAMS.map(function (t, i) { return '<label for="rq-t-' + i + '"><input type="checkbox" id="rq-t-' + i + '" value="' + t.id + '">' + esc(tLabel(t)) + "</label>"; }).join("") + "</div></div>" +
+      '<label class="field" for="rq-dept" id="rq-dept-wrap">Department<select id="rq-dept">' + REQ_DEPTS.map(function (d) { return "<option>" + esc(d) + "</option>"; }).join("") + "</select></label></div>" +
+      '<div class="field" id="rq-teams-wrap"><span id="rq-teams-label">Team(s) you work with</span><div class="checks">' + TEAMS.map(function (t, i) { return '<label for="rq-t-' + i + '"><input type="checkbox" id="rq-t-' + i + '" value="' + t.id + '">' + esc(tLabel(t)) + "</label>"; }).join("") + "</div></div>" +
       '<label class="field full" for="rq-note">Note <small>(optional)</small><textarea id="rq-note" rows="2" maxlength="500" placeholder="E.g. elected captain in October"></textarea></label>' +
       '<input type="text" id="rq-website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px">' +
       '<p class="err" id="rq-err" hidden></p><button class="btn btn-blue" type="submit" id="rq-send">Send request</button></form>';
@@ -279,17 +277,17 @@ export function initSite(backend) {
   function bindRequest() {
     var f = $("req-form"); if (!f) return;
     var role = $("rq-role");
-    role.addEventListener("change", function () { var c = role.value === "captain"; $("rq-dept-wrap").hidden = c; $("rq-teams-wrap").hidden = !c; });
+    role.addEventListener("change", function () { var c = role.value === "captain"; $("rq-dept-wrap").hidden = c; $("rq-teams-label").textContent = c ? "Your team(s)" : "Team(s) you work with"; });
     f.addEventListener("submit", function (e) {
       e.preventDefault();
       var err = $("rq-err"), name = $("rq-name").value.trim(), email = $("rq-email").value.trim(), teams = [];
       page.querySelectorAll("#rq-teams-wrap input:checked").forEach(function (c) { teams.push(c.value); });
-      var msg = !name || !email ? "Please add your name and email." : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? "Please enter a valid email address." : role.value === "captain" && !teams.length ? "Choose your team." : "";
+      var msg = !name || !email ? "Please add your name and email." : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? "Please enter a valid email address." : !teams.length ? "Choose at least one team." : "";
       if (msg) { err.textContent = msg; err.hidden = false; return; }
       err.hidden = true;
       var btn = $("rq-send"); btn.disabled = true; btn.textContent = "Sending…";
       function done() { f.innerHTML = '<p class="eyebrow">Request sent</p><strong>Thank you</strong><p>' + (role.value === "captain" ? "The Board" : "The head of " + esc($("rq-dept") ? $("rq-dept").value : "your department")) + " will review your request. Once approved, sign in with " + esc(email) + " to create your account.</p>"; }
-      var data = { name: name, email: email, role: role.value, department: role.value === "captain" ? undefined : $("rq-dept").value, teams: role.value === "captain" ? teams : undefined, note: $("rq-note").value.trim() || undefined, website: $("rq-website").value || undefined };
+      var data = { name: name, email: email, role: role.value, department: role.value === "captain" ? undefined : $("rq-dept").value, teams: teams, note: $("rq-note").value.trim() || undefined, website: $("rq-website").value || undefined };
       if (!backend || !backend.requestAccess) { done(); return; }
       Promise.resolve(backend.requestAccess(data)).then(done, function (x) {
         console.error(x); btn.disabled = false; btn.textContent = "Send request";
@@ -298,18 +296,34 @@ export function initSite(backend) {
       });
     });
   }
+  // Which Hub view to open. Admins pick any role (to test what others see); others pick among their own roles.
+  function hubPicker() {
+    var me = admin || captain, views = allowedViews(), opts = TEAMS.map(function (t) { return '<option value="' + t.id + '">' + esc(tLabel(t)) + "</option>"; }).join("");
+    var body = admin
+      ? '<label class="field" for="hub-role">View the Hub as<select id="hub-role"><option value="admin">Admin (full access)</option><option value="exec">President / Vice-president</option><option value="head">Head of department</option><option value="associate">Associate</option><option value="captain">Team captain</option><option value="viewer">Student Council (Eva Morta), view only</option></select></label>' +
+        '<label class="field" for="hub-dept" id="hub-dept-wrap" hidden>Department<select id="hub-dept">' + DEPTS.filter(function (d) { return d.id !== "board"; }).map(function (d) { return '<option value="' + d.id + '">' + esc(d.name) + "</option>"; }).join("") + "</select></label>" +
+        '<label class="field" for="hub-team" id="hub-team-wrap" hidden>Team<select id="hub-team">' + opts + "</select></label>"
+      : views.length > 1 ? '<label class="field" for="hub-view">Open the Hub as<select id="hub-view">' + views.map(function (v, i) { return '<option value="' + i + '">' + esc(viewLabel(v)) + "</option>"; }).join("") + "</select></label>"
+      : '<p>' + (views[0] ? "You will see the Hub as " + esc(viewLabel(views[0])) + "." : "Your role is still being set up.") + "</p>";
+    return '<div class="acc"><p class="eyebrow">Signed in</p><strong>Esade Sports Hub</strong><p>You are signed in as ' + esc(me.email) + (captain && captain.label ? " (" + esc(captain.label) + ")" : "") + '.</p><div class="opts">' + body + "</div>" +
+      (views.length ? '<button class="btn btn-blue" data-go="hub">Open the Hub</button>' : "") + ' <a class="btn btn-ghost-navy" href="/admin">Members area</a></div>';
+  }
   function bindSignin() {
     bindRequest();
-    var role = $("hub-role"), wrap = $("hub-team-wrap");
-    if (role) role.addEventListener("change", function () { wrap.hidden = role.value !== "captain"; });
+    var role = $("hub-role");
+    function sync() { if (!role) return; var r = role.value; $("hub-dept-wrap").hidden = r !== "head" && r !== "associate"; $("hub-team-wrap").hidden = r !== "associate" && r !== "captain"; }
+    if (role) { role.addEventListener("change", sync); sync(); }
     page.querySelectorAll("[data-go]").forEach(function (b) {
       b.addEventListener("click", function () {
-        if (!admin) return;
-        state.user = { role: role.value, team: role.value === "captain" ? $("hub-team").value : null };
-        save(); renderAcct(); go("hub-overview");
+        var v = null;
+        if (admin && role) { var r = role.value; v = { role: r }; if (r === "head" || r === "associate") v.dept = $("hub-dept").value; if (r === "associate" || r === "captain") v.teams = [$("hub-team").value]; }
+        else { var vs = allowedViews(); v = vs[$("hub-view") ? +$("hub-view").value : 0]; }
+        if (!v || !viewAllowed(v)) return;
+        state.user = v; save(); renderAcct(); go("hub-overview");
       });
     });
   }
+
   // ================= Team page =================
   // Real league data, read from the league page Quentin saved (UniBall, apuntamelo.com) on 12/11/2026
   var LEAGUE = {
@@ -951,9 +965,57 @@ export function initSite(backend) {
   DEPTS.forEach(function (d) { d.tasks.forEach(function (t, i) { if (!state.tasks[d.id + i]) state.tasks[d.id + i] = t[1]; }); });
   var TASK_STATUS = { todo: "To do", doing: "In progress", done: "Done" };
   var METRICS = [["Applications", "Number and diversity of applications"], ["Captains", "Captain satisfaction, surveyed each semester"], ["Events", "Sports-business events and attendance"], ["Income", "Sponsorship and partnership income"], ["Social", "Social media growth, for each team"], ["Reporting", "On-time, complete budget reports"], ["Industry", "Opportunities on the Industry Platform"]];
-  var CAN = { captain: { submit: 1, all: 0, validate: 0, tasks: 0, reports: 0, captains: 0, teamEdit: 1, applications: 1 }, board: { submit: 1, all: 1, validate: 1, tasks: 1, reports: 1, captains: 1, teamEdit: 1, applications: 1 }, associate: { submit: 1, all: 1, validate: 0, tasks: 1, reports: 0, captains: 0, teamEdit: 0, applications: 0 }, council: { submit: 0, all: 1, validate: 0, tasks: 0, reports: 1, captains: 0, teamEdit: 0, applications: 0 } };
-  function can(k) { return !!CAN[state.user.role][k]; }
-  function visTeams() { return can("all") ? TEAMS : TEAMS.filter(function (t) { return t.id === state.user.team; }); }
+  var DEPT_ID = { "Finance": "fin", "Media & Marketing": "med", "Operations": "ops", "Partnerships": "par" };
+  function hv() { return state.user; }
+  function hFull() { var r = hv().role; return r === "admin" || r === "exec" || r === "viewer"; }
+  function hRO() { return hv().role === "viewer"; }
+  function hDept(d) { var u = hv(); return hFull() || ((u.role === "head" || u.role === "associate") && u.dept === d); }
+  function teamOk(id) { var u = hv(); return hFull() || u.role === "head" || (u.teams || []).indexOf(id) > -1; }
+  function can(k) {
+    var u = hv(), r = u.role, ro = hRO();
+    if (k === "all") return hFull() || r === "head";
+    if (k === "expenses") return hDept("fin") || r === "captain";
+    if (k === "submit") return !ro && (hDept("fin") || r === "captain");
+    if (k === "validate") return !ro && (r === "admin" || r === "exec" || (r === "head" && u.dept === "fin"));
+    if (k === "applications") return hDept("ops") || r === "captain";
+    if (k === "teamEdit") return !ro && (r === "admin" || r === "exec" || hDept("med") || r === "captain");
+    if (k === "captains") return hFull() || (r === "head" && u.dept === "ops");
+    if (k === "reports") return hFull() || (r === "head" && u.dept === "fin");
+    if (k === "depts") return r !== "captain";
+    if (k === "tasks") return !ro && r !== "captain";
+    return false;
+  }
+  function visTeams() { return TEAMS.filter(function (t) { return teamOk(t.id); }); }
+  function visDepts() { var u = hv(); return DEPTS.filter(function (d) { return hFull() || (d.id !== "board" && d.id === u.dept); }); }
+  function firstTeam() { var t = visTeams()[0]; return t ? t.id : TEAMS[0].id; }
+  function teamsText(ids) { return (ids || []).map(function (id) { var t = team(id); return t ? tLabel(t) : id; }).join(", "); }
+  function viewLabel(u) {
+    return u.role === "admin" ? "Admin · full access" : u.role === "exec" ? "President / Vice-president · everything" : u.role === "head" ? "Head of " + deptName(u.dept) + " · every team" :
+      u.role === "associate" ? "Associate · " + deptName(u.dept) + " · " + teamsText(u.teams) : u.role === "captain" ? "Captain · " + teamsText(u.teams) : "Eva Morta · Student Council · view only";
+  }
+  // Views a signed-in person may open. Admins can preview every view; others only their own role(s).
+  function allowedViews() {
+    var out = [], sc = captain && captain.scope;
+    if (admin) {
+      out.push({ role: "admin" }, { role: "exec" });
+      DEPTS.forEach(function (d) { if (d.id !== "board") out.push({ role: "head", dept: d.id }); });
+      DEPTS.forEach(function (d) { if (d.id !== "board") out.push({ role: "associate", dept: d.id, teams: [TEAMS[0].id] }); });
+      out.push({ role: "captain", teams: [TEAMS[0].id] }, { role: "viewer" });
+      return out;
+    }
+    if (!sc) return out;
+    if (sc.exec) out.push({ role: "exec" });
+    (sc.heads || []).forEach(function (d) { if (DEPT_ID[d]) out.push({ role: "head", dept: DEPT_ID[d] }); });
+    (sc.assoc || []).forEach(function (x) { if (DEPT_ID[x.department]) out.push({ role: "associate", dept: DEPT_ID[x.department], teams: x.teams }); });
+    if ((sc.teams || []).length) out.push({ role: "captain", teams: sc.teams });
+    if (sc.viewer) out.push({ role: "viewer" });
+    return out;
+  }
+  function viewAllowed(u) {
+    if (!u || !HUB_ROLES[u.role]) return false;
+    if (admin) return true;
+    return allowedViews().some(function (v) { return v.role === u.role && v.dept === u.dept && (v.teams || []).join() === (u.teams || []).join(); });
+  }
   function totals(id) { var o = { paid: 0, pending: 0 }; state.expenses.forEach(function (e) { if (e.team !== id) return; if (e.status === "paid") o.paid += e.amount; else if (e.status !== "rejected") o.pending += e.amount; }); return o; }
   function captainForTeam(id) { for (var i = 0; i < state.captains.length; i++) if (state.captains[i].team === id && state.captains[i].active && state.captains[i].role === "Captain") return state.captains[i]; return null; }
   function captainName(c) { return c ? (c.first + (c.last ? " " + c.last : "")) : "Unassigned"; }
@@ -963,7 +1025,7 @@ export function initSite(backend) {
     var out = [];
     Object.keys(state.teamApplications || {}).forEach(function (folder) {
       var id = folder.replace("Applications for sports/", "");
-      if (can("all") || id === state.user.team) out = out.concat(state.teamApplications[folder] || []);
+      if (teamOk(id)) out = out.concat(state.teamApplications[folder] || []);
     });
     return out.sort(function (a, b) { return a.createdAt < b.createdAt ? 1 : -1; });
   }
@@ -974,13 +1036,13 @@ export function initSite(backend) {
   var HUBV = [["hub-overview", "Overview"], ["hub-teams", "Teams"], ["hub-team-editor", "Team editor"], ["hub-applications", "Sports applications"], ["hub-captains", "Captains"], ["hub-expenses", "Expenses"], ["hub-departments", "Departments"], ["hub-report", "Semester report"]];
 
   function hubShell(view, inner) {
-    var pending = state.expenses.filter(function (e) { return e.status === "requested" && (can("all") || e.team === state.user.team); }).length;
-    var nav = HUBV.filter(function (v) { return (v[0] !== "hub-report" || can("reports")) && (v[0] !== "hub-captains" || can("captains")) && (v[0] !== "hub-team-editor" || can("teamEdit")) && (v[0] !== "hub-applications" || can("applications")); }).map(function (v) {
+    var pending = state.expenses.filter(function (e) { return e.status === "requested" && teamOk(e.team); }).length;
+    var nav = HUBV.filter(function (v) { return (v[0] !== "hub-expenses" || can("expenses")) && (v[0] !== "hub-departments" || can("depts")) && (v[0] !== "hub-report" || can("reports")) && (v[0] !== "hub-captains" || can("captains")) && (v[0] !== "hub-team-editor" || can("teamEdit")) && (v[0] !== "hub-applications" || can("applications")); }).map(function (v) {
       return '<a href="#' + v[0] + '"' + (v[0] === view ? ' aria-current="page"' : "") + ">" + (v[0] === "hub-teams" && !can("all") ? "My team" : v[1]) + (v[0] === "hub-expenses" && pending ? '<span class="count num">' + pending + "</span>" : "") + (v[0] === "hub-applications" && visibleSportsApplications().length ? '<span class="count num">' + visibleSportsApplications().length + "</span>" : "") + "</a>";
     }).join("");
-    var u = state.user, who = u.role === "captain" ? "Captain · " + tLabel(team(u.team)) : u.role === "board" ? "Board member" : u.role === "associate" ? "Associate" : "Eva Morta · Student Council";
+    var u = state.user, me = admin || captain, multi = !!admin || allowedViews().length > 1;
     return '<div class="app"><aside class="rail"><div class="top"><a class="lock" href="#home" aria-label="Back to Esade Sports home">' + mono(38) + '<span>ESADE SPORTS<br>HUB</span></a><div class="history" aria-label="Page navigation"><button type="button" data-history="back" aria-label="Go back">←</button><button type="button" data-history="forward" aria-label="Go forward">→</button></div>' +
-      '<div class="who"><p class="eyebrow">Signed in as admin</p><strong>' + esc(admin.email) + "</strong><small>Viewing as " + esc(who) + " · " + (u.role === "council" ? "read-only" : u.role === "captain" ? "own team only" : u.role === "associate" ? "department member" : "full access") + '</small><a class="back-site" href="#signin">Change view</a><a class="back-site" href="#home">← Public site</a><button type="button" data-signout>Sign out</button>' + langSwitch() + '</div></div>' +
+      '<div class="who"><p class="eyebrow">Signed in' + (admin ? " as admin" : "") + '</p><strong>' + esc(me.email) + "</strong><small>Viewing as " + esc(viewLabel(u)) + (hRO() ? " · read-only" : "") + "</small>" + (multi ? '<a class="back-site" href="#signin">Change view</a>' : "") + '<a class="back-site" href="#home">← Public site</a><button type="button" data-signout>Sign out</button>' + langSwitch() + '</div></div>' +
       '<nav aria-label="Hub">' + nav + "</nav></aside>" +
       '<main class="main"><div class="banner"><b>Prototype</b><span>Example figures and tasks. In the live version, access comes from an approved Esade login and data from a shared database.</span></div>' + inner + "</main></div>";
   }
@@ -998,21 +1060,32 @@ export function initSite(backend) {
           (can("validate") ? '<td class="r" style="white-space:nowrap">' + act + "</td>" : "") + "</tr>";
       }).join("") + "</tbody></table></div>";
   }
+  function deptPanel() {
+    return '<section class="panel"><div class="panel-head"><h2>Departments</h2><a class="btn sm" href="#hub-departments">Open</a></div><table><tbody>' +
+      visDepts().map(function (d) { var done = d.tasks.filter(function (t, i) { return state.tasks[d.id + i] === "done"; }).length; return "<tr><td><strong>" + d.name + '</strong><br><small class="muted">' + d.head + '</small></td><td class="r num">' + done + " / " + d.tasks.length + ' <span class="muted">done</span></td></tr>'; }).join("") + "</tbody></table></section>";
+  }
   function hubOverview() {
     var ts = visTeams(), budget = 0, paid = 0, pend = 0;
+    if (!can("expenses")) // no finance view: teams and department only
+      return '<div class="ph-head"><div><p class="eyebrow">Season 2026–27</p><h1 class="display">Overview.</h1><p>' + esc(viewLabel(hv())) + ".</p></div></div>" +
+        '<div class="grid-2"><section class="panel"><div class="panel-head"><h2>' + (can("all") ? "Every team" : "Your teams") + '</h2><a class="btn sm" href="#hub-teams">Open</a></div><table><tbody>' +
+        ts.map(function (t) { return '<tr><td class="tname">' + esc(tLabel(t)) + '</td><td class="r muted">' + esc(captainName(captainForTeam(t.id))) + "</td></tr>"; }).join("") + "</tbody></table></section>" + deptPanel() + "</div>";
     ts.forEach(function (t) { var o = totals(t.id); budget += t.budget; paid += o.paid; pend += o.pending; });
-    var reqs = state.expenses.filter(function (e) { return e.status === "requested" && (can("all") || e.team === state.user.team); });
+    var reqs = state.expenses.filter(function (e) { return e.status === "requested" && teamOk(e.team); });
     var agreed = ts.filter(function (t) { return t.status === "agreed"; }).length;
-    return '<div class="ph-head"><div><p class="eyebrow">Season 2026–27</p><h1 class="display">' + (can("all") ? "Overview." : esc(tLabel(team(state.user.team))) + ".") + "</h1><p>" + (can("all") ? "Where every team and department stands today." : "Your team's budget and expenses, handled by your Finance, Media and Operations associates.") + "</p></div></div>" +
-      '<div class="grid-4">' + stat("Season budget", EUR.format(budget), can("all") ? ts.length + " teams" : "Agreed with you") + stat("Paid so far", EUR.format(paid), Math.round(paid / budget * 100) + "% of budget") +
-      stat("Waiting", EUR.format(pend), reqs.length + " request" + (reqs.length === 1 ? "" : "s") + " to validate") + stat(can("all") ? "Budgets agreed" : "Budget", can("all") ? agreed + " / " + ts.length : BUDGET_STATUS[ts[0].status][1], can("all") ? "with captains" : "status") + "</div>" +
+    return '<div class="ph-head"><div><p class="eyebrow">Season 2026–27</p><h1 class="display">' + (ts.length !== 1 ? "Overview." : esc(tLabel(ts[0])) + ".") + "</h1><p>" + (ts.length !== 1 ? "Where " + (can("all") ? "every team" : "your teams") + " and " + (hFull() ? "every department" : "your department") + " stand today." : "Your team's budget and expenses, handled by your Finance, Media and Operations associates.") + "</p></div></div>" +
+      '<div class="grid-4">' + stat("Season budget", EUR.format(budget), ts.length !== 1 ? ts.length + " teams" : "Agreed with you") + stat("Paid so far", EUR.format(paid), Math.round(paid / budget * 100) + "% of budget") +
+      stat("Waiting", EUR.format(pend), reqs.length + " request" + (reqs.length === 1 ? "" : "s") + " to validate") + stat(ts.length !== 1 ? "Budgets agreed" : "Budget", ts.length !== 1 ? agreed + " / " + ts.length : BUDGET_STATUS[ts[0].status][1], ts.length !== 1 ? "with captains" : "status") + "</div>" +
       '<div class="grid-2"><section class="panel"><div class="panel-head"><h2>Requests waiting for Finance</h2><a class="btn sm" href="#hub-expenses">All expenses</a></div>' + expTable(reqs, true) + "</section>" +
-      '<section class="panel"><div class="panel-head"><h2>Departments</h2><a class="btn sm" href="#hub-departments">Open</a></div><table><tbody>' +
-      DEPTS.map(function (d) { var done = d.tasks.filter(function (t, i) { return state.tasks[d.id + i] === "done"; }).length; return "<tr><td><strong>" + d.name + '</strong><br><small class="muted">' + d.head + '</small></td><td class="r num">' + done + " / " + d.tasks.length + ' <span class="muted">done</span></td></tr>'; }).join("") + "</tbody></table></section></div>";
+      deptPanel() + "</div>";
   }
   function hubTeams() {
     var ts = visTeams();
-    var open = state.teamOpen || (can("all") ? null : state.user.team), detail = "";
+    if (!can("expenses")) // teams without the money columns (Finance only)
+      return '<div class="ph-head"><div><p class="eyebrow">Teams</p><h1 class="display">' + (can("all") ? "Every team." : "Your teams.") + '</h1><p>Budgets and expenses are handled by Finance.</p></div></div>' +
+        '<section class="panel"><div class="table-wrap"><table><thead><tr><th>Team</th><th>Captain</th></tr></thead><tbody>' +
+        ts.map(function (t) { return '<tr><td class="tname">' + esc(tLabel(t)) + "</td><td>" + esc(captainName(captainForTeam(t.id))) + "</td></tr>"; }).join("") + "</tbody></table></div></section>";
+    var open = state.teamOpen || (ts.length === 1 ? ts[0].id : null), detail = "";
     if (open) {
       var t = team(open), o = totals(open);
       detail = '<section class="panel" id="team-detail"><div class="panel-head"><h2>' + esc(tLabel(t)) + "</h2>" + pill(BUDGET_STATUS, t.status) + "</div>" +
@@ -1027,10 +1100,10 @@ export function initSite(backend) {
       "</tbody></table></div>" + (can("all") ? '<p class="muted" style="margin:0;font-size:12px">Select a team to see its associates and expenses.</p>' : "") + "</section>" + detail;
   }
   function hubExpenses() {
-    var list = state.expenses.filter(function (e) { return can("all") || e.team === state.user.team; });
+    var list = state.expenses.filter(function (e) { return teamOk(e.team); });
     var shown = state.hubFilter === "all" ? list : list.filter(function (e) { return e.status === state.hubFilter; });
     var form = can("submit") ? '<section class="panel"><div class="panel-head"><h2>Request a payment</h2><span class="muted" style="font-size:12px">The association pays directly. No captain fronts money.</span></div><form class="form" id="req">' +
-      (can("all") ? '<label for="r-team">Team<select id="r-team">' + TEAMS.map(function (t) { return '<option value="' + t.id + '">' + esc(tLabel(t)) + "</option>"; }).join("") + "</select></label>" : "") +
+      (visTeams().length > 1 ? '<label for="r-team">Team<select id="r-team">' + visTeams().map(function (t) { return '<option value="' + t.id + '">' + esc(tLabel(t)) + "</option>"; }).join("") + "</select></label>" : "") +
       '<label for="r-item" style="grid-column:span 2">What is it for<input id="r-item" required placeholder="e.g. Referee fees, November"></label><label for="r-cat">Category<select id="r-cat"><option>League fees</option><option>Facilities</option><option>Kit</option><option>Material</option><option>Travel</option></select></label>' +
       '<label for="r-amt">Amount (€)<input id="r-amt" type="number" min="1" step="1" required inputmode="numeric" placeholder="0"></label><div><button class="btn solid" type="submit" style="width:100%">Send request</button></div></form></section>' : "";
     return '<div class="ph-head"><div><p class="eyebrow">Expenses</p><h1 class="display">Every euro, traced.</h1><p>Every expense is linked to a team, validated by the Finance associate and the Head of Finance, then paid by the association.</p></div><div class="flow" aria-label="How an expense moves"><span>Captain or Ops request</span><span>Finance validates</span><span>Association pays</span></div></div>' + form +
@@ -1039,8 +1112,8 @@ export function initSite(backend) {
         return '<button class="chip" data-filter="' + c[0] + '" aria-pressed="' + (state.hubFilter === c[0]) + '">' + c[1] + ' <span class="num">' + n + "</span></button>"; }).join("") + "</div>" + expTable(shown, false) + "</section>";
   }
   function hubTeamEditor() {
-    var ts = visTeams(), selected = state.teamOpen || (can("all") ? ts[0].id : state.user.team), t = team(selected), info = teamInfoFor(selected), results = teamResultsFor(selected);
-    var teamField = can("all") ? '<label for="ti-team">Team<select id="ti-team">' + ts.map(function (x) { return '<option value="' + x.id + '"' + (x.id === selected ? ' selected' : '') + '>' + esc(tLabel(x)) + '</option>'; }).join('') + '</select></label>' : '<input type="hidden" id="ti-team" value="' + esc(selected) + '">';
+    var ts = visTeams(), selected = state.teamOpen && teamOk(state.teamOpen) ? state.teamOpen : ts[0].id, t = team(selected), info = teamInfoFor(selected), results = teamResultsFor(selected);
+    var teamField = ts.length > 1 ? '<label for="ti-team">Team<select id="ti-team">' + ts.map(function (x) { return '<option value="' + x.id + '"' + (x.id === selected ? ' selected' : '') + '>' + esc(tLabel(x)) + '</option>'; }).join('') + '</select></label>' : '<input type="hidden" id="ti-team" value="' + esc(selected) + '">';
     var rows = results.length ? results.slice().reverse().map(function (r) { return '<tr><td class="num">' + esc(r.date) + '</td><td class="opp">' + esc(r.opponent) + '</td><td>' + esc(r.side) + '</td><td class="num"><strong>' + esc(r.score) + '</strong></td><td>' + esc(r.status) + '</td></tr>'; }).join('') : '<tr><td colspan="5" class="muted">No manual results yet.</td></tr>';
     return '<div class="ph-head"><div><p class="eyebrow">Captain workspace</p><h1 class="display">Team editor.</h1><p>Keep your team page current: team information, league source, venue and results. Manual updates are available immediately; live league syncing can be connected once the competition provides an API or approved feed.</p></div></div>' +
       '<section class="panel"><div class="panel-head"><h2>Team information</h2><span class="muted">Visible on the public team page</span></div><form class="form" id="team-info-form">' + teamField + '<label style="grid-column:span 2">Short description<textarea id="ti-about" rows="2" placeholder="Who the team is and what the season is about">' + esc(info.about) + '</textarea></label><label>League or tournament<input id="ti-league" value="' + esc(info.league) + '" placeholder="League name"></label><label>League page URL<input id="ti-league-url" type="url" value="' + esc(info.leagueUrl) + '" placeholder="https://..."></label><label>Home venue<input id="ti-venue" value="' + esc(info.venue) + '" placeholder="Training venue"></label><label>Team contact email<input id="ti-contact" type="email" value="' + esc(info.contact) + '" placeholder="team@esade.edu"></label><div><button class="btn solid" type="submit">Save team information</button></div></form></section>' +
@@ -1064,7 +1137,7 @@ export function initSite(backend) {
     }).join('') + '</tbody></table></div>';
   }
   function hubApplications() {
-    var apps = visibleSportsApplications(), t = state.user.role === "captain" ? team(state.user.team) : null, recipient = t ? captainForTeam(t.id) : null;
+    var apps = visibleSportsApplications(), t = state.user.role === "captain" ? team(firstTeam()) : null, recipient = t ? captainForTeam(t.id) : null;
     return '<div class="ph-head"><div><p class="eyebrow">Applications for sports</p><h1 class="display">Try-outs inbox.</h1><p>' + (t ? 'Applications for ' + esc(tLabel(t)) + ' are routed to you as captain.' : 'Board view across every sports application folder. Each captain sees only applications for their own team.') + '</p></div></div>' +
       '<section class="panel"><div class="panel-head"><h2>' + (t ? 'Your team applications' : 'All team applications') + '</h2><span class="muted num">' + apps.length + ' received</span></div><p class="muted" style="margin:0 0 18px">Folder: <strong>' + esc(t ? sportsApplicationsFolder(t.id) : 'Applications for sports/*') + '</strong>' + (recipient ? ' · Captain recipient: <strong>' + esc(captainName(recipient)) + ' · ' + esc(recipient.email) + '</strong>' : '') + '</p>' + sportsApplicationsTable(apps) + '</section>' +
       '<section class="panel"><div class="panel-head"><h2>Routing rule</h2><span class="pill ok">Active in prototype</span></div><p class="muted" style="margin:0">When a student applies to a team, their try-out or coaching information is stored in that team’s Applications for sports folder and is visible to the active captain for that team. In production, this same event should also send the captain a notification email.</p></section>';
@@ -1080,10 +1153,10 @@ export function initSite(backend) {
   }
   function hubDepts() {
     return '<div class="ph-head"><div><p class="eyebrow">One Board, four departments</p><h1 class="display">Departments.</h1><p>Who leads each department, what it is responsible for, and where its work stands.' + (can("tasks") ? "" : " Read-only for your role.") + "</p></div></div>" +
-      '<div class="dept-grid">' + DEPTS.map(function (d) {
+      '<div class="dept-grid">' + visDepts().map(function (d) {
         return '<section class="dept"><div class="dept-title"><h2>' + d.name + "</h2><small>" + d.size + ' people</small></div><div class="panel"><p style="margin:0"><strong>' + d.head + '</strong><br><span class="muted">' + d.remit + '</span></p><ul class="tasks">' +
           d.tasks.map(function (t, i) { var k = d.id + i, s = state.tasks[k];
-            return "<li><span>" + esc(t[0]) + "</span>" + (can("tasks") ? '<select data-task="' + k + '" aria-label="Status of ' + esc(t[0]) + '">' + Object.keys(TASK_STATUS).map(function (o) { return '<option value="' + o + '"' + (o === s ? " selected" : "") + ">" + TASK_STATUS[o] + "</option>"; }).join("") + "</select>" : '<span class="pill ' + (s === "done" ? "ok" : s === "doing" ? "info" : "warn") + '">' + TASK_STATUS[s] + "</span>") + "</li>"; }).join("") + "</ul></div></section>";
+            return "<li><span>" + esc(t[0]) + "</span>" + (can("tasks") && (hFull() || d.id === hv().dept) ? '<select data-task="' + k + '" aria-label="Status of ' + esc(t[0]) + '">' + Object.keys(TASK_STATUS).map(function (o) { return '<option value="' + o + '"' + (o === s ? " selected" : "") + ">" + TASK_STATUS[o] + "</option>"; }).join("") + "</select>" : '<span class="pill ' + (s === "done" ? "ok" : s === "doing" ? "info" : "warn") + '">' + TASK_STATUS[s] + "</span>") + "</li>"; }).join("") + "</ul></div></section>";
       }).join("") + "</div>";
   }
   function hubReport() {
@@ -1112,7 +1185,7 @@ export function initSite(backend) {
     hub.querySelectorAll("[data-task]").forEach(function (s) { s.addEventListener("change", function () { state.tasks[s.getAttribute("data-task")] = s.value; save(); toast("Task updated."); }); });
     var f = $("req"); if (f) f.addEventListener("submit", function (ev) {
       ev.preventDefault(); var amt = Math.round(+$("r-amt").value), item = $("r-item").value.trim(); if (!item || !(amt > 0)) return;
-      state.expenses.push({ id: state.nextId++, team: $("r-team") ? $("r-team").value : state.user.team, item: item, cat: $("r-cat").value, amount: amt, by: state.user.role === "captain" ? "Captain" : state.user.role === "associate" ? "Associate" : "Board", date: "2026-11-12", status: "requested" });
+      state.expenses.push({ id: state.nextId++, team: $("r-team") ? $("r-team").value : firstTeam(), item: item, cat: $("r-cat").value, amount: amt, by: state.user.role === "captain" ? "Captain" : state.user.role === "associate" ? "Finance associate" : state.user.role === "head" ? "Head of Finance" : "Board", date: "2026-11-12", status: "requested" });
       state.hubFilter = "all"; save(); render(); toast("Request sent to Finance.");
     });
     hub.querySelectorAll("[data-captain-deactivate]").forEach(function (b) { b.addEventListener("click", function () {
@@ -1148,9 +1221,11 @@ export function initSite(backend) {
     var h = location.hash.slice(1), html = null;
     document.querySelector(".head").classList.remove("open");
     if (h.indexOf("hub-") === 0) {
-      if (admin === undefined) { page.innerHTML = '<section class="band"><div class="wrap"><p class="eyebrow">Hub</p><h1 class="display">Checking your login…</h1></div></section>'; show("page"); return; }
-      if (!admin) { location.replace("#signin"); return; }
-      if (!isHub()) { state.user = { role: "board", team: null }; save(); renderAcct(); }
+      if (admin === undefined && !captain) { page.innerHTML = '<section class="band"><div class="wrap"><p class="eyebrow">Hub</p><h1 class="display">Checking your login…</h1></div></section>'; show("page"); return; }
+      if (!admin && !captain) { location.replace("#signin"); return; }
+      if (!isHub() || !viewAllowed(state.user)) { var dv = allowedViews()[0]; if (!dv) { location.replace("#signin"); return; } state.user = dv; save(); renderAcct(); }
+      if (h === "hub-expenses" && !can("expenses")) h = "hub-overview";
+      if (h === "hub-departments" && !can("depts")) h = "hub-overview";
       if (h === "hub-report" && !can("reports")) h = "hub-overview";
       if (h === "hub-captains" && !can("captains")) h = "hub-overview";
       if (h === "hub-team-editor" && !can("teamEdit")) h = "hub-overview";
@@ -1253,10 +1328,10 @@ export function initSite(backend) {
   });
   function setAdmin(a) {
     var c = a && a.captain ? a : null; if (c) a = null;
-    if ((c ? c.email : null) !== (captain ? captain.email : null)) { captain = c; renderAcct(); }
+    if ((c ? c.email + c.label : null) !== (captain ? captain.email + captain.label : null)) { captain = c; renderAcct(); var hh = location.hash.slice(1); if (hh === "signin" || hh.indexOf("hub-") === 0) render(); }
     if (a === admin || (a && admin && a.email === admin.email)) return;
     admin = a;
-    if (!admin && state.user && HUB_ROLES[state.user.role]) { state.user = null; save(); }
+    if (!admin && !captain && state.user && HUB_ROLES[state.user.role]) { state.user = null; save(); }
     renderAcct();
     var h = location.hash.slice(1);
     if (h === "signin" || h.indexOf("hub-") === 0) render();

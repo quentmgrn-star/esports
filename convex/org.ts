@@ -5,32 +5,36 @@ import { adminEmails } from "./auth";
 import { DEPARTMENTS, getAccess, requireAccess, type Access } from "./roles";
 import { TEAMS } from "./teamList";
 
-// Who approves what:
-//   Admin (ADMIN_EMAILS) -> Board members (heads of department), and everything else.
-//   Board member (head of a department) -> associates of their own department; captain requests.
-// Nobody can approve their own request.
+// Who approves what (no one approves their own request; view-only people approve nothing):
+//   Admin ............................ everyone, including Board positions and viewers
+//   President / Vice-president ....... associates and captains
+//   Head of department ............... associates of their own department, and captain requests
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const roleV = v.union(v.literal("board"), v.literal("associate"), v.literal("captain"));
+const roleV = v.union(v.literal("board"), v.literal("associate"), v.literal("captain"), v.literal("viewer"));
+const positionV = v.optional(v.union(v.literal("president"), v.literal("vice-president"), v.literal("head")));
 type Member = Doc<"members">;
 
 function canDecide(a: Access, m: Pick<Member, "role" | "department" | "email">): boolean {
-  if (m.email === a.email) return false;
+  if (m.email === a.email || a.readOnly) return false;
   if (a.isAdmin) return true;
-  if (m.role === "associate") return !!m.department && a.board.includes(m.department);
-  if (m.role === "captain") return a.board.length > 0;
-  return false; // board positions: admin only
+  if (m.role === "associate") return a.exec || (!!m.department && a.heads.includes(m.department));
+  if (m.role === "captain") return a.exec || a.heads.length > 0;
+  return false; // Board positions and viewers: admin only
 }
 
-function clean(args: { email: string; name: string; role: Member["role"]; department?: string; teams?: string[] }) {
+function clean(args: { email: string; name: string; role: Member["role"]; position?: Member["position"]; department?: string; teams?: string[] }) {
   const email = args.email.trim().toLowerCase().slice(0, 200);
   const name = args.name.trim().slice(0, 100);
   if (!EMAIL_RE.test(email)) throw new ConvexError("Enter a valid email address.");
   if (!name) throw new ConvexError("Enter a name.");
-  const department = args.role === "captain" ? undefined : args.department;
-  if (args.role !== "captain" && (!department || !DEPARTMENTS.includes(department))) throw new ConvexError("Choose a department.");
-  const teams = args.role === "captain" ? [...new Set(args.teams ?? [])].filter((t) => TEAMS.some((x) => x.id === t)) : undefined;
-  if (args.role === "captain" && !teams?.length) throw new ConvexError("Choose at least one team.");
-  return { email, name, role: args.role, department, teams };
+  const position = args.role === "board" ? args.position ?? "head" : undefined;
+  const needsDept = args.role === "associate" || position === "head";
+  const department = needsDept ? args.department : undefined;
+  if (needsDept && (!department || !DEPARTMENTS.includes(department))) throw new ConvexError("Choose a department.");
+  const needsTeams = args.role === "associate" || args.role === "captain";
+  const teams = needsTeams ? [...new Set(args.teams ?? [])].filter((t) => TEAMS.some((x) => x.id === t)) : undefined;
+  if (needsTeams && !teams?.length) throw new ConvexError("Choose at least one team.");
+  return { email, name, role: args.role, position, department, teams };
 }
 
 // Approved captains are also kept in the captains table (it drives messages and try-outs access).
@@ -54,7 +58,7 @@ export const requestAccess = mutation({
     name: v.string(),
     role: v.union(v.literal("associate"), v.literal("captain")),
     department: v.optional(v.string()),
-    teams: v.optional(v.array(v.string())),
+    teams: v.optional(v.array(v.string())), // associates: the teams they work with; captains: their team(s)
     note: v.optional(v.string()),
     website: v.optional(v.string()), // honeypot
   },
@@ -72,7 +76,7 @@ export const requestAccess = mutation({
 
 // Admin or Board: add someone directly (approved straight away, within what they may approve).
 export const addMember = mutation({
-  args: { email: v.string(), name: v.string(), role: roleV, department: v.optional(v.string()), teams: v.optional(v.array(v.string())) },
+  args: { email: v.string(), name: v.string(), role: roleV, position: positionV, department: v.optional(v.string()), teams: v.optional(v.array(v.string())) },
   handler: async (ctx, args) => {
     const a = await requireAccess(ctx);
     const m = clean(args);
@@ -105,7 +109,7 @@ export const manageable = query({
   args: {},
   handler: async (ctx) => {
     const a = await getAccess(ctx);
-    if (!a || (!a.isAdmin && !a.board.length)) return null;
+    if (!a || !a.board || a.readOnly) return null;
     const rows = await ctx.db.query("members").order("desc").collect();
     return rows.filter((m) => canDecide(a, m)).map((m) => ({ ...m, _id: m._id as Id<"members"> }));
   },
@@ -124,18 +128,23 @@ export const overview = query({
     if (!a) return null;
     const approved = await ctx.db.query("members").withIndex("by_status", (q) => q.eq("status", "approved")).collect();
     const admins = await Promise.all(adminEmails().map(async (email) => ({ email, name: (await nameOf(ctx, email)) ?? null })));
-    const person = (m: Member) => ({ name: m.name, email: m.email });
+    const person = (m: Member) => ({ name: m.name, email: m.email, teams: m.teams ?? [] });
+    const board = approved.filter((m) => m.role === "board");
+    const exec = board
+      .filter((m) => m.position === "president" || m.position === "vice-president")
+      .map((m) => ({ ...person(m), position: m.position === "president" ? "President" : "Vice-president" }));
     const departments = DEPARTMENTS.map((d) => ({
       name: d,
-      heads: approved.filter((m) => m.role === "board" && m.department === d).map(person),
+      heads: board.filter((m) => (m.position ?? "head") === "head" && m.department === d).map(person),
       associates: approved.filter((m) => m.role === "associate" && m.department === d).map(person),
     }));
+    const viewers = approved.filter((m) => m.role === "viewer").map(person);
     const captains = await ctx.db.query("captains").collect();
     const teams = TEAMS.map((t) => ({
       id: t.id,
       captains: captains.filter((c) => c.teams.includes(t.id)).map((c) => ({ name: c.name ?? null, email: c.email })),
     }));
-    return { admins, departments, teams };
+    return { admins, exec, departments, teams, viewers };
   },
 });
 

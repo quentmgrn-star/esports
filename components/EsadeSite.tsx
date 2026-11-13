@@ -17,18 +17,35 @@ function pushAdmin(a: SiteAdmin) {
   site?.setAdmin(a);
 }
 
-// Tells the site script whether an admin is signed in (same check as /admin: email on ADMIN_EMAILS in Convex).
+// Tells the site script who is signed in: an admin (ADMIN_EMAILS), or a member with their role scope
+// (the Hub only offers the views that scope allows; the data itself is checked in Convex).
 function AdminBridge() {
   const { isLoading, isAuthenticated } = useConvexAuth();
   const me = useQuery(api.admin.me, isAuthenticated ? {} : "skip") as
-    | { email: string; name: string; isAdmin: boolean; teams?: string[]; label?: string }
+    | {
+        email: string;
+        name: string;
+        isAdmin: boolean;
+        label?: string;
+        exec?: boolean;
+        heads?: string[];
+        assoc?: { department: string; teams: string[] }[];
+        teams?: string[];
+        viewer?: boolean;
+      }
     | null
     | undefined;
   const value: SiteAdmin =
     isLoading || (isAuthenticated && me === undefined) ? undefined : me?.isAdmin
         ? { email: me.email, name: me.name }
         : me?.label
-          ? { email: me.email, name: me.name, captain: true, label: me.label }
+          ? {
+              email: me.email,
+              name: me.name,
+              captain: true, // any signed-in member who is not an admin
+              label: me.label,
+              scope: { exec: !!me.exec, heads: me.heads ?? [], assoc: me.assoc ?? [], teams: me.teams ?? [], viewer: !!me.viewer },
+            }
           : null;
   useEffect(() => pushAdmin(value), [value === undefined ? "?" : value ? value.email + (value.captain ? ":" + value.label : "") : ""]); // eslint-disable-line react-hooks/exhaustive-deps
   return null;

@@ -27,6 +27,26 @@ npx convex env set SITE_URL https://your-site.vercel.app      # http://localhost
 
 Then open `/admin`, choose **Create one**, and sign up with an approved email. To give someone access, add their email to `ADMIN_EMAILS`; removing it takes access away immediately.
 
+## Roles and permissions
+
+All rules live in one place, `convex/roles.ts` (`getAccess`, `canSee`, `canEdit`), and every Convex query and mutation goes through it. The website and `/admin` only hide what the server would refuse anyway.
+
+| Role | Who | Sees | Can change | Approves |
+|---|---|---|---|---|
+| Visitor | Any student, no account | Public site only | Sends try-outs, applications, contact messages, alumni profiles, access requests | — |
+| Admin | Emails in `ADMIN_EMAILS` (the builders, for now) | Everything | Everything | Everyone, incl. Board positions and view-only accounts |
+| President / Vice-president | Board, added by an admin | Everything | Everything | Associates and captains |
+| Head of department | Board, added by an admin | Their department, for every team (e.g. Finance: all budgets and expenses) | Their department's data | Their department's associates, captain requests |
+| Associate | Requests access, approved by their head | Their department, only for their assigned teams | That data | — |
+| Captain | Requests access, approved by the Board | Their own team(s): messages about their sport, try-outs, team expenses | Their team's data | — |
+| View only | Student Council, Eva Morta (added by an admin, not open yet) | Everything | Nothing | — |
+
+Department of each kind of data: expenses, budgets and the semester report belong to **Finance**; try-outs and coach sign-ups to **Operations**; team pages to **Media & Marketing**; partnership messages to **Partnerships**. Association applications are seen by the heads of the departments the applicant chose. Alumni profiles (with email and phone) and the captains list are for full access only. Departments list: `DEPARTMENTS` in `convex/roles.ts`.
+
+Admins: set or change the list with `npx convex env set ADMIN_EMAILS "a@alumni.esade.edu,b@alumni.esade.edu,c@alumni.esade.edu" --prod` (comma-separated). Removing an email removes admin rights at once.
+
+The Hub (`/#hub-overview`) shows each person only the views their role allows; admins can preview any role from the Members page. Its figures are still example data (marked Prototype).
+
 ## Deploy on Vercel
 
 1. Import this repo in Vercel (framework preset: Next.js).

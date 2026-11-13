@@ -83,13 +83,14 @@ export default defineSchema({
   }).index("by_grad_year", ["gradYear"]),
 
   // People who run Esade Sports, besides the admins (ADMIN_EMAILS) and the captains table.
-  // board = head of a department (approved by an admin); associate = member of a department
-  // (approved by that department's head or an admin); captain requests (approved by the Board or an
-  // admin; once approved, the captain is also written to the captains table).
+  // Roles and who sees what: see convex/roles.ts and the permissions table in README.md.
+  // viewer = read-only on everything (Student Council, Eva Morta), added by an admin only.
   members: defineTable({
     email: v.string(), // lowercase
     name: v.string(),
-    role: v.union(v.literal("board"), v.literal("associate"), v.literal("captain")),
+    role: v.union(v.literal("board"), v.literal("associate"), v.literal("captain"), v.literal("viewer")),
+    // board only: president / vice-president (see everything) or head (of `department`)
+    position: v.optional(v.union(v.literal("president"), v.literal("vice-president"), v.literal("head"))),
     department: v.optional(v.string()),
     teams: v.optional(v.array(v.string())),
     note: v.optional(v.string()),
