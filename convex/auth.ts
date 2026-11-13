@@ -30,13 +30,13 @@ export const createAuth = (ctx: GenericCtx<DataModel>) =>
     databaseHooks: {
       user: {
         create: {
-          // Only approved emails can create an account: admins (ADMIN_EMAILS) and captains added in /admin.
+          // Only approved emails can create an account: admins (ADMIN_EMAILS), captains and approved Board members / associates.
           before: async (user) => {
             if (isAdminEmail(user.email)) return;
             const c = ctx as { runQuery?: (q: unknown, args: unknown) => Promise<unknown> };
             const captain = c.runQuery ? await c.runQuery(internal.roles.isCaptainEmail, { email: user.email }) : false;
             if (!captain) {
-              throw new APIError("FORBIDDEN", { message: "This email is not approved. Ask an admin to add you as a captain first." });
+              throw new APIError("FORBIDDEN", { message: "This email is not approved yet. Request access on the Members page first." });
             }
           },
         },

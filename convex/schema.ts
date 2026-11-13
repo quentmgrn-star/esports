@@ -82,6 +82,35 @@ export default defineSchema({
     isExample: v.boolean(),
   }).index("by_grad_year", ["gradYear"]),
 
+  // People who run Esade Sports, besides the admins (ADMIN_EMAILS) and the captains table.
+  // board = head of a department (approved by an admin); associate = member of a department
+  // (approved by that department's head or an admin); captain requests (approved by the Board or an
+  // admin; once approved, the captain is also written to the captains table).
+  members: defineTable({
+    email: v.string(), // lowercase
+    name: v.string(),
+    role: v.union(v.literal("board"), v.literal("associate"), v.literal("captain")),
+    department: v.optional(v.string()),
+    teams: v.optional(v.array(v.string())),
+    note: v.optional(v.string()),
+    status: v.union(v.literal("requested"), v.literal("approved"), v.literal("rejected"), v.literal("revoked")),
+    requestedAt: v.number(),
+    decidedBy: v.optional(v.string()),
+    decidedAt: v.optional(v.number()),
+  })
+    .index("by_email", ["email"])
+    .index("by_status", ["status"]),
+
+  // Members' chat. channel: "general", "board", "dept:<Department>" or "sport:<Sport>".
+  chatMessages: defineTable({
+    channel: v.string(),
+    authorEmail: v.string(),
+    authorName: v.string(),
+    authorRole: v.string(), // badge, e.g. "Board · Finance"
+    body: v.string(),
+    editedAt: v.optional(v.number()),
+  }).index("by_channel", ["channel"]),
+
   // Profiles sent from the Alumni corner (no login). Shown on the website only once an admin approves them.
   // email and phone stay private: only admins see them in /admin; the public query never returns them.
   alumniProfiles: defineTable({

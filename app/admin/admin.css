@@ -53,8 +53,8 @@
 .adm-notes-actions { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
 @media (max-width: 600px) { .adm-tab { flex: 1 1 auto; padding: 10px 8px; } }
 
-.adm-sections { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 2px solid var(--navy); }
-.adm-sections button { background: none; border: 0; padding: 12px 18px; font: 800 13px var(--font); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); cursor: pointer; margin-bottom: -2px; border-bottom: 4px solid transparent; }
+.adm-sections { display: flex; gap: 6px 28px; margin-bottom: 24px; border-bottom: 2px solid var(--navy); overflow-x: auto; scrollbar-width: thin; }
+.adm-sections button { flex: none; white-space: nowrap; background: none; border: 0; padding: 14px 6px; font: 800 13px var(--font); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); cursor: pointer; margin-bottom: -2px; border-bottom: 4px solid transparent; }
 .adm-sections button[aria-pressed="true"] { color: var(--navy); border-bottom-color: var(--blue); }
 .adm-sections button span { margin-left: 8px; background: var(--blue); color: var(--white); font-size: 11px; padding: 2px 7px; letter-spacing: 0; }
 .adm-unread td { font-weight: 700; }
@@ -92,3 +92,37 @@
 .adm-alumni-card dd { margin: 0; overflow-wrap: anywhere; }
 .adm-alumni-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .adm-danger { color: #b42318; border-color: #b42318; }
+
+/* Organisation */
+.adm-org { display: grid; gap: 28px; }
+.adm-org-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+.adm-org-card { background: #fff; border: 1px solid var(--mist); padding: 18px; }
+.adm-org-card h3 { margin: 0 0 10px; font-size: 18px; font-style: italic; font-weight: 900; text-transform: uppercase; color: var(--navy); }
+.adm-people { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.adm-people li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.adm-people .adm-sub { flex-basis: 100%; }
+.adm-tag { font-style: normal; font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; background: var(--mist); color: var(--navy); padding: 2px 6px; }
+
+/* Chat */
+.adm-chat { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 20px; align-items: start; }
+.adm-chat-channels { background: #fff; border: 1px solid var(--mist); padding: 12px; display: grid; gap: 12px; }
+.adm-chat-group { margin: 0 0 4px; font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); }
+.adm-chat-channels button { display: flex; width: 100%; align-items: center; justify-content: space-between; background: none; border: 0; padding: 7px 8px; font: 600 14px var(--font); color: var(--navy); cursor: pointer; text-align: left; }
+.adm-chat-channels button[aria-pressed="true"] { background: var(--navy); color: #fff; }
+.adm-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--blue); }
+.adm-chat-main { display: grid; gap: 10px; }
+.adm-chat-list { background: #fff; border: 1px solid var(--mist); padding: 16px; height: min(60vh, 560px); overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+.adm-msg header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.adm-msg time { font-size: 12px; color: var(--ink-soft); }
+.adm-msg p { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.adm-msg.mine { border-left: 3px solid var(--blue); padding-left: 10px; }
+.adm-msg textarea { width: 100%; font: inherit; padding: 8px; margin-top: 6px; }
+.adm-msg-actions, .adm-msg form { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 4px; }
+.adm-msg-actions .adm-link, .adm-msg form .adm-link { font-size: 12px; }
+.adm-chat-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: end; }
+.adm-chat-form textarea { font: inherit; padding: 10px 12px; border: 1.5px solid var(--line); resize: vertical; min-height: 48px; }
+@media (max-width: 760px) {
+  .adm-chat { grid-template-columns: 1fr; }
+  .adm-chat-channels { display: flex; overflow-x: auto; gap: 16px; }
+  .adm-chat-channels > div { flex: none; }
+}

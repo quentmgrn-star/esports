@@ -233,8 +233,8 @@ export function initSite(backend) {
   // ================= Header account area =================
   var captain = null; // signed-in captain (not admin): badge + inbox link, no Hub
   function adminBar() {
-    if (captain) return '<a class="admin-badge" href="/admin" title="Signed in as ' + esc(captain.email) + ' · open your inbox"><i>Captain</i><span>' + esc(captain.name || captain.email.split("@")[0]) + '</span></a>' +
-      '<a href="/admin">Inbox</a><button type="button" class="signout" data-signout>Sign out</button>';
+    if (captain) return '<a class="admin-badge" href="/admin" title="Signed in as ' + esc(captain.email) + ' · open the members area"><i>' + esc(captain.label || "Member") + '</i><span>' + esc(captain.name || captain.email.split("@")[0]) + '</span></a>' +
+      '<a href="/admin">Members area</a><button type="button" class="signout" data-signout>Sign out</button>';
     if (!admin) return "";
     return '<a class="admin-badge" href="/admin" title="Signed in as ' + esc(admin.email) + ' · open the admin area"><i>Admin</i><span>' + esc(admin.name || admin.email.split("@")[0]) + '</span></a>' +
       '<a href="#hub-overview">Hub</a><button type="button" class="signout" data-signout>Sign out</button>';
@@ -259,11 +259,47 @@ export function initSite(backend) {
         '<label class="field" for="hub-team" id="hub-team-wrap" hidden>Team<select id="hub-team">' + opts + "</select></label></div>" +
         '<button class="btn btn-blue" data-go="hub">Open the Hub</button></div>'
       : '<div class="acc"><p class="eyebrow">Captains · Board · Associates</p><strong>Sign in to the Hub</strong><p>Expenses and budgets, team updates, try-out applications, department tasks and reports for the Student Council.</p>' +
-        '<a class="btn btn-blue" href="/admin">' + (admin === undefined ? "Checking your login\u2026" : "Sign in") + '</a></div>') +
+        '<a class="btn btn-blue" href="/admin">' + (admin === undefined ? "Checking your login\u2026" : "Sign in") + '</a></div>' + requestBlock()) +
       '</div><p class="hint">Only accounts approved by the Board can sign in.</p>' +
       (admin ? '<div class="members-board">' + BOARD_BLOCK + '</div>' : "") + '</div></section>';
   }
+  // "Request access": becomes a request that the right person approves in /admin
+  // (associates: their head of department; captains: the Board). Board positions are added by the admin.
+  var DEPTS = ["Finance", "Media & Marketing", "Operations", "Partnerships"]; // same as convex/roles.ts
+  function requestBlock() {
+    return '<form class="acc req" id="req-form" novalidate><p class="eyebrow">New here?</p><strong>Request access</strong><p>Associates and captains: send a request. Once it is approved, sign in with the same email to create your account.</p>' +
+      '<div class="fgrid">' + fieldI("rq-name", "Full name", "", 'required autocomplete="name"') + fieldI("rq-email", "Esade email", "", 'required type="email" autocomplete="email" placeholder="name@alumni.esade.edu"') +
+      '<label class="field" for="rq-role">I am<select id="rq-role"><option value="associate">An associate of a department</option><option value="captain">A team captain</option></select></label>' +
+      '<label class="field" for="rq-dept" id="rq-dept-wrap">Department<select id="rq-dept">' + DEPTS.map(function (d) { return "<option>" + esc(d) + "</option>"; }).join("") + "</select></label></div>" +
+      '<div class="field" id="rq-teams-wrap" hidden>Team(s)<div class="checks">' + TEAMS.map(function (t, i) { return '<label for="rq-t-' + i + '"><input type="checkbox" id="rq-t-' + i + '" value="' + t.id + '">' + esc(tLabel(t)) + "</label>"; }).join("") + "</div></div>" +
+      '<label class="field full" for="rq-note">Note <small>(optional)</small><textarea id="rq-note" rows="2" maxlength="500" placeholder="E.g. elected captain in October"></textarea></label>' +
+      '<input type="text" id="rq-website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px">' +
+      '<p class="err" id="rq-err" hidden></p><button class="btn btn-blue" type="submit" id="rq-send">Send request</button></form>';
+  }
+  function bindRequest() {
+    var f = $("req-form"); if (!f) return;
+    var role = $("rq-role");
+    role.addEventListener("change", function () { var c = role.value === "captain"; $("rq-dept-wrap").hidden = c; $("rq-teams-wrap").hidden = !c; });
+    f.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var err = $("rq-err"), name = $("rq-name").value.trim(), email = $("rq-email").value.trim(), teams = [];
+      page.querySelectorAll("#rq-teams-wrap input:checked").forEach(function (c) { teams.push(c.value); });
+      var msg = !name || !email ? "Please add your name and email." : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? "Please enter a valid email address." : role.value === "captain" && !teams.length ? "Choose your team." : "";
+      if (msg) { err.textContent = msg; err.hidden = false; return; }
+      err.hidden = true;
+      var btn = $("rq-send"); btn.disabled = true; btn.textContent = "Sending…";
+      function done() { f.innerHTML = '<p class="eyebrow">Request sent</p><strong>Thank you</strong><p>' + (role.value === "captain" ? "The Board" : "The head of " + esc($("rq-dept") ? $("rq-dept").value : "your department")) + " will review your request. Once approved, sign in with " + esc(email) + " to create your account.</p>"; }
+      var data = { name: name, email: email, role: role.value, department: role.value === "captain" ? undefined : $("rq-dept").value, teams: role.value === "captain" ? teams : undefined, note: $("rq-note").value.trim() || undefined, website: $("rq-website").value || undefined };
+      if (!backend || !backend.requestAccess) { done(); return; }
+      Promise.resolve(backend.requestAccess(data)).then(done, function (x) {
+        console.error(x); btn.disabled = false; btn.textContent = "Send request";
+        var m2 = String((x && x.message) || "").match(/ConvexError: ([^\n]*)/);
+        err.textContent = (x && typeof x.data === "string") ? x.data : m2 ? m2[1] : "Your request could not be sent. Please try again."; err.hidden = false;
+      });
+    });
+  }
   function bindSignin() {
+    bindRequest();
     var role = $("hub-role"), wrap = $("hub-team-wrap");
     if (role) role.addEventListener("change", function () { wrap.hidden = role.value !== "captain"; });
     page.querySelectorAll("[data-go]").forEach(function (b) {

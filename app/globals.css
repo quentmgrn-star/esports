@@ -819,3 +819,8 @@ a { color: inherit; }
 .cal-key { display: inline-block; width: 10px; height: 10px; background: var(--blue); margin-right: 4px; vertical-align: middle; }
 .cal-key.ev { background: var(--warn); margin-left: 12px; }
 @media (max-width: 760px) { .cal-event { background: var(--warn); } }
+/* Members area: request access card */
+.signin .access { align-items: start; }
+.acc.req .fgrid { grid-template-columns: 1fr; gap: 12px; margin: 12px 0; }
+.acc.req select, .acc.req textarea { width: 100%; }
+.acc.req .err { color: #b42318; font-weight: 600; }

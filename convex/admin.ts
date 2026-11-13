@@ -19,7 +19,16 @@ export const me = query({
     const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) return null;
     const access = await getAccess(ctx);
-    return { name: user.name, email: user.email, isAdmin: isAdminEmail(user.email), teams: access?.teams ?? [] };
+    return {
+      name: user.name,
+      email: user.email,
+      isAdmin: isAdminEmail(user.email),
+      teams: access?.teams ?? [],
+      board: access?.board ?? [],
+      associate: access?.associate ?? [],
+      seesAll: access?.seesAll ?? false,
+      label: access?.label ?? "",
+    };
   },
 });
 
@@ -67,7 +76,7 @@ export const listContactMessages = query({
   handler: async (ctx) => {
     const a = await requireAccess(ctx);
     const all = await ctx.db.query("contactMessages").order("desc").collect();
-    if (a.isAdmin) return all;
+    if (a.seesAll) return all;
     const sports = sportsOf(a.teams);
     return all.filter((m) => m.sport && sports.has(m.sport));
   },
@@ -82,7 +91,7 @@ export const setContactStatus = mutation({
     const a = await requireAccess(ctx);
     const m = await ctx.db.get(id);
     if (!m) throw new ConvexError("Message not found.");
-    if (!a.isAdmin && !(m.sport && sportsOf(a.teams).has(m.sport))) throw new ConvexError("Not authorised.");
+    if (!a.seesAll && !(m.sport && sportsOf(a.teams).has(m.sport))) throw new ConvexError("Not authorised.");
     await ctx.db.patch(id, { status });
   },
 });
@@ -93,7 +102,7 @@ export const listTeamApplications = query({
   handler: async (ctx) => {
     const a = await requireAccess(ctx);
     const all = await ctx.db.query("teamApplications").order("desc").collect();
-    return a.isAdmin ? all : all.filter((x) => a.teams.includes(x.teamSlug));
+    return a.seesAll ? all : all.filter((x) => a.teams.includes(x.teamSlug));
   },
 });
 
@@ -101,7 +110,7 @@ async function editableTeamApp(ctx: MutationCtx, id: Id<"teamApplications">) {
   const a = await requireAccess(ctx);
   const app = await ctx.db.get(id);
   if (!app) throw new ConvexError("Sign-up not found.");
-  if (!a.isAdmin && !a.teams.includes(app.teamSlug)) throw new ConvexError("Not authorised.");
+  if (!a.seesAll && !a.teams.includes(app.teamSlug)) throw new ConvexError("Not authorised.");
   return app;
 }
 

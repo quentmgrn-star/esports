@@ -86,9 +86,17 @@ function StageSelect({ app }: { app: Application }) {
   );
 }
 
-type Me = { name: string; email: string; isAdmin: boolean; teams: string[] } | null;
-const roleLabel = (me: NonNullable<Me>) =>
-  me.isAdmin ? "Admin" : `Captain · ${me.teams.map(teamLabel).join(", ")}`;
+type Me = {
+  name: string;
+  email: string;
+  isAdmin: boolean;
+  teams: string[];
+  board: string[];
+  associate: string[];
+  seesAll: boolean;
+  label: string;
+} | null;
+const roleLabel = (me: NonNullable<Me>) => me.label || (me.isAdmin ? "Admin" : "Member");
 
 export default function AdminApp() {
   return (
@@ -157,10 +165,13 @@ function Gate() {
   // Signed in with Better Auth, but Convex has not accepted the session (yet).
   if (signedInEmail && (!isAuthenticated || !me)) return <Connecting email={signedInEmail} convexOk={isAuthenticated} />;
   if (!isAuthenticated || !me) return <AuthForm />;
-  if (!me.isAdmin && !me.teams?.length) {
+  if (!me.label) {
     return (
       <Panel title="No access">
-        <p className="adm-p">{me.email} is not an admin or a captain. Ask an admin to add you as a captain.</p>
+        <p className="adm-p">
+          {me.email} has no approved role yet. Request access on the <a href="/#signin">Members page</a>; the Board or an
+          admin will approve it.
+        </p>
         <SignOut />
       </Panel>
     );
@@ -315,12 +326,37 @@ const fmtDate = (t: number) =>
 const uniq = (xs: string[]) => [...new Set(xs.filter(Boolean))].sort((a, b) => a.localeCompare(b));
 
 // Top-level switch between the admin sections.
+type Section = "applications" | "tryouts" | "messages" | "organisation" | "requests" | "chat" | "captains" | "alumni";
+const SECTION_TITLE: Record<Section, string> = {
+  applications: "Applications",
+  tryouts: "Try-outs & coaches",
+  messages: "Messages",
+  organisation: "Organisation",
+  requests: "Requests",
+  chat: "Chat",
+  captains: "Captains",
+  alumni: "Alumni profiles",
+};
+
 function Dashboard({ me }: { me: NonNullable<Me> }) {
-  const [section, setSection] = useState<"applications" | "tryouts" | "messages" | "captains" | "alumni">(
-    me.isAdmin ? "applications" : "messages",
-  );
-  const messages = useQuery(api.admin.listContactMessages, {}) as ContactMessage[] | undefined;
+  const runsTeams = me.seesAll || me.teams.length > 0; // admin, Board or captain
+  const approves = me.isAdmin || me.board.length > 0;
+  const [section, setSection] = useState<Section>(me.isAdmin ? "applications" : runsTeams ? "messages" : "organisation");
+  const messages = useQuery(api.admin.listContactMessages, runsTeams ? {} : "skip") as ContactMessage[] | undefined;
+  const requests = useQuery(api.org.manageable, approves ? {} : "skip") as MemberRow[] | null | undefined;
   const unread = (messages ?? []).filter((m) => m.status === "new").length;
+  const waiting = (requests ?? []).filter((r) => r.status === "requested").length;
+  const tabs: [Section, boolean, number?][] = [
+    ["applications", me.isAdmin],
+    ["tryouts", runsTeams],
+    ["messages", runsTeams, unread],
+    ["organisation", true],
+    ["requests", approves, waiting],
+    ["chat", true],
+    ["captains", me.isAdmin],
+    ["alumni", me.isAdmin],
+  ];
+  const label = (k: Section) => (k === "applications" ? "Association applications" : SECTION_TITLE[k]);
   return (
     <main className="wrap adm-main">
       <div className="adm-top">
@@ -328,17 +364,7 @@ function Dashboard({ me }: { me: NonNullable<Me> }) {
           <p className="eyebrow">
             Signed in as {me.email} · {roleLabel(me)}
           </p>
-          <h1 className="display adm-title">
-            {section === "applications"
-              ? "Applications"
-              : section === "tryouts"
-                ? "Try-outs & coaches"
-                : section === "captains"
-                  ? "Captains"
-                  : section === "alumni"
-                    ? "Alumni profiles"
-                    : "Messages"}
-          </h1>
+          <h1 className="display adm-title">{SECTION_TITLE[section]}</h1>
         </div>
         <div className="adm-user">
           {me.isAdmin && (
@@ -350,43 +376,31 @@ function Dashboard({ me }: { me: NonNullable<Me> }) {
         </div>
       </div>
       <nav className="adm-sections" aria-label="Admin sections">
-        {me.isAdmin && (
-          <button type="button" aria-pressed={section === "applications"} onClick={() => setSection("applications")}>
-            Association applications
-          </button>
-        )}
-        <button type="button" aria-pressed={section === "tryouts"} onClick={() => setSection("tryouts")}>
-          Try-outs &amp; coaches
-        </button>
-        <button type="button" aria-pressed={section === "messages"} onClick={() => setSection("messages")}>
-          Messages{unread > 0 && <span>{unread}</span>}
-        </button>
-        {me.isAdmin && (
-          <button type="button" aria-pressed={section === "captains"} onClick={() => setSection("captains")}>
-            Captains
-          </button>
-        )}
-        {me.isAdmin && (
-          <button type="button" aria-pressed={section === "alumni"} onClick={() => setSection("alumni")}>
-            Alumni profiles
-          </button>
-        )}
+        {tabs
+          .filter(([, show]) => show)
+          .map(([k, , n]) => (
+            <button key={k} type="button" aria-pressed={section === k} onClick={() => setSection(k)}>
+              {label(k)}
+              {!!n && <span>{n}</span>}
+            </button>
+          ))}
       </nav>
-      {!me.isAdmin && (
-        <p className="adm-p" style={{ marginBottom: 16 }}>
-          You see the messages about your sport and the try-out and coach sign-ups for your team.
-        </p>
-      )}
       {section === "applications" && me.isAdmin ? (
         <Applications />
-      ) : section === "tryouts" ? (
+      ) : section === "tryouts" && runsTeams ? (
         <Tryouts me={me} />
+      ) : section === "messages" && runsTeams ? (
+        <Messages messages={messages} />
+      ) : section === "requests" && approves ? (
+        <Requests me={me} rows={requests ?? undefined} />
+      ) : section === "chat" ? (
+        <Chat />
       ) : section === "captains" && me.isAdmin ? (
         <Captains />
       ) : section === "alumni" && me.isAdmin ? (
         <AlumniProfiles />
       ) : (
-        <Messages messages={messages} />
+        <Organisation />
       )}
     </main>
   );
@@ -864,7 +878,7 @@ function TeamStatusSelect({ app }: { app: TeamApp }) {
 }
 
 function Tryouts({ me }: { me: NonNullable<Me> }) {
-  const myTeams = me.isAdmin ? TEAMS : TEAMS.filter((t) => me.teams.includes(t.id));
+  const myTeams = me.seesAll ? TEAMS : TEAMS.filter((t) => me.teams.includes(t.id));
   const apps = useQuery(api.admin.listTeamApplications, {}) as TeamApp[] | undefined;
   const [team, setTeam] = useState(""); // "" = all teams
   const [name, setName] = useState("");
@@ -1319,5 +1333,446 @@ function AlumniProfiles() {
         </div>
       )}
     </>
+  );
+}
+
+// ---------- Organisation, requests and chat ----------
+type Person = { name: string | null; email: string };
+type MemberRow = {
+  _id: string;
+  email: string;
+  name: string;
+  role: "board" | "associate" | "captain";
+  department?: string;
+  teams?: string[];
+  note?: string;
+  status: "requested" | "approved" | "rejected" | "revoked";
+  requestedAt: number;
+  decidedBy?: string;
+  decidedAt?: number;
+};
+const ROLE_LABEL = { board: "Board (head of department)", associate: "Associate", captain: "Captain" };
+const whereOf = (m: Pick<MemberRow, "role" | "department" | "teams">) =>
+  m.role === "captain" ? (m.teams ?? []).map(teamLabel).join(", ") : m.department ?? "";
+const errText = (err: unknown) => (err instanceof Error ? err.message.replace(/^[\s\S]*ConvexError:\s*/, "").split("\n")[0] : String(err));
+
+function PersonLine({ p, tag }: { p: Person; tag?: string }) {
+  return (
+    <li>
+      <strong>{p.name || p.email.split("@")[0]}</strong>
+      {tag && <i className="adm-tag">{tag}</i>}
+      <a className="adm-sub" href={`mailto:${p.email}`}>
+        {p.email}
+      </a>
+    </li>
+  );
+}
+
+function Organisation() {
+  const o = useQuery(api.org.overview, {}) as
+    | { admins: Person[]; departments: { name: string; heads: Person[]; associates: Person[] }[]; teams: { id: string; captains: Person[] }[] }
+    | null
+    | undefined;
+  if (o === undefined) return <p className="adm-p">Loading…</p>;
+  if (o === null) return <p className="adm-p">Not authorised.</p>;
+  const sports = [...new Set(TEAMS.map((t) => t.sport))];
+  return (
+    <div className="adm-org">
+      <section>
+        <h2 className="adm-h3">Admin</h2>
+        <ul className="adm-people">
+          {o.admins.map((p) => (
+            <PersonLine key={p.email} p={p} tag="Admin" />
+          ))}
+        </ul>
+      </section>
+      <section>
+        <h2 className="adm-h3">The Board and departments</h2>
+        <div className="adm-org-grid">
+          {o.departments.map((d) => (
+            <article key={d.name} className="adm-org-card">
+              <h3>{d.name}</h3>
+              <ul className="adm-people">
+                {d.heads.length ? d.heads.map((p) => <PersonLine key={p.email} p={p} tag="Head" />) : <li className="adm-sub">No head yet</li>}
+                {d.associates.map((p) => (
+                  <PersonLine key={p.email} p={p} />
+                ))}
+              </ul>
+              {!d.associates.length && <p className="adm-sub">No associates yet</p>}
+            </article>
+          ))}
+        </div>
+      </section>
+      <section>
+        <h2 className="adm-h3">Team captains</h2>
+        <div className="adm-org-grid">
+          {sports.map((sp) => (
+            <article key={sp} className="adm-org-card">
+              <h3>{sp}</h3>
+              <ul className="adm-people">
+                {o.teams
+                  .filter((t) => TEAMS.find((x) => x.id === t.id)?.sport === sp)
+                  .map((t) => {
+                    const squad = TEAMS.find((x) => x.id === t.id)?.squad;
+                    return t.captains.length ? (
+                      t.captains.map((p) => <PersonLine key={t.id + p.email} p={p} tag={squad} />)
+                    ) : (
+                      <li key={t.id} className="adm-sub">
+                        {squad}: no captain yet
+                      </li>
+                    );
+                  })}
+              </ul>
+            </article>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+const DEPARTMENT_LIST = ["Finance", "Media & Marketing", "Operations", "Partnerships"]; // same as convex/roles.ts
+
+function Requests({ me, rows }: { me: NonNullable<Me>; rows: MemberRow[] | undefined }) {
+  const decide = useMutation(api.org.decide);
+  const add = useMutation(api.org.addMember);
+  const [tab, setTab] = useState<"requested" | "approved" | "closed">("requested");
+  const [error, setError] = useState("");
+  const roles: MemberRow["role"][] = me.isAdmin ? ["board", "associate", "captain"] : ["associate", "captain"];
+  const depts = me.isAdmin ? DEPARTMENT_LIST : me.board;
+  const [f, setF] = useState({ email: "", name: "", role: roles[0], department: depts[0] ?? "", teams: [] as string[] });
+  const [busy, setBusy] = useState(false);
+  const list = (rows ?? []).filter((r) => (tab === "closed" ? r.status === "rejected" || r.status === "revoked" : r.status === tab));
+  async function act(id: string, decision: "approved" | "rejected" | "revoked") {
+    setError("");
+    try {
+      await decide({ id: id as never, decision });
+    } catch (err) {
+      setError(errText(err));
+    }
+  }
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setError("");
+    setBusy(true);
+    try {
+      await add({ email: f.email, name: f.name, role: f.role, department: f.role === "captain" ? undefined : f.department, teams: f.role === "captain" ? f.teams : undefined });
+      setF({ ...f, email: "", name: "", teams: [] });
+    } catch (err) {
+      setError(errText(err));
+    }
+    setBusy(false);
+  }
+  return (
+    <>
+      <p className="adm-p">
+        {me.isAdmin
+          ? "As admin you approve the Board (heads of department) and can approve anyone."
+          : `As head of ${me.board.join(", ")} you approve your department's associates, and captain requests.`}{" "}
+        People request access on the Members page of the website; once approved they create their account on /admin with the
+        same email.
+      </p>
+      <nav className="adm-tabs" role="tablist" aria-label="Request status">
+        {(
+          [
+            ["requested", "Waiting"],
+            ["approved", "Approved"],
+            ["closed", "Rejected or removed"],
+          ] as const
+        ).map(([k, l]) => (
+          <button key={k} type="button" className="adm-tab" role="tab" aria-selected={tab === k} onClick={() => setTab(k)}>
+            {l}{" "}
+            <span>
+              {(rows ?? []).filter((r) => (k === "closed" ? r.status === "rejected" || r.status === "revoked" : r.status === k)).length}
+            </span>
+          </button>
+        ))}
+      </nav>
+      {error && <p className="err">{error}</p>}
+      <div className="adm-table-wrap">
+        <table className="adm-table">
+          <thead>
+            <tr>
+              <th>Person</th>
+              <th>Role</th>
+              <th>Note</th>
+              <th>{tab === "requested" ? "Requested" : "Decided"}</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {rows === undefined ? (
+              <tr>
+                <td colSpan={5}>Loading…</td>
+              </tr>
+            ) : list.length === 0 ? (
+              <tr>
+                <td colSpan={5}>Nothing here.</td>
+              </tr>
+            ) : (
+              list.map((r) => (
+                <tr key={r._id}>
+                  <td>
+                    <strong>{r.name}</strong>
+                    <span className="adm-sub">{r.email}</span>
+                  </td>
+                  <td>
+                    {ROLE_LABEL[r.role]}
+                    <span className="adm-sub">{whereOf(r)}</span>
+                  </td>
+                  <td>{r.note ?? ""}</td>
+                  <td>
+                    {new Date(r.decidedAt ?? r.requestedAt).toLocaleDateString("en-GB")}
+                    {r.decidedBy && <span className="adm-sub">by {r.decidedBy}</span>}
+                  </td>
+                  <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                    {r.status === "requested" && (
+                      <>
+                        <button className="btn btn-blue" type="button" onClick={() => act(r._id, "approved")}>
+                          Approve
+                        </button>{" "}
+                        <button className="btn btn-ghost-navy" type="button" onClick={() => act(r._id, "rejected")}>
+                          Reject
+                        </button>
+                      </>
+                    )}
+                    {r.status === "approved" && (
+                      <button className="btn btn-ghost-navy" type="button" onClick={() => act(r._id, "revoked")}>
+                        Remove
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <form className="adm-captain-form" onSubmit={submit} style={{ marginTop: 24 }}>
+        <h2 className="adm-h3" style={{ marginTop: 0 }}>
+          Add someone directly
+        </h2>
+        <div className="adm-filters" style={{ padding: 0 }}>
+          <label className="field">
+            Name
+            <input required value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
+          </label>
+          <label className="field">
+            Email they will sign in with
+            <input type="email" required value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} placeholder="name@alumni.esade.edu" />
+          </label>
+          <label className="field">
+            Role
+            <select value={f.role} onChange={(e) => setF({ ...f, role: e.target.value as MemberRow["role"] })}>
+              {roles.map((r) => (
+                <option key={r} value={r}>
+                  {ROLE_LABEL[r]}
+                </option>
+              ))}
+            </select>
+          </label>
+          {f.role !== "captain" && (
+            <label className="field">
+              Department
+              <select value={f.department} onChange={(e) => setF({ ...f, department: e.target.value })}>
+                {(f.role === "board" ? DEPARTMENT_LIST : depts).map((d) => (
+                  <option key={d}>{d}</option>
+                ))}
+              </select>
+            </label>
+          )}
+        </div>
+        {f.role === "captain" && (
+          <fieldset className="adm-team-checks">
+            <legend>Teams</legend>
+            {TEAMS.map((t) => (
+              <label key={t.id}>
+                <input
+                  type="checkbox"
+                  checked={f.teams.includes(t.id)}
+                  onChange={() => setF({ ...f, teams: f.teams.includes(t.id) ? f.teams.filter((x) => x !== t.id) : [...f.teams, t.id] })}
+                />{" "}
+                {teamLabel(t.id)}
+              </label>
+            ))}
+          </fieldset>
+        )}
+        <button className="btn btn-blue" type="submit" disabled={busy || !f.email || !f.name || (f.role === "captain" && !f.teams.length)}>
+          {busy ? "Saving…" : "Add"}
+        </button>
+      </form>
+    </>
+  );
+}
+
+type ChatChannel = { id: string; label: string; kind: string; lastAt: number };
+type ChatMsg = {
+  _id: string;
+  _creationTime: number;
+  authorName: string;
+  authorRole: string;
+  body: string;
+  editedAt?: number;
+  mine: boolean;
+  canDelete: boolean;
+};
+const seenKey = (id: string) => `es-chat-seen:${id}`;
+const getSeen = (id: string) => {
+  try {
+    return Number(localStorage.getItem(seenKey(id)) || 0);
+  } catch {
+    return 0;
+  }
+};
+
+function Chat() {
+  const channels = useQuery(api.chat.channels, {}) as ChatChannel[] | null | undefined;
+  const [current, setCurrent] = useState("general");
+  const msgs = useQuery(api.chat.list, { channel: current }) as ChatMsg[] | null | undefined;
+  const send = useMutation(api.chat.send);
+  const edit = useMutation(api.chat.edit);
+  const remove = useMutation(api.chat.remove);
+  const [text, setText] = useState("");
+  const [editing, setEditing] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+  const [error, setError] = useState("");
+  const [, setTick] = useState(0);
+  const lastAt = channels?.find((c) => c.id === current)?.lastAt ?? 0;
+  useEffect(() => {
+    try {
+      localStorage.setItem(seenKey(current), String(Date.now()));
+    } catch {}
+    setTick((t) => t + 1);
+  }, [current, lastAt]);
+  useEffect(() => {
+    const el = document.getElementById("chat-list");
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [msgs?.length, current]);
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (!text.trim()) return;
+    setError("");
+    try {
+      await send({ channel: current, body: text });
+      setText("");
+    } catch (err) {
+      setError(errText(err));
+    }
+  }
+  const groups: [string, string][] = [
+    ["general", "Everyone"],
+    ["board", "Board"],
+    ["dept", "Departments"],
+    ["sport", "Teams"],
+  ];
+  return (
+    <div className="adm-chat">
+      <aside className="adm-chat-channels" aria-label="Channels">
+        {groups.map(([kind, title]) => {
+          const list = (channels ?? []).filter((c) => c.kind === kind);
+          if (!list.length) return null;
+          return (
+            <div key={kind}>
+              <p className="adm-chat-group">{title}</p>
+              {list.map((c) => (
+                <button key={c.id} type="button" aria-pressed={c.id === current} onClick={() => setCurrent(c.id)}>
+                  # {c.label}
+                  {c.id !== current && c.lastAt > getSeen(c.id) && <span className="adm-dot" aria-label="New messages" />}
+                </button>
+              ))}
+            </div>
+          );
+        })}
+      </aside>
+      <section className="adm-chat-main">
+        <div id="chat-list" className="adm-chat-list">
+          {msgs === undefined ? (
+            <p className="adm-sub">Loading…</p>
+          ) : msgs === null || msgs.length === 0 ? (
+            <p className="adm-sub">No messages yet. Say hello!</p>
+          ) : (
+            msgs.map((m) => (
+              <article key={m._id} className={"adm-msg" + (m.mine ? " mine" : "")}>
+                <header>
+                  <strong>{m.authorName}</strong>
+                  <i className="adm-tag">{m.authorRole}</i>
+                  <time>
+                    {new Date(m._creationTime).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                    {m.editedAt && " · edited"}
+                  </time>
+                </header>
+                {editing === m._id ? (
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      try {
+                        await edit({ id: m._id as never, body: draft });
+                        setEditing(null);
+                      } catch (err) {
+                        setError(errText(err));
+                      }
+                    }}
+                  >
+                    <textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={2} />
+                    <button className="adm-link" type="submit">Save</button>
+                    <button className="adm-link" type="button" onClick={() => setEditing(null)}>
+                      Cancel
+                    </button>
+                  </form>
+                ) : (
+                  <p>{m.body}</p>
+                )}
+                {(m.mine || m.canDelete) && editing !== m._id && (
+                  <div className="adm-msg-actions">
+                    {m.mine && (
+                      <button
+                        className="adm-link"
+                        type="button"
+                        onClick={() => {
+                          setEditing(m._id);
+                          setDraft(m.body);
+                        }}
+                      >
+                        Edit
+                      </button>
+                    )}
+                    {m.canDelete && (
+                      <button className="adm-link" type="button" onClick={() => remove({ id: m._id as never }).catch((err) => setError(errText(err)))}>
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                )}
+              </article>
+            ))
+          )}
+        </div>
+        {error && <p className="err">{error}</p>}
+        <form className="adm-chat-form" onSubmit={submit}>
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                (e.currentTarget.form as HTMLFormElement).requestSubmit();
+              }
+            }}
+            rows={2}
+            maxLength={2000}
+            placeholder={`Message #${channels?.find((c) => c.id === current)?.label ?? ""}`}
+            aria-label="Message"
+          />
+          <button className="btn btn-blue" type="submit" disabled={!text.trim()}>
+            Send
+          </button>
+        </form>
+        <p className="adm-sub">
+          Be kind and keep it about Esade Sports. Messages are seen by everyone in the channel; the Board and admins can remove
+          messages.
+        </p>
+      </section>
+    </div>
   );
 }

@@ -21,16 +21,16 @@ function pushAdmin(a: SiteAdmin) {
 function AdminBridge() {
   const { isLoading, isAuthenticated } = useConvexAuth();
   const me = useQuery(api.admin.me, isAuthenticated ? {} : "skip") as
-    | { email: string; name: string; isAdmin: boolean; teams?: string[] }
+    | { email: string; name: string; isAdmin: boolean; teams?: string[]; label?: string }
     | null
     | undefined;
   const value: SiteAdmin =
     isLoading || (isAuthenticated && me === undefined) ? undefined : me?.isAdmin
         ? { email: me.email, name: me.name }
-        : me?.teams?.length
-          ? { email: me.email, name: me.name, captain: true }
+        : me?.label
+          ? { email: me.email, name: me.name, captain: true, label: me.label }
           : null;
-  useEffect(() => pushAdmin(value), [value === undefined ? "?" : value ? value.email + (value.captain ? ":c" : "") : ""]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => pushAdmin(value), [value === undefined ? "?" : value ? value.email + (value.captain ? ":" + value.label : "") : ""]); // eslint-disable-line react-hooks/exhaustive-deps
   return null;
 }
 
@@ -47,6 +47,7 @@ export default function EsadeSite() {
       // Errors are passed back so the form can show them (e.g. rate limit).
       submitContactMessage: (a: Record<string, unknown>) => client.mutation(api.forms.submitContactMessage, a as never),
       // Alumni corner: profiles wait for an admin's approval; the public list never includes email or phone.
+      requestAccess: (a: Record<string, unknown>) => client.mutation(api.org.requestAccess, a as never),
       submitAlumniProfile: (a: Record<string, unknown>) => client.mutation(api.forms.submitAlumniProfile, a as never),
       listAlumni: () => client.query(api.alumni.listPublic, {}),
       // Uploads the CV (and optional video) to Convex storage, then stores the application.
