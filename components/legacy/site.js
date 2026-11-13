@@ -179,15 +179,15 @@ export function initSite(backend) {
 
   // ================= Alumni data (examples) =================
   var ALUMNI = [
-    { id: "1", first: "Lucía", last: "Ferrer", nationality: "Spanish", programme: "BBA", grad: 2023, exUni: "University of Michigan", exCity: "Ann Arbor, USA", inCo: "Football club", inRole: "Partnerships intern", assos: "Esade Sports", sports: ["Football 7"], linkedin: "linkedin.com/in/example-lucia", interns: [["Sports marketing agency", "Marketing intern", "2021"]], phone: "+34 600 000 001", esade: "lucia.ferrer@esade.example", perso: "lucia.ferrer@example.com", active: false },
-    { id: "2", first: "Marco", last: "Bianchi", nationality: "Italian", programme: "BBA", grad: 2022, exUni: "National University of Singapore", exCity: "Singapore", inCo: "Sports data start-up", inRole: "Business analyst intern", assos: "Esade Sports, Finance club", sports: ["Basketball"], linkedin: "linkedin.com/in/example-marco", interns: [], phone: "+39 300 000 002", esade: "marco.bianchi@esade.example", perso: "marco.b@example.com", active: false },
-    { id: "3", first: "Sophie", last: "Laurent", nationality: "French", programme: "Double degree BBA + Law", grad: 2024, exUni: "McGill University", exCity: "Montréal, Canada", inCo: "Sports law firm", inRole: "Legal intern", assos: "Esade Sports", sports: ["Volleyball"], linkedin: "", interns: [["Event agency", "Operations intern", "2022"]], phone: "+33 6 00 00 00 03", esade: "sophie.laurent@esade.example", perso: "sophie.l@example.com", active: true },
-    { id: "4", first: "Daniel", last: "Okafor", nationality: "Nigerian", programme: "BBA", grad: 2021, exUni: "Copenhagen Business School", exCity: "Copenhagen, Denmark", inCo: "Sportswear brand", inRole: "Brand intern", assos: "Esade Sports", sports: ["Football 7", "Futsal"], linkedin: "linkedin.com/in/example-daniel", interns: [], phone: "+44 7000 000004", esade: "daniel.okafor@esade.example", perso: "d.okafor@example.com", active: false },
-    { id: "5", first: "Hannah", last: "Schmidt", nationality: "German", programme: "BBA", grad: 2025, exUni: "University of Sydney", exCity: "Sydney, Australia", inCo: "Tennis tournament organiser", inRole: "Event operations intern", assos: "Esade Sports", sports: ["Padel"], linkedin: "linkedin.com/in/example-hannah", interns: [["Consultancy", "Summer analyst", "2023"]], phone: "+49 150 0000005", esade: "hannah.schmidt@esade.example", perso: "", active: true },
-    { id: "6", first: "Javier", last: "Ruiz", nationality: "Spanish", programme: "BBA", grad: 2020, exUni: "Bocconi University", exCity: "Milan, Italy", inCo: "Investment bank", inRole: "Summer analyst", assos: "Esade Sports", sports: ["Basketball"], linkedin: "linkedin.com/in/example-javier", interns: [], phone: "+34 600 000 006", esade: "javier.ruiz@esade.example", perso: "jruiz@example.com", active: false },
-    { id: "7", first: "Emma", last: "Johansson", nationality: "Swedish", programme: "BBA", grad: 2024, exUni: "University of Texas at Austin", exCity: "Austin, USA", inCo: "Sports media company", inRole: "Content intern", assos: "Esade Sports", sports: ["Volleyball"], linkedin: "", interns: [], phone: "+46 70 000 0007", esade: "emma.johansson@esade.example", perso: "emma.j@example.com", active: false },
-    { id: "8", first: "Tomás", last: "Silva", nationality: "Portuguese", programme: "BBA", grad: 2023, exUni: "HEC Montréal", exCity: "Montréal, Canada", inCo: "Football league", inRole: "Commercial intern", assos: "Esade Sports", sports: ["Futsal"], linkedin: "linkedin.com/in/example-tomas", interns: [["Retail group", "Sales intern", "2021"]], phone: "+351 900 000 008", esade: "tomas.silva@esade.example", perso: "", active: false },
-    { id: "9", first: "Chloé", last: "Martin", nationality: "Belgian", programme: "BBA", grad: 2025, exUni: "Fudan University", exCity: "Shanghai, China", inCo: "Sports sponsorship agency", inRole: "Account intern", assos: "Esade Sports", sports: ["Padel", "Volleyball"], linkedin: "linkedin.com/in/example-chloe", interns: [], phone: "+32 470 00 00 09", esade: "chloe.martin@esade.example", perso: "chloe.m@example.com", active: true }
+    { id: "1", first: "Lucía", last: "Ferrer", nationality: "Spanish", programme: "BBA", grad: 2023, exUni: "University of Michigan", exDomain: "umich.edu", exCity: "Ann Arbor, USA", inCo: "Football club", inRole: "Partnerships intern", assos: "Esade Sports", sports: ["Football 7"], linkedin: "linkedin.com/in/example-lucia", interns: [["Sports marketing agency", "Marketing intern", "2021"]], phone: "+34 600 000 001", esade: "lucia.ferrer@esade.example", perso: "lucia.ferrer@example.com", active: false },
+    { id: "2", first: "Marco", last: "Bianchi", nationality: "Italian", programme: "BBA", grad: 2022, exUni: "National University of Singapore", exDomain: "nus.edu.sg", exCity: "Singapore", inCo: "Sports data start-up", inRole: "Business analyst intern", assos: "Esade Sports, Finance club", sports: ["Basketball"], linkedin: "linkedin.com/in/example-marco", interns: [], phone: "+39 300 000 002", esade: "marco.bianchi@esade.example", perso: "marco.b@example.com", active: false },
+    { id: "3", first: "Sophie", last: "Laurent", nationality: "French", programme: "Double degree BBA + Law", grad: 2024, exUni: "McGill University", exDomain: "mcgill.ca", exCity: "Montréal, Canada", inCo: "Sports law firm", inRole: "Legal intern", assos: "Esade Sports", sports: ["Volleyball"], linkedin: "", interns: [["Event agency", "Operations intern", "2022"]], phone: "+33 6 00 00 00 03", esade: "sophie.laurent@esade.example", perso: "sophie.l@example.com", active: true },
+    { id: "4", first: "Daniel", last: "Okafor", nationality: "Nigerian", programme: "BBA", grad: 2021, exUni: "Copenhagen Business School", exDomain: "cbs.dk", exCity: "Copenhagen, Denmark", inCo: "Sportswear brand", inRole: "Brand intern", assos: "Esade Sports", sports: ["Football 7", "Futsal"], linkedin: "linkedin.com/in/example-daniel", interns: [], phone: "+44 7000 000004", esade: "daniel.okafor@esade.example", perso: "d.okafor@example.com", active: false },
+    { id: "5", first: "Hannah", last: "Schmidt", nationality: "German", programme: "BBA", grad: 2025, exUni: "University of Sydney", exDomain: "sydney.edu.au", exCity: "Sydney, Australia", inCo: "Tennis tournament organiser", inRole: "Event operations intern", assos: "Esade Sports", sports: ["Padel"], linkedin: "linkedin.com/in/example-hannah", interns: [["Consultancy", "Summer analyst", "2023"]], phone: "+49 150 0000005", esade: "hannah.schmidt@esade.example", perso: "", active: true },
+    { id: "6", first: "Javier", last: "Ruiz", nationality: "Spanish", programme: "BBA", grad: 2020, exUni: "Bocconi University", exDomain: "unibocconi.it", exCity: "Milan, Italy", inCo: "Investment bank", inRole: "Summer analyst", assos: "Esade Sports", sports: ["Basketball"], linkedin: "linkedin.com/in/example-javier", interns: [], phone: "+34 600 000 006", esade: "javier.ruiz@esade.example", perso: "jruiz@example.com", active: false },
+    { id: "7", first: "Emma", last: "Johansson", nationality: "Swedish", programme: "BBA", grad: 2024, exUni: "University of Texas at Austin", exDomain: "utexas.edu", exCity: "Austin, USA", inCo: "Sports media company", inRole: "Content intern", assos: "Esade Sports", sports: ["Volleyball"], linkedin: "", interns: [], phone: "+46 70 000 0007", esade: "emma.johansson@esade.example", perso: "emma.j@example.com", active: false },
+    { id: "8", first: "Tomás", last: "Silva", nationality: "Portuguese", programme: "BBA", grad: 2023, exUni: "HEC Montréal", exDomain: "hec.ca", exCity: "Montréal, Canada", inCo: "Football league", inRole: "Commercial intern", assos: "Esade Sports", sports: ["Futsal"], linkedin: "linkedin.com/in/example-tomas", interns: [["Retail group", "Sales intern", "2021"]], phone: "+351 900 000 008", esade: "tomas.silva@esade.example", perso: "", active: false },
+    { id: "9", first: "Chloé", last: "Martin", nationality: "Belgian", programme: "BBA", grad: 2025, exUni: "Fudan University", exDomain: "fudan.edu.cn", exCity: "Shanghai, China", inCo: "Sports sponsorship agency", inRole: "Account intern", assos: "Esade Sports", sports: ["Padel", "Volleyball"], linkedin: "linkedin.com/in/example-chloe", interns: [], phone: "+32 470 00 00 09", esade: "chloe.martin@esade.example", perso: "chloe.m@example.com", active: true }
   ];
   ALUMNI.forEach(function (a, i) {
     a.example = true;
@@ -688,10 +688,25 @@ export function initSite(backend) {
   function initials(a) { return esc((a.first || "?").charAt(0) + (a.last || "").charAt(0)); }
   function avatar(a) { return '<div class="av">' + (a.photo ? '<img src="' + a.photo + '" alt="">' : initials(a)) + "</div>"; }
   function alumniBand(extra) {
-    return '<section class="band"><div class="wrap"><p class="eyebrow">Esade alumni network</p><h1 class="display">Once Esade,<br>always Esade.</h1><p>A community that goes beyond sport, within an Esade alumni network ranked #6 by the Financial Times.</p><p>Search the Esade Sports alumni network like a professional directory. Anyone can browse profiles; sign in only when you want to create or edit your own profile or access consented contact details.</p>' + (extra || "") + "</div></section>";
+    return '<section class="band"><div class="wrap"><p class="eyebrow">Esade alumni network</p><h1 class="display">Once Esade,<br>always Esade.</h1><p class="lede-strong">A community beyond sports.</p><p>Part of an Esade alumni network ranked #6 by the Financial Times. Search the Esade Sports alumni network like a professional directory. Anyone can browse profiles; sign in only when you want to create or edit your own profile or access consented contact details.</p>' + (extra || "") + "</div></section>";
   }
+  // Graduation years: 1991 up to next year's class, newest first.
+  function gradYears() { var out = [], top = new Date().getFullYear() + 1; for (var y = top; y >= 1991; y--) out.push(y); return out; }
+  // LinkedIn-style logo tiles. Organisation logos load from our own /api/logo route (by website
+  // domain); if there is no domain or no logo, the tile shows the organisation's initials.
+  var SPORT_ICON = { "Football 7": "⚽", Futsal: "⚽", Basketball: "🏀", Volleyball: "🏐", Padel: "🎾", Rugby: "🏉", Tennis: "🎾" };
+  function cleanDomain(d) { return String(d || "").trim().toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").split(/[\/?#\s]/)[0]; }
+  function orgInitials(n) { var w = String(n || "?").replace(/[^\p{L}\p{N} ]/gu, " ").split(/\s+/).filter(function (x) { return x && !/^(of|the|de|la|el|and|at|y|i|du|des)$/i.test(x); }); return esc(((w[0] || "?").charAt(0) + (w[1] ? w[1].charAt(0) : "")).toUpperCase()); }
+  function logo(name, domain) {
+    var d = cleanDomain(domain), m = '<span class="lg-mono">' + orgInitials(name) + "</span>";
+    return '<div class="lg">' + m + (/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(d) ? '<img src="/api/logo?d=' + d + '" alt="" loading="lazy" onerror="this.remove()">' : "") + "</div>";
+  }
+  function esLogo(sport) { return '<div class="lg lg-es">' + mono(30) + (sport && SPORT_ICON[sport] ? '<span class="lg-badge" aria-hidden="true">' + SPORT_ICON[sport] + "</span>" : "") + "</div>"; }
+  function isES(n) { return /^esade sports$/i.test(String(n || "").trim()); }
+  function assocList(a) { return (a.assocs && a.assocs.length ? a.assocs : String(a.assos || "").split(",").map(function (x) { return [x.trim(), ""]; })).filter(function (x) { return x[0]; }); }
+  function expRow(tile, title, line, meta) { return '<div class="exp">' + tile + "<div><strong>" + esc(title) + "</strong>" + (line ? "<span>" + esc(line) + "</span>" : "") + (meta ? '<span class="m">' + esc(meta) + "</span>" : "") + "</div></div>"; }
   function alumniView() {
-    var years = []; allAlumni().forEach(function (a) { if (years.indexOf(a.grad) < 0) years.push(a.grad); }); years.sort(function (a, b) { return b - a; });
+    var years = gradYears();
     var cta = state.me ? '<div class="ctas"><a class="btn btn-solid-white" href="#alumni-me">My profile</a><a class="btn btn-ghost-white" href="#my-profile">Edit profile</a></div>' : '<div class="ctas"><a class="btn btn-solid-white" href="#my-profile">Create your profile</a><a class="btn btn-ghost-white" href="#alumni-signin">Sign in</a></div>';
     return alumniBand(cta) + '<section class="al"><div class="wrap body">' +
       '<div class="filters"><label class="field" for="al-q">Search<input id="al-q" type="search" placeholder="Name, headline, programme, sport or role" value="' + esc(state.al.q) + '"></label>' +
@@ -731,12 +746,12 @@ export function initSite(backend) {
       "<h1>" + esc(a.first + " " + a.last) + '</h1><span class="sub2">' + esc(a.programme) + " · Class of " + a.grad + '</span><p class="headline" style="margin:8px 0 0">' + esc(a.headline) + "</p>" +
       '<div class="tags" style="margin-top:6px">' + a.sports.map(function (s) { return '<span class="tag2">' + esc(s) + "</span>"; }).join("") + (a.active ? '<span class="tag2 soft">Active member</span>' : "") + (a.example ? '<span class="tag2 ex">Example profile</span>' : "") + "</div>" +
       (a.id === "me" ? '<div style="margin-top:10px"><a class="btn btn-ghost-navy" href="#my-profile">Edit profile</a></div>' : "") + "</div>" +
-      '<section class="psec"><h2>Esade Sports role</h2><div class="exp"><div class="ic">ES</div><div><strong>' + esc(a.esadeRole) + "</strong><span>Sports association connection</span></div></div></section>" +
-      '<section class="psec"><h2>Sports at Esade</h2>' + a.sports.map(function (s) { return '<div class="exp"><div class="ic">' + s[0] + "</div><div><strong>" + esc(s) + "</strong><span>Esade Sports</span></div></div>"; }).join("") + "</section>" +
-      '<section class="psec"><h2>Exchange</h2><div class="exp"><div class="ic">✈</div><div><strong>' + esc(a.exUni) + "</strong><span>" + esc(a.exCity) + "</span></div></div></section>" +
-      '<section class="psec"><h2>Internships</h2><div class="exp"><div class="ic">4</div><div><strong>' + esc(a.inRole) + "</strong><span>" + esc(a.inCo) + " · 4th-year internship</span></div></div>" +
-      interns.map(function (x) { return '<div class="exp"><div class="ic">' + esc(x[0][0]) + "</div><div><strong>" + esc(x[1]) + "</strong><span>" + esc(x[0]) + (x[2] ? " · " + esc(x[2]) : "") + "</span></div></div>"; }).join("") + "</section>" +
-      '<section class="psec"><h2>Associations</h2><span>' + esc(a.assos) + "</span></section></article>" +
+      '<section class="psec"><h2>Esade Sports role</h2>' + expRow(esLogo(), a.esadeRole || "Member", "Esade Sports", "") + "</section>" +
+      '<section class="psec"><h2>Sports at Esade</h2>' + a.sports.map(function (s) { return expRow(esLogo(s), s, "Esade Sports", ""); }).join("") + "</section>" +
+      '<section class="psec"><h2>Exchange</h2>' + expRow(logo(a.exUni, a.exDomain), a.exUni, "Exchange semester", a.exCity) + "</section>" +
+      '<section class="psec"><h2>Internships</h2>' + expRow(logo(a.inCo, a.inDomain), a.inRole, a.inCo, "4th-year internship") +
+      interns.map(function (x) { return expRow(logo(x[0], x[3]), x[1] || x[0], x[1] ? x[0] : "", x[2] || ""); }).join("") + "</section>" +
+      '<section class="psec"><h2>Associations</h2>' + assocList(a).map(function (x) { return expRow(isES(x[0]) ? esLogo() : logo(x[0], x[1]), x[0], isES(x[0]) ? "Sports association" : "Association", ""); }).join("") + "</section></article>" +
       '<aside class="contact"><p class="eyebrow">Get in touch</p><dl>' + rows.join("") + '</dl><p style="margin:0;font-size:12px;color:var(--on-navy-soft)">' + (signedIn() ? "Contact details are shown only with this person’s consent." : "Sign in with an Esade account to see consented contact details.") + '</p></aside></div></div></section>';
   }
 
@@ -767,36 +782,47 @@ export function initSite(backend) {
   }
   function fieldI(id, label, val, attrs, full) { return '<label class="field' + (full ? " full" : "") + '" for="' + id + '">' + label + '<input id="' + id + '" value="' + esc(val || "") + '" ' + (attrs || "") + "></label>"; }
   function internRow(x, i) {
-    return '<div class="intern-row" data-row="' + i + '">' + fieldI("ix-co-" + i, "Company", x[0], 'data-k="0"') + fieldI("ix-role-" + i, "Role", x[1], 'data-k="1"') + fieldI("ix-yr-" + i, "Year", x[2], 'data-k="2" inputmode="numeric"') + '<button type="button" class="rm" data-rm="' + i + '">Remove</button></div>';
+    return '<div class="intern-row" data-row="' + i + '">' + fieldI("ix-co-" + i, "Company", x[0], 'data-k="0"') + fieldI("ix-role-" + i, "Role", x[1], 'data-k="1"') + fieldI("ix-yr-" + i, "Year", x[2], 'data-k="2" inputmode="numeric"') + fieldI("ix-dom-" + i, "Website <small>(for the logo)</small>", x[3], 'data-k="3" placeholder="company.com"') + '<button type="button" class="rm" data-rm="' + i + '">Remove</button></div>';
+  }
+  function assocRow(x, i) {
+    return '<div class="intern-row assoc-row" data-arow="' + i + '">' + fieldI("as-n-" + i, "Association", x[0], 'data-k="0"') + fieldI("as-d-" + i, "Website <small>(optional)</small>", x[1], 'data-k="1" placeholder="association.org"') + '<button type="button" class="rm" data-arm="' + i + '">Remove</button></div>';
   }
   function formView() {
     if (!signedIn()) return alumniBand() + '<section class="al"><div class="wrap body"><div class="locked"><h2>Sign in first</h2><p>Only Esade alumni and students can create a profile.</p><a class="btn btn-blue" href="#alumni-signin">Sign in</a></div></div></section>';
-    var m = state.me || { first: "", last: "", nationality: "", programme: "BBA", grad: "", exUni: "", exCity: "", inCo: "", inRole: "", assos: "Esade Sports", sports: [], linkedin: "", interns: [], phone: "", esade: "", perso: "", photo: null };
+    var m = state.me || { first: "", last: "", nationality: "", programme: "BBA", grad: "", exUni: "", exDomain: "", exCity: "", inCo: "", inDomain: "", inRole: "", assos: "Esade Sports", assocs: [["Esade Sports", ""]], sports: [], linkedin: "", interns: [], phone: "", esade: "", perso: "", photo: null };
     draftPhoto = m.photo || null;
     return '<section class="band"><div class="wrap"><p class="eyebrow">Alumni corner</p><h1 class="display">' + (state.me ? "Edit your<br>profile." : "Create your<br>profile.") + "</h1><p>Your profile lets other Esade alumni and students who played sport find you. Fields marked optional can stay empty.</p></div></section>" +
       '<section class="al"><div class="wrap body"><form class="pform" id="pform" novalidate>' +
       '<div class="fsec"><h2>About you</h2><div class="photo-row"><div class="av" id="ph-prev">' + (draftPhoto ? '<img src="' + draftPhoto + '" alt="">' : initials(m.first ? m : { first: "?", last: "" })) + '</div><label class="field" for="f-photo">Profile photo <small>(optional)</small><input id="f-photo" type="file" accept="image/*"></label></div>' +
       '<div class="fgrid">' + fieldI("f-first", "First name", m.first, "required autocomplete=\"given-name\"") + fieldI("f-last", "Last name", m.last, "required autocomplete=\"family-name\"") + fieldI("f-nat", "Nationality", m.nationality, "required") + "</div></div>" +
       '<div class="fsec"><h2>At Esade</h2><div class="fgrid">' + fieldI("f-prog", "Programme studied", m.programme, 'required list="progs"') + '<datalist id="progs"><option>BBA</option><option>Double degree BBA + Law</option><option>MSc</option><option>MBA</option></datalist>' +
-      fieldI("f-grad", "Graduation year", m.grad, 'required type="number" min="1960" max="2035" inputmode="numeric"') +
-      fieldI("f-exuni", "Exchange university", m.exUni, "required") + fieldI("f-excity", "Exchange city and country", m.exCity, "required") +
+      '<label class="field" for="f-grad">Graduation year<select id="f-grad" required><option value="">Choose a year</option>' + gradYears().map(function (y) { return "<option" + (+m.grad === y ? " selected" : "") + ">" + y + "</option>"; }).join("") + "</select></label>" +
+      fieldI("f-exuni", "Exchange university", m.exUni, 'required placeholder="University of Michigan"') + fieldI("f-excity", "Exchange city and country", m.exCity, "required") +
+      fieldI("f-exdom", "Exchange university website <small>(for the logo, optional)</small>", m.exDomain, 'placeholder="umich.edu"', true) +
       fieldI("f-inco", "4th-year internship: company", m.inCo, "required") + fieldI("f-inrole", "4th-year internship: role", m.inRole, "required") +
-      fieldI("f-assos", "Associations you joined", m.assos, 'required placeholder="Esade Sports, ..."', true) + "</div>" +
+      fieldI("f-indom", "Company website <small>(for the logo, optional)</small>", m.inDomain, 'placeholder="company.com"', true) + "</div>" +
+      '<div class="field full">Associations you joined<div id="assocs" style="display:grid;gap:12px"></div><button type="button" class="btn btn-ghost-navy" id="add-assoc" style="justify-self:start">Add an association</button></div>' +
       '<div class="field">Sports you played at Esade<div class="checks" id="f-sports">' + SPORTS.map(function (s, i) { return '<label for="sp-' + i + '"><input type="checkbox" id="sp-' + i + '" value="' + s + '"' + (m.sports.indexOf(s) > -1 ? " checked" : "") + ">" + s + "</label>"; }).join("") + "</div></div></div>" +
       '<div class="fsec"><h2>Other internships during Esade <small>Optional</small></h2><div id="interns" style="display:grid;gap:12px">' + m.interns.map(internRow).join("") + '</div><button type="button" class="btn btn-ghost-navy" id="add-intern" style="justify-self:start">Add an internship</button></div>' +
       '<div class="fsec"><h2>Contact details <small>Visible to signed-in alumni and students</small></h2><div class="fgrid">' + fieldI("f-phone", "Phone number", m.phone, 'required type="tel" autocomplete="tel"') + fieldI("f-esade", "Esade email", m.esade, 'type="email"') + fieldI("f-perso", "Personal email", m.perso, 'type="email" autocomplete="email"') + fieldI("f-li", "LinkedIn <small>(optional)</small>", m.linkedin, 'placeholder="linkedin.com/in/..."') + "</div>" +
       '<label class="consent" for="f-consent"><input type="checkbox" id="f-consent"' + (state.me ? " checked" : "") + '><span>I agree that signed-in Esade alumni and students can see my profile and contact details. I can edit or delete my profile at any time.</span></label></div>' +
       '<p class="err" id="f-err" hidden></p><div class="form-actions"><button class="btn btn-blue" type="submit">' + (state.me ? "Save changes" : "Publish my profile") + "</button>" + (state.me ? '<button type="button" class="btn btn-ghost-navy" id="del-prof">Delete my profile</button>' : "") + "</div></form></div></section>";
   }
-  function readInterns() {
-    var out = []; page.querySelectorAll("[data-row]").forEach(function (r) { var x = ["", "", ""]; r.querySelectorAll("input").forEach(function (i) { x[+i.getAttribute("data-k")] = i.value.trim(); }); out.push(x); }); return out;
+  function readRows(attr, n) {
+    var out = []; page.querySelectorAll("[" + attr + "]").forEach(function (r) { var x = []; for (var k = 0; k < n; k++) x.push(""); r.querySelectorAll("input").forEach(function (i) { x[+i.getAttribute("data-k")] = i.value.trim(); }); out.push(x); }); return out;
   }
+  function readInterns() { return readRows("data-row", 4); }
+  function readAssocs() { return readRows("data-arow", 2); }
   function bindForm() {
     var f = $("pform"); if (!f) return;
     var interns = state.me ? state.me.interns.slice() : [];
     function redrawInterns() { $("interns").innerHTML = interns.map(internRow).join(""); page.querySelectorAll("[data-rm]").forEach(function (b) { b.addEventListener("click", function () { interns = readInterns(); interns.splice(+b.getAttribute("data-rm"), 1); redrawInterns(); }); }); }
     redrawInterns();
-    $("add-intern").addEventListener("click", function () { interns = readInterns(); interns.push(["", "", ""]); redrawInterns(); });
+    $("add-intern").addEventListener("click", function () { interns = readInterns(); interns.push(["", "", "", ""]); redrawInterns(); });
+    var assocs = state.me ? assocList(state.me) : [["Esade Sports", ""]];
+    function redrawAssocs() { $("assocs").innerHTML = assocs.map(assocRow).join(""); page.querySelectorAll("[data-arm]").forEach(function (b) { b.addEventListener("click", function () { assocs = readAssocs(); assocs.splice(+b.getAttribute("data-arm"), 1); redrawAssocs(); }); }); }
+    redrawAssocs();
+    $("add-assoc").addEventListener("click", function () { assocs = readAssocs(); assocs.push(["", ""]); redrawAssocs(); });
     $("f-photo").addEventListener("change", function (e) {
       var file = e.target.files[0]; if (!file) return;
       var r = new FileReader(); r.onload = function () {
@@ -812,12 +838,14 @@ export function initSite(backend) {
       e.preventDefault();
       var v = function (id) { return $(id).value.trim(); }, err = $("f-err");
       var sports = []; page.querySelectorAll("#f-sports input:checked").forEach(function (c) { sports.push(c.value); });
-      var missing = [["f-first", "first name"], ["f-last", "last name"], ["f-nat", "nationality"], ["f-prog", "programme"], ["f-grad", "graduation year"], ["f-exuni", "exchange university"], ["f-excity", "exchange city"], ["f-inco", "internship company"], ["f-inrole", "internship role"], ["f-assos", "associations"], ["f-phone", "phone number"]].filter(function (x) { return !v(x[0]); }).map(function (x) { return x[1]; });
+      var missing = [["f-first", "first name"], ["f-last", "last name"], ["f-nat", "nationality"], ["f-prog", "programme"], ["f-grad", "graduation year"], ["f-exuni", "exchange university"], ["f-excity", "exchange city"], ["f-inco", "internship company"], ["f-inrole", "internship role"], ["f-phone", "phone number"]].filter(function (x) { return !v(x[0]); }).map(function (x) { return x[1]; });
+      var assocRows = readAssocs().filter(function (x) { return x[0]; });
+      if (!assocRows.length) missing.push("at least one association");
       if (!sports.length) missing.push("at least one sport");
       if (!v("f-esade") && !v("f-perso")) missing.push("an Esade or personal email");
       if (missing.length) { err.textContent = "Please add: " + missing.join(", ") + "."; err.hidden = false; return; }
       if (!$("f-consent").checked) { err.textContent = "Tick the consent box so other alumni can see your contact details."; err.hidden = false; return; }
-      state.me = { id: "me", first: v("f-first"), last: v("f-last"), nationality: v("f-nat"), programme: v("f-prog"), grad: +v("f-grad"), exUni: v("f-exuni"), exCity: v("f-excity"), inCo: v("f-inco"), inRole: v("f-inrole"), assos: v("f-assos"), sports: sports, linkedin: v("f-li"), interns: readInterns().filter(function (x) { return x[0] || x[1]; }), phone: v("f-phone"), esade: v("f-esade"), perso: v("f-perso"), photo: draftPhoto, active: !!(state.user && state.user.active), verified: !!(state.me && state.me.verified !== false) };
+      state.me = { id: "me", first: v("f-first"), last: v("f-last"), nationality: v("f-nat"), programme: v("f-prog"), grad: +v("f-grad"), exUni: v("f-exuni"), exDomain: cleanDomain(v("f-exdom")), exCity: v("f-excity"), inCo: v("f-inco"), inDomain: cleanDomain(v("f-indom")), inRole: v("f-inrole"), assos: assocRows.map(function (x) { return x[0]; }).join(", "), assocs: assocRows.map(function (x) { return [x[0], cleanDomain(x[1])]; }), sports: sports, linkedin: v("f-li"), interns: readInterns().filter(function (x) { return x[0] || x[1]; }).map(function (x) { return [x[0], x[1], x[2], cleanDomain(x[3])]; }), phone: v("f-phone"), esade: v("f-esade"), perso: v("f-perso"), photo: draftPhoto, active: !!(state.user && state.user.active), verified: !!(state.me && state.me.verified !== false) };
       save(); renderAcct();
       if (state.me.verified) { toast("Profile updated."); go("alumni-me"); } else go("alumni-verify");
     });
