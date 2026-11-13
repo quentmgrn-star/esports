@@ -213,7 +213,7 @@ export const SITE_MARKUP = `
       <div class="sec-head">
         <div>
           <p class="eyebrow">Alumni corner</p>
-          <h2 class="h2" id="alumni-home-title">Once Esade Sports, always Esade Sports</h2>
+          <h2 class="h2" id="alumni-home-title">A community beyond sports</h2>
         </div>
         <a class="link-arrow" href="#alumni">Open the Alumni corner →</a>
       </div>
