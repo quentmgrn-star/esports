@@ -836,3 +836,19 @@ a { color: inherit; }
 .tfacts dd { margin: 2px 0 0; font-weight: 600; overflow-wrap: anywhere; }
 #hub .form .form-sub { grid-column: 1 / -1; margin: 10px 0 -4px; font-size: 13px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--navy); border-top: 1px solid var(--mist); padding-top: 14px; }
 #industry[hidden] { display: none !important; }
+
+/* Hub sidebar: keep long emails and role text inside the blue rail */
+#hub .rail, #hub .rail .top, #hub .who { min-width: 0; }
+#hub .who strong { font-size: 12px; overflow-wrap: anywhere; word-break: break-word; }
+#hub .who small { font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; }
+/* Tasks with owners, rejection reasons, attachments */
+#hub .tasks .owner { display: block; font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
+#hub .reject-box { display: grid; gap: 6px; min-width: 220px; text-align: left; }
+#hub .reject-box textarea { font: inherit; font-size: 13px; padding: 6px 8px; border: 1.5px solid var(--line); resize: vertical; }
+#hub .reject-box textarea.invalid { border-color: #b42318; }
+#hub small.reason { color: #b42318; font-style: italic; }
+#hub small.files a { color: var(--blue); font-weight: 600; }
+#hub .add-task { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--mist); }
+#hub .dept-title h2 a { color: inherit; text-decoration: none; }
+#hub .dept-title h2 a:hover { text-decoration: underline; }
+#hub .people > div small { display: block; }

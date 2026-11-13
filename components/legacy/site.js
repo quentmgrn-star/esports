@@ -199,9 +199,9 @@ export function initSite(backend) {
   var state = { user: null, me: null, expenses: null, captains: null, teamApplications: {}, teamInfo: {}, teamResults: {}, tasks: {}, nextId: 100, al: { q: "", sport: "All", year: "" }, hubFilter: "all", appFilter: "all", teamOpen: null };
   try {
     var s = JSON.parse(localStorage.getItem("es-site") || "null");
-    if (s && s.v === 2) { state.user = s.user && s.user.role === "alumni" ? null : s.user; state.expenses = s.expenses; state.captains = s.captains || null; state.teamApplications = s.teamApplications || {}; state.teamInfo = s.teamInfo || {}; state.teamResults = s.teamResults || {}; state.tasks = s.tasks || {}; state.nextId = s.nextId || 100; }
+    if (s && s.v === 2) { state.user = s.user && s.user.role === "alumni" ? null : s.user; state.expenses = s.expenses; state.captains = s.captains || null; state.teamApplications = s.teamApplications || {}; state.teamInfo = s.teamInfo || {}; state.teamResults = s.teamResults || {}; state.tasks = s.tasks || {}; state.newTasks = s.newTasks || []; state.nextId = s.nextId || 100; }
   } catch (e) {}
-  function save() { try { localStorage.setItem("es-site", JSON.stringify({ v: 2, user: state.user, expenses: state.expenses, captains: state.captains, teamApplications: state.teamApplications, teamInfo: state.teamInfo, teamResults: state.teamResults, tasks: state.tasks, nextId: state.nextId })); } catch (e) {} }
+  function save() { try { localStorage.setItem("es-site", JSON.stringify({ v: 2, user: state.user, expenses: state.expenses, captains: state.captains, teamApplications: state.teamApplications, teamInfo: state.teamInfo, teamResults: state.teamResults, tasks: state.tasks, newTasks: state.newTasks, nextId: state.nextId })); } catch (e) {} }
   // Hub views (same rules as convex/roles.ts; permissions table in README.md):
   //   admin / exec (president, VPs): everything · viewer (Student Council, Eva Morta): everything, read-only
   //   head: their department for every team · associate: their department, their teams · captain: their team(s)
@@ -978,6 +978,38 @@ export function initSite(backend) {
   ];
   DEPTS.forEach(function (d) { d.tasks.forEach(function (t, i) { if (!state.tasks[d.id + i]) state.tasks[d.id + i] = t[1]; }); });
   var TASK_STATUS = { todo: "To do", doing: "In progress", done: "Done" };
+  if (!state.newTasks) state.newTasks = [];
+  // Example people for the prototype (who leads each department, which associate covers which teams).
+  var ALL_IDS = TEAMS.map(function (t) { return t.id; });
+  var DEPT_PEOPLE = {
+    board: { head: "Alex Moreau", headRole: "President", associates: [["Clara Vidal", ALL_IDS, "Vice-president"], ["Tom Becker", ALL_IDS, "Vice-president"]] },
+    fin: { head: "Laura Gómez", associates: [["Pablo Ruiz", ["football7-men", "futsal-men", "futsal-women", "basketball-men"]], ["Nina Weber", ["basketball-women", "volleyball-men", "volleyball-women", "volleyball-mixed"]], ["Omar Haddad", ["padel-men", "padel-women", "rugby", "tennis"]]] },
+    med: { head: "Julia Rossi", associates: [["Lucas Martin", ["football7-men", "futsal-men", "futsal-women"]], ["Mia Novak", ["basketball-men", "basketball-women", "rugby"]], ["Sara Lindqvist", ["volleyball-men", "volleyball-women", "volleyball-mixed"]], ["Diego Alves", ["padel-men", "padel-women", "tennis"]]] },
+    ops: { head: "Marc Puig", associates: [["Elena Costa", ["football7-men", "futsal-men", "futsal-women"]], ["Hugo Petit", ["basketball-men", "basketball-women", "rugby"]], ["Aisha Khan", ["volleyball-men", "volleyball-women", "volleyball-mixed"]], ["Leo Fischer", ["padel-men", "padel-women", "tennis"]]] },
+    par: { head: "Sofia Bianco", associates: [["Ivan Horvat", ALL_IDS], ["Chloé Dubois", ALL_IDS], ["Noah Smith", ALL_IDS]] }
+  };
+  // Who works on each of the starting tasks (index into [head, associates...]).
+  var TASK_OWNER = { board0: 0, board1: 1, board2: 0, fin0: 0, fin1: 2, fin2: 1, med0: 1, med1: 3, med2: 2, ops0: 1, ops1: 3, ops2: 2, par0: 1, par1: 0, par2: 3 };
+  function deptPeople(id) { var p = DEPT_PEOPLE[id]; return p ? [p.head].concat(p.associates.map(function (a) { return a[0]; })) : []; }
+  function assocFor(deptId, teamId) { var p = DEPT_PEOPLE[deptId], n = ""; if (p) p.associates.forEach(function (a) { if (!n && a[1].indexOf(teamId) > -1) n = a[0]; }); return n; }
+  function deptTasks(d) {
+    var ppl = deptPeople(d.id);
+    return d.tasks.map(function (t, i) { var k = d.id + i; return { key: k, title: t[0], owner: ppl[TASK_OWNER[k] || 0] || "", status: state.tasks[k] || t[1] }; })
+      .concat(state.newTasks.filter(function (x) { return x.dept === d.id; }).map(function (x) { return { key: "n" + x.id, title: x.title, owner: x.owner, status: state.tasks["n" + x.id] || "todo" }; }));
+  }
+  // Only the Board adds tasks: a head for their own department, the president / VPs (and admins) for any.
+  function canAddTask(deptId) { var u = hv(); return !hRO() && (u.role === "admin" || u.role === "exec" || (u.role === "head" && u.dept === deptId)); }
+  function canSetTask(deptId) { var u = hv(); return can("tasks") && (u.role === "admin" || u.role === "exec" || u.dept === deptId); }
+  // Name of the person whose view this is (example data).
+  function myName() {
+    var u = hv();
+    if (u.role === "head") return (DEPT_PEOPLE[u.dept] || {}).head || "Head";
+    if (u.role === "associate") return assocFor(u.dept, (u.teams || [])[0]) || "Associate";
+    if (u.role === "captain") return captainName(captainForTeam(firstTeam()));
+    if (u.role === "exec") return DEPT_PEOPLE.board.head;
+    return "Admin";
+  }
+  function myRoleText() { var u = hv(); return u.role === "head" ? "Head of " + deptName(u.dept) : u.role === "associate" ? deptName(u.dept) + " associate" : u.role === "exec" ? "President" : u.role === "admin" ? "Admin" : u.role === "captain" ? "Captain" : ""; }
   var METRICS = [["Applications", "Number and diversity of applications"], ["Captains", "Captain satisfaction, surveyed each semester"], ["Events", "Sports-business events and attendance"], ["Income", "Sponsorship and partnership income"], ["Social", "Social media growth, for each team"], ["Reporting", "On-time, complete budget reports"], ["Industry", "Opportunities on the Industry Platform"]];
   var DEPT_ID = { "Finance": "fin", "Media & Marketing": "med", "Operations": "ops", "Partnerships": "par" };
   function hv() { return state.user; }
@@ -990,7 +1022,8 @@ export function initSite(backend) {
     if (k === "all") return hFull() || r === "head";
     if (k === "expenses") return hDept("fin") || r === "captain";
     if (k === "submit") return !ro && (hDept("fin") || r === "captain");
-    if (k === "validate") return !ro && (r === "admin" || r === "exec" || (r === "head" && u.dept === "fin"));
+    if (k === "validate") return !ro && (r === "admin" || r === "exec" || ((r === "head" || r === "associate") && u.dept === "fin"));
+    if (k === "pay") return !ro && (r === "admin" || r === "exec" || (r === "head" && u.dept === "fin"));
     if (k === "applications") return hDept("ops") || r === "captain";
     if (k === "teamEdit") return !ro && (r === "admin" || r === "exec" || hDept("med") || r === "captain");
     if (k === "captains") return hFull() || (r === "head" && u.dept === "ops");
@@ -1099,19 +1132,44 @@ export function initSite(backend) {
   }
   function expTable(list, compact) {
     if (!list.length) return '<p class="empty">Nothing here. Every request has been handled.</p>';
-    return '<div class="table-wrap"><table><thead><tr><th>Date</th>' + (can("all") ? "<th>Team</th>" : "") + '<th>Expense</th><th class="r">Amount</th><th>Status</th>' + (can("validate") ? '<th class="r">Action</th>' : "") + "</tr></thead><tbody>" +
+    var act = can("validate") || can("pay");
+    return '<div class="table-wrap"><table><thead><tr><th>Date</th>' + (can("all") ? "<th>Team</th>" : "") + '<th>Expense</th><th class="r">Amount</th><th>Status</th>' + (act ? '<th class="r">Action</th>' : "") + "</tr></thead><tbody>" +
       list.slice().sort(function (a, b) { return a.date < b.date ? 1 : -1; }).map(function (e) {
-        var act = "";
-        if (can("validate")) {
-          if (e.status === "requested") act = '<button class="btn sm" data-act="validated" data-id="' + e.id + '">Validate</button> <button class="btn sm" data-act="rejected" data-id="' + e.id + '">Reject</button>';
-          else if (e.status === "validated") act = '<button class="btn sm solid" data-act="paid" data-id="' + e.id + '">Mark paid</button>';
-        }
+        var btns = "";
+        if (e.status === "requested" && can("validate")) {
+          btns = state.rejecting === e.id
+            ? '<div class="reject-box"><textarea id="rj-' + e.id + '" rows="2" placeholder="Why is it rejected? (required)" aria-label="Reason for rejecting"></textarea><div><button class="btn sm solid" data-reject-confirm="' + e.id + '">Reject</button> <button class="btn sm" data-reject-cancel>Cancel</button></div></div>'
+            : '<button class="btn sm" data-act="validated" data-id="' + e.id + '">Validate</button> <button class="btn sm" data-act="reject" data-id="' + e.id + '">Reject</button>';
+        } else if (e.status === "validated" && can("pay")) btns = '<button class="btn sm solid" data-act="paid" data-id="' + e.id + '">Mark paid</button>';
+        var files = (e.link ? '<a href="' + esc(e.link) + '" target="_blank" rel="noopener">Link ↗</a>' : "") + (e.file ? (e.link ? " · " : "") + '<a href="' + e.file.data + '" download="' + esc(e.file.name) + '">' + esc(e.file.name) + "</a>" : "");
+        var who = e.decidedBy ? '<br><small class="muted">' + (e.status === "rejected" ? "Rejected" : "Validated") + " by " + esc(e.decidedBy) + "</small>" : "";
+        var why = e.status === "rejected" && e.reason ? '<br><small class="reason">“' + esc(e.reason) + "”</small>" : "";
         return '<tr><td class="num muted">' + e.date.slice(5).split("-").reverse().join("/") + "</td>" + (can("all") ? '<td class="tname">' + esc(tLabel(team(e.team))) + "</td>" : "") +
-          "<td>" + esc(e.item) + (compact ? "" : '<br><small class="muted">' + esc(e.cat) + " · by " + esc(e.by) + "</small>") + '</td><td class="r num"><strong>' + EUR.format(e.amount) + "</strong></td><td>" + pill(EXP_STATUS, e.status) + "</td>" +
-          (can("validate") ? '<td class="r" style="white-space:nowrap">' + act + "</td>" : "") + "</tr>";
+          "<td>" + esc(e.item) + (compact ? "" : '<br><small class="muted">' + esc(e.cat) + " · by " + esc(e.by) + "</small>") + (files && !compact ? '<br><small class="files">' + files + "</small>" : "") + '</td><td class="r num"><strong>' + EUR.format(e.amount) + "</strong></td><td>" + pill(EXP_STATUS, e.status) + who + why + "</td>" +
+          (act ? '<td class="r">' + btns + "</td>" : "") + "</tr>";
       }).join("") + "</tbody></table></div>";
   }
+  // People responsible for a team in each department (captain view, team detail).
+  function teamContacts(teamId) {
+    return [["fin", "Finance"], ["med", "Media & Marketing"], ["ops", "Operations"], ["par", "Partnerships"]].map(function (d) {
+      return [d[1], assocFor(d[0], teamId) || "To be assigned", "Head: " + DEPT_PEOPLE[d[0]].head];
+    });
+  }
+  function contactsPanel(teamId) {
+    return '<section class="panel"><div class="panel-head"><h2>Who looks after your team</h2><span class="muted" style="font-size:12px">Example names</span></div><div class="people">' +
+      teamContacts(teamId).map(function (p) { return '<div><p class="eyebrow">' + esc(p[0]) + "</p><strong>" + esc(p[1]) + '</strong><small class="muted">' + esc(p[2]) + "</small></div>"; }).join("") + "</div></section>";
+  }
+  function tasksPanel(deptId) {
+    var d = null; DEPTS.forEach(function (x) { if (x.id === deptId) d = x; }); if (!d) return "";
+    var ts = deptTasks(d), open = ts.filter(function (t) { return t.status !== "done"; }).length;
+    return '<section class="panel"><div class="panel-head"><h2>' + esc(d.name) + ' tasks</h2><a class="btn sm" href="#hub-departments" data-dept-open="' + d.id + '">Open department</a></div><p class="muted" style="margin:0 0 8px;font-size:13px">' + open + " open · " + (ts.length - open) + " done</p><ul class=\"tasks\">" +
+      ts.map(function (t) { return "<li><span>" + esc(t.title) + '<small class="owner">' + esc(t.owner || "Unassigned") + "</small></span>" + taskStatusPill(t.status) + "</li>"; }).join("") + "</ul></section>";
+  }
+  function taskStatusPill(st) { return '<span class="pill ' + (st === "done" ? "ok" : st === "doing" ? "info" : "warn") + '">' + TASK_STATUS[st] + "</span>"; }
   function deptPanel() {
+    var u = hv();
+    if ((u.role === "head" || u.role === "associate") && u.dept) return tasksPanel(u.dept);
+    if (u.role === "captain") return contactsPanel(firstTeam());
     return '<section class="panel"><div class="panel-head"><h2>Departments</h2><a class="btn sm" href="#hub-departments">Open</a></div><table><tbody>' +
       visDepts().map(function (d) { var done = d.tasks.filter(function (t, i) { return state.tasks[d.id + i] === "done"; }).length; return "<tr><td><strong>" + d.name + '</strong><br><small class="muted">' + d.head + '</small></td><td class="r num">' + done + " / " + d.tasks.length + ' <span class="muted">done</span></td></tr>'; }).join("") + "</tbody></table></section>";
   }
@@ -1140,7 +1198,7 @@ export function initSite(backend) {
     if (open) {
       var t = team(open), o = totals(open);
       detail = '<section class="panel" id="team-detail"><div class="panel-head"><h2>' + esc(tLabel(t)) + "</h2>" + pill(BUDGET_STATUS, t.status) + "</div>" +
-        '<div class="people">' + [["Captain", captainName(captainForTeam(open)), "Runs the team"], ["Finance associate", "[Name]", "Budget and payments"], ["Media associate", "[Name]", "Social media and coverage"], ["Operations associate", "[Name]", "Bookings, kit, travel"]].map(function (p) { return '<div class="person"><p class="eyebrow">' + p[0] + "</p><strong>" + esc(p[1]) + "</strong><small>" + p[2] + "</small></div>"; }).join("") + "</div>" +
+        '<div class="people">' + [["Captain", captainName(captainForTeam(open)), "Runs the team"], ["Finance associate", assocFor("fin", open), "Budget and payments"], ["Media associate", assocFor("med", open), "Social media and coverage"], ["Operations associate", assocFor("ops", open), "Bookings, kit, travel"]].map(function (p) { return '<div class="person"><p class="eyebrow">' + p[0] + "</p><strong>" + esc(p[1]) + "</strong><small>" + p[2] + "</small></div>"; }).join("") + "</div>" +
         '<p class="muted" style="margin:0">Budget ' + EUR.format(t.budget) + " · paid " + EUR.format(o.paid) + " · waiting " + EUR.format(o.pending) + " · left " + EUR.format(Math.max(0, t.budget - o.paid - o.pending)) + "</p>" +
         expTable(state.expenses.filter(function (e) { return e.team === open; }), false) + "</section>";
     }
@@ -1156,7 +1214,9 @@ export function initSite(backend) {
     var form = can("submit") ? '<section class="panel"><div class="panel-head"><h2>Request a payment</h2><span class="muted" style="font-size:12px">The association pays directly. No captain fronts money.</span></div><form class="form" id="req">' +
       (visTeams().length > 1 ? '<label for="r-team">Team<select id="r-team">' + visTeams().map(function (t) { return '<option value="' + t.id + '">' + esc(tLabel(t)) + "</option>"; }).join("") + "</select></label>" : "") +
       '<label for="r-item" style="grid-column:span 2">What is it for<input id="r-item" required placeholder="e.g. Referee fees, November"></label><label for="r-cat">Category<select id="r-cat"><option>League fees</option><option>Facilities</option><option>Kit</option><option>Material</option><option>Travel</option></select></label>' +
-      '<label for="r-amt">Amount (€)<input id="r-amt" type="number" min="1" step="1" required inputmode="numeric" placeholder="0"></label><div><button class="btn solid" type="submit" style="width:100%">Send request</button></div></form></section>' : "";
+      '<label for="r-amt">Amount (€)<input id="r-amt" type="number" min="1" step="1" required inputmode="numeric" placeholder="0"></label>' +
+      '<label for="r-link" style="grid-column:span 2">Link to the product or quote (optional)<input id="r-link" type="url" placeholder="https://..."></label><label for="r-file">Picture, screenshot or PDF (optional)<input id="r-file" type="file" accept="image/*,application/pdf"></label>' +
+      '<div><button class="btn solid" type="submit" style="width:100%">Send request</button></div></form></section>' : "";
     return '<div class="ph-head"><div><p class="eyebrow">Expenses</p><h1 class="display">Every euro, traced.</h1><p>Every expense is linked to a team, validated by the Finance associate and the Head of Finance, then paid by the association.</p></div><div class="flow" aria-label="How an expense moves"><span>Captain or Ops request</span><span>Finance validates</span><span>Association pays</span></div></div>' + form +
       '<section class="panel"><div class="chips" role="group" aria-label="Filter by status">' + [["all", "All"], ["requested", "Requested"], ["validated", "Validated"], ["paid", "Paid"], ["rejected", "Rejected"]].map(function (c) {
         var n = c[0] === "all" ? list.length : list.filter(function (e) { return e.status === c[0]; }).length;
@@ -1214,12 +1274,29 @@ export function initSite(backend) {
       '<section class="panel"><div class="panel-head"><h2>Active captains</h2><span class="muted">' + active.length + ' records</span></div><div class="table-wrap"><table><thead><tr><th>Captain</th><th>Team</th><th>Role</th><th>Programme</th><th>Since</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div></section>' +
       (edit ?       '<section class="panel"><div class="panel-head"><h2>Add a captain</h2><span class="muted">Board only</span></div><form class="form" id="captain-form"><label>First name<input id="c-first" required placeholder="First name"></label><label>Last name<input id="c-last" required placeholder="Last name"></label><label>Email<input id="c-email" type="email" required placeholder="name@esade.edu"></label><label>Team<select id="c-team">' + TEAMS.map(function (t) { return '<option value="' + t.id + '">' + esc(tLabel(t)) + '</option>'; }).join('') + '</select></label><label>Role<select id="c-role"><option>Captain</option><option>Vice-captain</option></select></label><label>Programme<input id="c-programme" required placeholder="BBA, MSc..."></label><div><button class="btn solid" type="submit">Add captain</button></div></form></section>' : '<p class="muted">View only: changes are made by the Board.</p>');
   }
+  function taskRow(t, deptId) {
+    return "<li><span>" + esc(t.title) + '<small class="owner">' + esc(t.owner || "Unassigned") + "</small></span>" + (canSetTask(deptId) ? '<select data-task="' + t.key + '" aria-label="Status of ' + esc(t.title) + '">' + Object.keys(TASK_STATUS).map(function (o) { return '<option value="' + o + '"' + (o === t.status ? " selected" : "") + ">" + TASK_STATUS[o] + "</option>"; }).join("") + "</select>" : taskStatusPill(t.status)) + "</li>";
+  }
+  function addTaskForm(d) {
+    if (!canAddTask(d.id)) return "";
+    return '<form class="form add-task" data-add-task="' + d.id + '"><label style="grid-column:span 2">New task<input name="title" required maxlength="120" placeholder="e.g. Book courts for the spring try-outs"></label><label>Who works on it<select name="owner">' + deptPeople(d.id).map(function (n) { return "<option>" + esc(n) + "</option>"; }).join("") + '</select></label><div><button class="btn solid" type="submit">Add task</button></div></form>';
+  }
   function hubDepts() {
-    return '<div class="ph-head"><div><p class="eyebrow">One Board, four departments</p><h1 class="display">Departments.</h1><p>Who leads each department, what it is responsible for, and where its work stands.' + (can("tasks") ? "" : " Read-only for your role.") + "</p></div></div>" +
+    var open = null; visDepts().forEach(function (d) { if (d.id === state.deptOpen) open = d; });
+    if (open) {
+      var p = DEPT_PEOPLE[open.id], ts = deptTasks(open), team = [[p.head, p.headRole || "Head of " + open.name, null]].concat(p.associates.map(function (a) { return [a[0], a[2] || "Associate", a[1]]; }));
+      return '<div class="ph-head"><div><p class="eyebrow"><a href="#hub-departments" data-dept-open="">← All departments</a></p><h1 class="display">' + esc(open.name) + '.</h1><p>' + esc(open.remit) + "</p></div></div>" +
+        '<section class="panel"><div class="panel-head"><h2>The team</h2><span class="muted" style="font-size:12px">Example names</span></div><div class="table-wrap"><table><thead><tr><th>Person</th><th>Role</th><th>Teams</th><th>Working on now</th></tr></thead><tbody>' +
+        team.map(function (m) {
+          var now = ts.filter(function (t) { return t.owner === m[0] && t.status !== "done"; });
+          return '<tr><td><strong>' + esc(m[0]) + "</strong></td><td>" + esc(m[1]) + '</td><td class="muted">' + (m[2] ? (m[2].length === TEAMS.length ? "All teams" : esc(teamsText(m[2]))) : "All teams") + "</td><td>" + (now.length ? now.map(function (t) { return esc(t.title) + " " + taskStatusPill(t.status); }).join("<br>") : '<span class="muted">Nothing open</span>') + "</td></tr>";
+        }).join("") + "</tbody></table></div></section>" +
+        '<section class="panel"><div class="panel-head"><h2>Tasks and projects</h2><span class="muted" style="font-size:12px">' + (canAddTask(open.id) ? "You can add tasks here" : "Only the Board adds tasks") + '</span></div><ul class="tasks">' + ts.map(function (t) { return taskRow(t, open.id); }).join("") + "</ul>" + addTaskForm(open) + "</section>";
+    }
+    return '<div class="ph-head"><div><p class="eyebrow">One Board, four departments</p><h1 class="display">Departments.</h1><p>Who leads each department, what it is responsible for, and where its work stands. Open a department to see its full team and who is working on what.</p></div></div>' +
       '<div class="dept-grid">' + visDepts().map(function (d) {
-        return '<section class="dept"><div class="dept-title"><h2>' + d.name + "</h2><small>" + d.size + ' people</small></div><div class="panel"><p style="margin:0"><strong>' + d.head + '</strong><br><span class="muted">' + d.remit + '</span></p><ul class="tasks">' +
-          d.tasks.map(function (t, i) { var k = d.id + i, s = state.tasks[k];
-            return "<li><span>" + esc(t[0]) + "</span>" + (can("tasks") && (hFull() || d.id === hv().dept) ? '<select data-task="' + k + '" aria-label="Status of ' + esc(t[0]) + '">' + Object.keys(TASK_STATUS).map(function (o) { return '<option value="' + o + '"' + (o === s ? " selected" : "") + ">" + TASK_STATUS[o] + "</option>"; }).join("") + "</select>" : '<span class="pill ' + (s === "done" ? "ok" : s === "doing" ? "info" : "warn") + '">' + TASK_STATUS[s] + "</span>") + "</li>"; }).join("") + "</ul></div></section>";
+        return '<section class="dept"><div class="dept-title"><h2><a href="#hub-departments" data-dept-open="' + d.id + '">' + d.name + '</a></h2><small>' + d.size + ' people</small></div><div class="panel"><p style="margin:0"><strong>' + d.head + ' · ' + esc(DEPT_PEOPLE[d.id].head) + '</strong><br><span class="muted">' + d.remit + '</span></p><ul class="tasks">' +
+          deptTasks(d).map(function (t) { return taskRow(t, d.id); }).join("") + '</ul><a class="btn sm" href="#hub-departments" data-dept-open="' + d.id + '">Open team and tasks →</a>' + addTaskForm(d) + "</div></section>";
       }).join("") + "</div>";
   }
   function hubReport() {
@@ -1238,8 +1315,23 @@ export function initSite(backend) {
     hub.querySelectorAll("[data-signout]").forEach(function (b) { b.addEventListener("click", function () {
       signOut();
     }); });
+    hub.querySelectorAll("[data-dept-open]").forEach(function (b) { b.addEventListener("click", function (ev) { ev.preventDefault(); state.deptOpen = b.getAttribute("data-dept-open") || null; if (location.hash === "#hub-departments") { render(); window.scrollTo(0, 0); } else go("hub-departments"); }); });
+    hub.querySelectorAll("[data-add-task]").forEach(function (f) { f.addEventListener("submit", function (ev) {
+      ev.preventDefault(); var d = f.getAttribute("data-add-task"), title = f.elements.title.value.trim();
+      if (!title || !canAddTask(d)) return;
+      state.newTasks.push({ id: state.nextId++, dept: d, title: title.slice(0, 120), owner: f.elements.owner.value, status: "todo" }); save(); render(); toast("Task added.");
+    }); });
+    hub.querySelectorAll("[data-reject-cancel]").forEach(function (b) { b.addEventListener("click", function () { state.rejecting = null; render(); }); });
+    hub.querySelectorAll("[data-reject-confirm]").forEach(function (b) { b.addEventListener("click", function () {
+      var id = +b.getAttribute("data-reject-confirm"), box = $("rj-" + id), why = box ? box.value.trim() : "";
+      if (!why) { if (box) { box.focus(); box.classList.add("invalid"); } toast("Write why the request is rejected."); return; }
+      state.expenses.forEach(function (e) { if (e.id === id) { e.status = "rejected"; e.reason = why.slice(0, 300); e.decidedBy = myName() + " (" + myRoleText() + ")"; } });
+      state.rejecting = null; save(); render(); toast("Request rejected. The captain sees your reason.");
+    }); });
     hub.querySelectorAll("[data-act]").forEach(function (b) { b.addEventListener("click", function () {
       var id = +b.getAttribute("data-id"), a = b.getAttribute("data-act");
+      if (a === "reject") { state.rejecting = id; render(); var bx = $("rj-" + id); if (bx) bx.focus(); return; }
+      if (a === "validated") state.expenses.forEach(function (e) { if (e.id === id) e.decidedBy = myName() + " (" + myRoleText() + ")"; });
       state.expenses.forEach(function (e) { if (e.id === id) e.status = a; }); save(); render();
       toast(a === "validated" ? "Validated. Ready to pay." : a === "paid" ? "Marked as paid." : "Request rejected."); }); });
     hub.querySelectorAll("[data-hteam]").forEach(function (r) {
@@ -1250,8 +1342,15 @@ export function initSite(backend) {
     hub.querySelectorAll("[data-task]").forEach(function (s) { s.addEventListener("change", function () { state.tasks[s.getAttribute("data-task")] = s.value; save(); toast("Task updated."); }); });
     var f = $("req"); if (f) f.addEventListener("submit", function (ev) {
       ev.preventDefault(); var amt = Math.round(+$("r-amt").value), item = $("r-item").value.trim(); if (!item || !(amt > 0)) return;
-      state.expenses.push({ id: state.nextId++, team: $("r-team") ? $("r-team").value : firstTeam(), item: item, cat: $("r-cat").value, amount: amt, by: state.user.role === "captain" ? "Captain" : state.user.role === "associate" ? "Finance associate" : state.user.role === "head" ? "Head of Finance" : "Board", date: "2026-11-12", status: "requested" });
-      state.hubFilter = "all"; save(); render(); toast("Request sent to Finance.");
+      var link = $("r-link").value.trim(), file = $("r-file").files[0];
+      if (link && !/^https?:\/\//i.test(link)) link = "https://" + link;
+      function done(att) {
+        state.expenses.push({ id: state.nextId++, team: $("r-team") ? $("r-team").value : firstTeam(), item: item, cat: $("r-cat").value, amount: amt, by: myName() + " (" + myRoleText() + ")", date: "2026-11-12", status: "requested", link: link || undefined, file: att || undefined });
+        state.hubFilter = "all"; save(); render(); toast("Request sent to Finance.");
+      }
+      if (!file) { done(null); return; }
+      if (file.size > 1.5 * 1024 * 1024) { toast("The file is too big for the prototype (max 1.5 MB)."); return; }
+      var r = new FileReader(); r.onload = function () { done({ name: file.name, type: file.type, data: r.result }); }; r.readAsDataURL(file);
     });
     hub.querySelectorAll("[data-captain-deactivate]").forEach(function (b) { b.addEventListener("click", function () {
       var id = +b.getAttribute("data-captain-deactivate"); state.captains.forEach(function (c) { if (c.id === id) c.active = false; }); save(); render(); toast("Captain deactivated.");
