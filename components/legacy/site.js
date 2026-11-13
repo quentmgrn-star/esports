@@ -118,13 +118,11 @@ export function initSite(backend) {
   }
   function renderAcct() {
     var u = state.user, html;
-    if (admin) {
-      html = adminBar() + (u && u.role === "alumni" ? '<a class="acct-chip" href="#alumni-signin" title="Switch access"><i>' + (u.active ? "Alumni · Member" : "Alumni") + "</i><span>Switch</span></a>" : "");
-      $("acct").innerHTML = html; return;
-    }
-    if (!u || u.role !== "alumni") html = '<a class="btn btn-blue" href="#apply-associate">Join</a>';
-    else html = '<a href="' + (state.me ? "#alumni-me" : "#my-profile") + '">' + (state.me ? "My profile" : "Create profile") + "</a>" +
+    // Far right of the top bar: members sign-in, or the signed-in admin indicator.
+    $("member").innerHTML = admin ? adminBar() : '<a class="member-signin" href="#signin" title="Captains, associates, Board and Student Council">Sign in</a>';
+    if (u && u.role === "alumni") html = '<a href="' + (state.me ? "#alumni-me" : "#my-profile") + '">' + (state.me ? "My profile" : "Create profile") + "</a>" +
         '<a class="acct-chip" href="#alumni-signin" title="Alumni access"><i>' + (u.active ? "Alumni · Member" : "Alumni") + "</i><span>Switch</span></a>";
+    else html = admin ? "" : '<a class="btn btn-blue" href="#apply-associate">Join</a>';
     $("acct").innerHTML = html;
   }
 
@@ -996,7 +994,7 @@ export function initSite(backend) {
     setAdmin(null); go("home"); toast("Signed out.");
   }
   document.addEventListener("click", function (e) {
-    if (e.target.closest && e.target.closest("#acct [data-signout]")) signOut();
+    if (e.target.closest && e.target.closest("#member [data-signout]")) signOut();
   });
   function setAdmin(a) {
     if (a === admin || (a && admin && a.email === admin.email)) return;

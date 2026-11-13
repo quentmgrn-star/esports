@@ -29,6 +29,7 @@ export const SITE_MARKUP = `
       <a href="#partners">Partner with us!</a>
       <span id="acct"></span>
       <div class="lang" role="group" aria-label="Language"><button type="button" data-lang="en" aria-pressed="true">EN</button><button type="button" data-lang="ca" aria-pressed="false">CA</button><button type="button" data-lang="es" aria-pressed="false">ES</button></div>
+      <span id="member"></span>
     </nav>
   </div>
 </header>

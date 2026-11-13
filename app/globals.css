@@ -242,7 +242,13 @@ a { color: inherit; }
 
 /* ---------- Accounts, sign-in, alumni ---------- */
 :root { --panel: #FFFFFF; --ink: #000B3D; --ok: #1B7F4B; --ok-bg: #E2F3EA; --warn: #9A5B00; --warn-bg: #FCEFD9; --bad: #B3261E; --bad-bg: #FBE4E2; --info-bg: #E4E5FA; }
-#acct { display: contents; }
+#acct, #member { display: contents; }
+.nav a.member-signin { border: 1.5px solid var(--navy); padding: 7px 12px; font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; white-space: nowrap; }
+.nav a { white-space: nowrap; }
+.nav a.member-signin::after { display: none; }
+.nav a.member-signin:hover { background: var(--navy); color: var(--white); }
+@media (min-width: 861px) and (max-width: 1360px) { .nav { gap: 16px; } .nav a:not(.btn) { font-size: 13px; } .admin-badge span { display: none; } }
+@media (min-width: 861px) and (max-width: 1100px) { .head .lockup span { display: none; } .nav { gap: 12px; } }
 .acct-chip { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; background: var(--mist); padding: 7px 12px; border: 0; cursor: pointer; color: var(--navy); }
 .acct-chip i { font-style: normal; font-size: 10px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--blue); }
 .acct-chip:hover { background: var(--line); }
@@ -250,9 +256,9 @@ a { color: inherit; }
 .admin-badge { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; background: var(--navy); color: var(--white) !important; padding: 7px 12px; text-decoration: none; max-width: 180px; white-space: nowrap; }
 .admin-badge i { font-style: normal; font-size: 10px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; background: var(--blue); padding: 2px 6px; }
 .admin-badge span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#acct .signout { background: none; border: 1.5px solid var(--navy); color: var(--navy); font: inherit; font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; padding: 6px 10px; cursor: pointer; white-space: nowrap; }
-#acct .signout:hover { background: var(--navy); color: var(--white); }
-@media (max-width: 860px) { .admin-badge { max-width: none; margin-top: 12px; padding: 12px; } #acct .signout { justify-self: start; margin-top: 8px; padding: 10px 12px; } }
+#member .signout { background: none; border: 1.5px solid var(--navy); color: var(--navy); font: inherit; font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; padding: 6px 10px; cursor: pointer; white-space: nowrap; }
+#member .signout:hover { background: var(--navy); color: var(--white); }
+@media (max-width: 860px) { .nav a.member-signin { margin-top: 14px; text-align: center; padding: 14px; } .admin-badge { max-width: none; margin-top: 12px; padding: 12px; } #member .signout { justify-self: start; margin-top: 8px; padding: 10px 12px; } }
 
 .page { min-height: 70vh; }
 .band { background: var(--navy); color: var(--white); }
