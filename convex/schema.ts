@@ -145,6 +145,7 @@ export default defineSchema({
     subject: v.string(),
     message: v.string(),
     sport: v.optional(v.string()),
+    phone: v.optional(v.string()), // E.164, optional
     status: v.union(v.literal("new"), v.literal("read"), v.literal("answered")),
     // Email copy to the captains (sport messages) or admins (general): "sent", "skipped: …" or "failed: …".
     emailStatus: v.optional(v.string()),

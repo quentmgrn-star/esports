@@ -115,6 +115,7 @@ export const submitContactMessage = mutation({
     subject: v.string(),
     message: v.string(),
     sport: v.optional(v.string()),
+    phone: v.optional(v.string()),
     consent: v.boolean(),
     website: v.optional(v.string()),
   },
@@ -125,6 +126,7 @@ export const submitContactMessage = mutation({
     const subject = args.subject.trim().slice(0, 150);
     const message = args.message.trim().slice(0, 2000);
     const sport = args.sport?.trim().slice(0, 60) || undefined;
+    const phone = args.phone?.replace(/[^\d+]/g, "").slice(0, 20) || undefined;
     if (!CONTACT_TOPICS.includes(args.topic)) throw new ConvexError("Choose what your message is about.");
     if (!name || !subject || !message) throw new ConvexError("Please fill in every required field.");
     if (!EMAIL_RE.test(email)) throw new ConvexError("Please enter a valid email address.");
@@ -137,7 +139,7 @@ export const submitContactMessage = mutation({
       .filter((q) => q.gt(q.field("_creationTime"), since))
       .collect();
     if (recent.length >= 3) throw new ConvexError("You have sent several messages in a short time. Please wait a few minutes.");
-    const id = await ctx.db.insert("contactMessages", { topic: args.topic, name, email, subject, message, sport, status: "new" });
+    const id = await ctx.db.insert("contactMessages", { topic: args.topic, name, email, subject, message, sport, phone, status: "new" });
     // Email a copy to the right people after saving; a failed email never loses the message.
     await ctx.scheduler.runAfter(0, internal.notify.emailContactMessage, { id });
     return id;

@@ -295,6 +295,21 @@ function AuthForm() {
   );
 }
 
+// Phone with a WhatsApp link (wa.me needs digits only).
+function Phone({ value }: { value?: string }) {
+  if (!value) return <>—</>;
+  const digits = value.replace(/\D/g, "");
+  return (
+    <>
+      <a href={`tel:${value}`}>{value}</a>
+      {" · "}
+      <a href={`https://wa.me/${digits}`} target="_blank" rel="noopener noreferrer">
+        WhatsApp
+      </a>
+    </>
+  );
+}
+
 const fmtDate = (t: number) =>
   new Date(t).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 const uniq = (xs: string[]) => [...new Set(xs.filter(Boolean))].sort((a, b) => a.localeCompare(b));
@@ -514,6 +529,7 @@ type ContactMessage = {
   subject: string;
   message: string;
   sport?: string;
+  phone?: string;
   status: "new" | "read" | "answered";
   emailStatus?: string;
 };
@@ -646,6 +662,12 @@ function MessageDetail({
             </dd>
           </div>
           <div>
+            <dt>Phone</dt>
+            <dd>
+              <Phone value={m.phone} />
+            </dd>
+          </div>
+          <div>
             <dt>Received</dt>
             <dd>{new Date(m._creationTime).toLocaleString("en-GB")}</dd>
           </div>
@@ -693,7 +715,7 @@ function Detail({ app, onClose }: { app: Application; onClose: () => void }) {
   const linkedin = app.linkedin ? (/^https?:\/\//.test(app.linkedin) ? app.linkedin : `https://${app.linkedin}`) : "";
   const rows: [string, React.ReactNode][] = [
     ["Email", <a href={`mailto:${app.email}`}>{app.email}</a>],
-    ["Phone", <a href={`tel:${app.phone}`}>{app.phone}</a>],
+    ["Phone", <Phone value={app.phone} />],
     ["Programme", app.programme],
     ["Year", app.year],
     ["LinkedIn", linkedin ? <a href={linkedin} target="_blank" rel="noopener noreferrer">{app.linkedin}</a> : "—"],
@@ -982,7 +1004,7 @@ function TeamAppDetail({ app, onClose }: { app: TeamApp; onClose: () => void }) 
     ["Team", teamLabel(app.teamSlug)],
     ["Wants to", app.kind === "coach" ? "Coach the team" : "Play (sign up for try-outs)"],
     ["Email", <a href={`mailto:${app.email}`}>{app.email}</a>],
-    ["Phone", <a href={`tel:${app.phone}`}>{app.phone}</a>],
+    ["Phone", <Phone value={app.phone} />],
     ["Esade student", app.esadeStudent ? "Yes" : "No"],
     ["Programme and year", app.programme || "—"],
     ["Level", app.level || "—"],

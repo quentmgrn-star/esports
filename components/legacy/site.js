@@ -74,7 +74,7 @@ export function initSite(backend) {
 
   // Home grid
   $("teams-grid").innerHTML = TEAMS.map(function (t, i) {
-    return '<li><a class="team" href="#team-' + t.id + '"><img class="team-img" src="' + SPORT_IMAGES[t.sport] + '" alt="" loading="lazy"><span class="num">' + String(i + 1).padStart(2, "0") + '</span><span class="name"><strong>' + esc(t.name) + "</strong><small>" + esc(tSquad(t)) + "</small></span></a></li>";
+    return '<li><a class="team" href="#team-' + t.id + '"><img class="team-img" src="' + SPORT_IMAGES[t.sport] + '" alt="" loading="lazy"><span class="name"><strong>' + esc(t.name) + "</strong><small>" + esc(tSquad(t)) + "</small></span></a></li>";
   }).join("");
 
   // ================= Alumni data (examples) =================
@@ -451,7 +451,7 @@ export function initSite(backend) {
       '<label for="as-coach"><input type="radio" name="as" id="as-coach" value="coach"' + (as === "coach" ? " checked" : "") + '>Coach the team</label></div>' +
       '<div class="fgrid"><label class="field" for="a-team">Team<select id="a-team">' + TEAMS.map(function (t) { return '<option value="' + t.id + '"' + (t.id === tid ? " selected" : "") + ">" + esc(tLabel(t)) + "</option>"; }).join("") + "</select></label>" +
       '<label class="field" for="a-esade">Are you an Esade student?<select id="a-esade"><option value="yes">Yes, I study at Esade</option><option value="no">No, I am not an Esade student</option></select></label></div></div>' +
-      '<div class="fsec"><h2>About you</h2><div class="fgrid">' + fieldI("a-first", "First name", "", "required") + fieldI("a-last", "Last name", "", "required") + fieldI("a-email", "Email", "", 'type="email" required') + fieldI("a-phone", "Phone number", "", 'type="tel" required') +
+      '<div class="fsec"><h2>About you</h2><div class="fgrid">' + fieldI("a-first", "First name", "", "required") + fieldI("a-last", "Last name", "", "required") + fieldI("a-email", "Email", "", 'type="email" required') + phoneField("a-phone", "Phone number", true) +
       '<label class="field" for="a-prog" id="a-prog-wrap">Programme and year<input id="a-prog" placeholder="e.g. BBA, 2nd year"></label>' +
       '<label class="field" for="a-level">Your level<select id="a-level"><option>Beginner</option><option>Played at school or in a club</option><option>Played at a competitive level</option></select></label>' +
       '<label class="field full" for="a-exp" id="a-exp-wrap">Coaching experience<textarea id="a-exp" rows="3" placeholder="Teams or age groups you have coached, licences, how much time you can give each week"></textarea></label></div></div>' +
@@ -462,7 +462,7 @@ export function initSite(backend) {
     var opts = DEPTS.filter(function (d) { return d.id !== "board"; }).map(function (d) { return '<option value="' + d.id + '">' + esc(d.name) + '</option>'; }).join('');
     return '<section class="band"><div class="wrap"><p class="eyebrow">Esade Sports recruitment</p><h1 class="display">Join the<br>association.</h1><p>Apply to up to two departments. Rank your preferences, tell us what motivates you and share the work that helps us understand how you could contribute.</p></div></section>' +
       '<section class="al"><div class="wrap body"><form class="pform" id="assoc-form" novalidate>' +
-      '<div class="fsec"><h2>Personal information</h2><div class="fgrid">' + fieldI("as-first", "First name", "", "required autocomplete=\"given-name\"") + fieldI("as-last", "Last name", "", "required autocomplete=\"family-name\"") + fieldI("as-email", "Esade email", "", 'type="email" required autocomplete="email"') + fieldI("as-phone", "Phone number", "", 'type="tel" required autocomplete="tel"') + fieldI("as-programme", "Programme", "", 'required list="as-progs" placeholder="BBA"') + '<datalist id="as-progs"><option value="BBA"><option value="Double degree BBA + Law"><option value="MSc"><option value="MBA"></datalist>' + '<label class="field" for="as-year">Year<select id="as-year" required><option value="">Choose your year</option>' + YEARS.map(function (y) { return '<option value="' + y + '">' + y + '</option>'; }).join('') + '</select></label>' + fieldI("as-linkedin", "LinkedIn profile", "", 'type="url" placeholder="https://linkedin.com/in/..."') + '</div></div>' +
+      '<div class="fsec"><h2>Personal information</h2><div class="fgrid">' + fieldI("as-first", "First name", "", "required autocomplete=\"given-name\"") + fieldI("as-last", "Last name", "", "required autocomplete=\"family-name\"") + fieldI("as-email", "Esade email", "", 'type="email" required autocomplete="email"') + phoneField("as-phone", "Phone number", true) + fieldI("as-programme", "Programme", "", 'required list="as-progs" placeholder="BBA"') + '<datalist id="as-progs"><option value="BBA"><option value="Double degree BBA + Law"><option value="MSc"><option value="MBA"></datalist>' + '<label class="field" for="as-year">Year<select id="as-year" required><option value="">Choose your year</option>' + YEARS.map(function (y) { return '<option value="' + y + '">' + y + '</option>'; }).join('') + '</select></label>' + fieldI("as-linkedin", "LinkedIn profile", "", 'type="url" placeholder="https://linkedin.com/in/..."') + '</div></div>' +
       '<div class="fsec"><h2>Department preferences</h2><p class="muted" style="margin:0">You may apply to a maximum of two departments. Preference 1 is your strongest choice.</p><div class="fgrid"><label class="field" for="as-pref1">Preference 1<select id="as-pref1" required><option value="">Choose a department</option>' + opts + '</select></label><label class="field" for="as-pref2">Preference 2 <small>(optional)</small><select id="as-pref2"><option value="">No second preference</option>' + opts + '</select></label></div><label class="field full" for="as-motivation">Why do you want to join Esade Sports and why these departments?<textarea id="as-motivation" rows="6" required placeholder="Tell us what motivates you, what you could contribute and why you ranked these departments."></textarea></label></div>' +
       '<div class="fsec"><h2>Application materials</h2><div class="fgrid"><label class="field" for="as-cv">CV <small>(PDF required)</small><input id="as-cv" type="file" accept="application/pdf,.pdf" required></label><label class="field" for="as-video">Short motivation video <small>(optional, MP4/MOV)</small><input id="as-video" type="file" accept="video/mp4,video/quicktime,.mp4,.mov"></label></div><p class="muted" style="margin:10px 0 0;font-size:13px">Keep the video short: around 60–90 seconds. Explain who you are, why Esade Sports interests you and why your department preferences fit you.</p></div>' +
       '<div class="fsec"><label class="consent" for="as-redirect"><input type="checkbox" id="as-redirect" required><span>I understand that the Board may redirect my application to another department if it is a better fit for my profile and the association’s needs.</span></label><label class="consent" for="as-consent"><input type="checkbox" id="as-consent" required><span>I confirm that the information and documents submitted are accurate and may be reviewed by the Esade Sports recruitment team.</span></label></div>' +
@@ -480,7 +480,7 @@ export function initSite(backend) {
       fieldI("ct-subject", "Subject", "", 'required maxlength="150"', true) +
       '<label class="field full" for="ct-message">Message<textarea id="ct-message" rows="7" maxlength="2000" required placeholder="Write your message here"></textarea><small class="muted" id="ct-count">0 / 2000</small></label>' +
       "</div></div>" +
-      '<div class="fsec"><h2>Your details</h2><div class="fgrid">' + fieldI("ct-name", "Name", "", 'required maxlength="100" autocomplete="name"') + fieldI("ct-email", "Email", "", 'type="email" required maxlength="200" autocomplete="email"') + "</div>" +
+      '<div class="fsec"><h2>Your details</h2><div class="fgrid">' + fieldI("ct-name", "Name", "", 'required maxlength="100" autocomplete="name"') + fieldI("ct-email", "Email", "", 'type="email" required maxlength="200" autocomplete="email"') + phoneField("ct-phone", "Phone number", false) + "</div>" +
       '<div class="hp" aria-hidden="true"><label for="ct-website">Website<input id="ct-website" tabindex="-1" autocomplete="off"></label></div></div>' +
       '<div class="fsec"><label class="consent" for="ct-consent"><input type="checkbox" id="ct-consent" required><span>I have read the <a href="#privacy">privacy policy</a> and agree that Esade Sports uses my details to answer this message.</span></label></div>' +
       '<p class="err" id="ct-err" hidden></p><div class="form-actions"><button class="btn btn-blue" type="submit">Send message</button><span class="muted" style="font-size:13px">We usually reply within a few days.</span></div></form>' +
@@ -496,6 +496,8 @@ export function initSite(backend) {
       var email = $("ct-email").value.trim();
       if (!$("ct-topic").value || !$("ct-subject").value.trim() || !msg.value.trim() || !$("ct-name").value.trim() || !email) return fail("Please fill in every required field.");
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail("Please enter a valid email address.");
+      var ctPhone = phoneValue("ct-phone", false);
+      if (ctPhone.error) return fail(ctPhone.error);
       if (!$("ct-consent").checked) return fail("Please accept the privacy policy.");
       err.hidden = true;
       function done() { f.hidden = true; $("ct-done").hidden = false; window.scrollTo(0, 0); }
@@ -503,7 +505,7 @@ export function initSite(backend) {
       var btn = f.querySelector('button[type="submit"]'); btn.disabled = true; btn.textContent = "Sending…";
       backend.submitContactMessage({
         topic: $("ct-topic").value, sport: $("ct-sport").value || undefined, subject: $("ct-subject").value.trim(), message: msg.value.trim(),
-        name: $("ct-name").value.trim(), email: email, consent: true, website: $("ct-website").value || undefined
+        name: $("ct-name").value.trim(), email: email, phone: ctPhone.value || undefined, consent: true, website: $("ct-website").value || undefined
       }).then(done, function (x) {
         console.error(x); btn.disabled = false; btn.textContent = "Send message";
         var m = x && x.data ? String(x.data) : "";
@@ -517,7 +519,9 @@ export function initSite(backend) {
     var f = $("assoc-form"); if (!f) return;
     f.addEventListener("submit", function (e) {
       e.preventDefault(); var err = $("as-err"), cv = $("as-cv").files[0], video = $("as-video").files[0], p1 = $("as-pref1").value, p2 = $("as-pref2").value;
-      if (!$("as-first").value.trim() || !$("as-last").value.trim() || !$("as-email").value.trim() || !$("as-phone").value.trim() || !$("as-programme").value.trim() || !$("as-year").value || !p1 || !$("as-motivation").value.trim() || !cv || !$("as-redirect").checked || !$("as-consent").checked) { err.textContent = "Please complete your personal information, rank at least one department, upload your CV and accept both acknowledgements."; err.hidden = false; return; }
+      if (!$("as-first").value.trim() || !$("as-last").value.trim() || !$("as-email").value.trim() || !$("as-programme").value.trim() || !$("as-year").value || !p1 || !$("as-motivation").value.trim() || !cv || !$("as-redirect").checked || !$("as-consent").checked) { err.textContent = "Please complete your personal information, rank at least one department, upload your CV and accept both acknowledgements."; err.hidden = false; return; }
+      var asPhone = phoneValue("as-phone", true);
+      if (asPhone.error) { err.textContent = asPhone.error; err.hidden = false; return; }
       if (p1 === p2) { err.textContent = "Choose two different departments, or leave Preference 2 empty."; err.hidden = false; return; }
       if (cv && cv.type !== "application/pdf" && !/\.pdf$/i.test(cv.name)) { err.textContent = "Please upload your CV as a PDF."; err.hidden = false; return; }
       if (video && !/^video\/(mp4|quicktime)$/.test(video.type) && !/\.(mp4|mov)$/i.test(video.name)) { err.textContent = "Please upload the motivation video as an MP4 or MOV file."; err.hidden = false; return; }
@@ -526,7 +530,7 @@ export function initSite(backend) {
       if (!backend || !backend.submitAssociationApplication) { done(); return; }
       var btn = f.querySelector('button[type="submit"]'); btn.disabled = true; btn.textContent = "Sending…";
       backend.submitAssociationApplication({
-        firstName: $("as-first").value.trim(), lastName: $("as-last").value.trim(), email: $("as-email").value.trim(), phone: $("as-phone").value.trim(),
+        firstName: $("as-first").value.trim(), lastName: $("as-last").value.trim(), email: $("as-email").value.trim(), phone: phoneValue("as-phone", true).value,
         programme: $("as-programme").value.trim(), year: $("as-year").value, linkedin: $("as-linkedin").value.trim() || undefined,
         pref1: deptName(p1), pref2: p2 ? deptName(p2) : undefined, motivation: $("as-motivation").value.trim(),
         acceptsRedirect: $("as-redirect").checked, confirmsAccuracy: $("as-consent").checked
@@ -547,14 +551,16 @@ export function initSite(backend) {
     f.addEventListener("change", sync); sync();
     f.addEventListener("submit", function (e) {
       e.preventDefault();
-      var miss = ["a-first", "a-last", "a-email", "a-phone"].filter(function (id) { return !$(id).value.trim(); });
+      var miss = ["a-first", "a-last", "a-email", "a-phone-num"].filter(function (id) { return !$(id).value.trim(); });
       if (miss.length) { $("a-err").textContent = "Please fill in your name, email and phone number."; $("a-err").hidden = false; return; }
+      var aPhone = phoneValue("a-phone", true);
+      if (aPhone.error) { $("a-err").textContent = aPhone.error; $("a-err").hidden = false; return; }
       var coach = $("as-coach").checked, t = team($("a-team").value);
       var folder = sportsApplicationsFolder(t.id), captain = captainForTeam(t.id);
       if (!state.teamApplications[folder]) state.teamApplications[folder] = [];
       state.teamApplications[folder].push({
         id: state.nextId++, folder: folder, team: t.id, teamLabel: tLabel(t), sport: t.sport, type: coach ? "Coaching application" : "Try-out application",
-        first: $("a-first").value.trim(), last: $("a-last").value.trim(), email: $("a-email").value.trim(), phone: $("a-phone").value.trim(),
+        first: $("a-first").value.trim(), last: $("a-last").value.trim(), email: $("a-email").value.trim(), phone: aPhone.value,
         esadeStudent: $("a-esade").value === "yes", programme: $("a-prog").value.trim(), level: coach ? "Coach applicant" : $("a-level").value,
         coachingExperience: $("a-exp").value.trim(), captain: captain ? captainName(captain) : "Board review", captainEmail: captain ? captain.email : "Board review", status: "New", createdAt: "2026-11-12"
       });
@@ -568,7 +574,7 @@ export function initSite(backend) {
       var btn = $("a-submit"), label = btn.textContent; btn.disabled = true; btn.textContent = "Sending…";
       backend.submitTeamApplication({
         teamSlug: t.id, kind: coach ? "coach" : "tryout",
-        firstName: $("a-first").value.trim(), lastName: $("a-last").value.trim(), email: $("a-email").value.trim(), phone: $("a-phone").value.trim(),
+        firstName: $("a-first").value.trim(), lastName: $("a-last").value.trim(), email: $("a-email").value.trim(), phone: aPhone.value,
         esadeStudent: $("a-esade").value === "yes", programme: ($("a-esade").value === "yes" && $("a-prog").value.trim()) || undefined,
         level: coach ? undefined : $("a-level").value, coachingExperience: coach ? ($("a-exp").value.trim() || undefined) : undefined
       }).then(done, function (x) {
@@ -636,6 +642,29 @@ export function initSite(backend) {
 
   // Profile form
   var draftPhoto = null;
+  // Phone with country code (Spain first), stored as E.164 (+34600000000). Same field on the contact,
+  // association and try-out/coach forms.
+  var COUNTRIES = [["ES","Spain","34"],["DZ","Algeria","213"],["AD","Andorra","376"],["AR","Argentina","54"],["AU","Australia","61"],["AT","Austria","43"],["BE","Belgium","32"],["BO","Bolivia","591"],["BR","Brazil","55"],["BG","Bulgaria","359"],["CA","Canada","1"],["CL","Chile","56"],["CN","China","86"],["CO","Colombia","57"],["CR","Costa Rica","506"],["HR","Croatia","385"],["CY","Cyprus","357"],["CZ","Czech Republic","420"],["CI","Côte d'Ivoire","225"],["DK","Denmark","45"],["DO","Dominican Republic","1"],["EC","Ecuador","593"],["EG","Egypt","20"],["EE","Estonia","372"],["FI","Finland","358"],["FR","France","33"],["DE","Germany","49"],["GR","Greece","30"],["GT","Guatemala","502"],["HK","Hong Kong","852"],["HU","Hungary","36"],["IS","Iceland","354"],["IN","India","91"],["ID","Indonesia","62"],["IE","Ireland","353"],["IL","Israel","972"],["IT","Italy","39"],["JP","Japan","81"],["JO","Jordan","962"],["KE","Kenya","254"],["KW","Kuwait","965"],["LV","Latvia","371"],["LB","Lebanon","961"],["LT","Lithuania","370"],["LU","Luxembourg","352"],["MY","Malaysia","60"],["MT","Malta","356"],["MX","Mexico","52"],["MC","Monaco","377"],["MA","Morocco","212"],["NL","Netherlands","31"],["NZ","New Zealand","64"],["NG","Nigeria","234"],["NO","Norway","47"],["PK","Pakistan","92"],["PA","Panama","507"],["PY","Paraguay","595"],["PE","Peru","51"],["PH","Philippines","63"],["PL","Poland","48"],["PT","Portugal","351"],["PR","Puerto Rico","1"],["QA","Qatar","974"],["RO","Romania","40"],["RU","Russia","7"],["SA","Saudi Arabia","966"],["SN","Senegal","221"],["RS","Serbia","381"],["SG","Singapore","65"],["SK","Slovakia","421"],["SI","Slovenia","386"],["ZA","South Africa","27"],["KR","South Korea","82"],["SE","Sweden","46"],["CH","Switzerland","41"],["TW","Taiwan","886"],["TH","Thailand","66"],["TN","Tunisia","216"],["TR","Turkey","90"],["UA","Ukraine","380"],["AE","United Arab Emirates","971"],["GB","United Kingdom","44"],["US","United States","1"],["UY","Uruguay","598"],["VE","Venezuela","58"],["VN","Vietnam","84"]];
+  function flag(cc) { return String.fromCodePoint.apply(null, cc.split("").map(function (c) { return 127397 + c.charCodeAt(0); })); }
+  function phoneField(id, label, required) {
+    return '<div class="field phone-field"><label for="' + id + '-num">' + label + (required ? "" : " (optional)") + '</label><div class="phone-row">' +
+      '<select id="' + id + '-cc" aria-label="Country code">' + COUNTRIES.map(function (c) { return '<option value="' + c[0] + '">' + flag(c[0]) + " " + esc(c[1]) + " +" + c[2] + "</option>"; }).join("") + "</select>" +
+      '<input id="' + id + '-num" type="tel" inputmode="tel" autocomplete="tel-national" placeholder="600 000 000"' + (required ? " required" : "") + "></div>" +
+      '<small class="hint">If we contact you by phone, it will be via WhatsApp.</small></div>';
+  }
+  // Returns { value: "+34600000000" | "", error: "" | message }.
+  function phoneValue(id, required) {
+    var raw = $(id + "-num").value.trim(), cc = $(id + "-cc").value, dial = "";
+    COUNTRIES.forEach(function (c) { if (c[0] === cc) dial = c[2]; });
+    if (!raw) return { value: "", error: required ? "Please enter your phone number." : "" };
+    var digits = raw.replace(/[^0-9+]/g, "");
+    if (digits.indexOf("+") === 0) digits = digits.slice(1); // typed with its own +code
+    else if (digits.indexOf("00") === 0) digits = digits.slice(2);
+    else digits = dial + digits.replace(/^0+/, "");
+    digits = digits.replace(/\D/g, "");
+    if (digits.length < 8 || digits.length > 15) return { value: "", error: "Please enter a valid phone number." };
+    return { value: "+" + digits, error: "" };
+  }
   function fieldI(id, label, val, attrs, full) { return '<label class="field' + (full ? " full" : "") + '" for="' + id + '">' + label + '<input id="' + id + '" value="' + esc(val || "") + '" ' + (attrs || "") + "></label>"; }
   function internRow(x, i) {
     return '<div class="intern-row" data-row="' + i + '">' + fieldI("ix-co-" + i, "Company", x[0], 'data-k="0"') + fieldI("ix-role-" + i, "Role", x[1], 'data-k="1"') + fieldI("ix-yr-" + i, "Year", x[2], 'data-k="2" inputmode="numeric"') + '<button type="button" class="rm" data-rm="' + i + '">Remove</button></div>';

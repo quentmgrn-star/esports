@@ -47,13 +47,14 @@ export const emailContactMessage = internalAction({
       `Topic: ${m.topic}`,
       m.sport ? `Sport: ${m.sport}` : "Sport: general (not about a specific sport)",
       `From: ${m.name} <${m.email}>`,
+      m.phone ? `Phone (WhatsApp): ${m.phone}` : "",
       `Subject: ${m.subject}`,
       "",
       m.message,
       "",
       "Reply to this email to answer the sender directly.",
       site ? `See all messages: ${site.replace(/\/$/, "")}/admin` : "",
-    ].join("\n");
+    ].filter((l, i, a) => l !== "" || a[i - 1] !== "").join("\n");
     try {
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",

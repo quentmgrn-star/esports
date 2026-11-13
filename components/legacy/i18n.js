@@ -5,6 +5,10 @@ export function initI18n() {
   "use strict";
   // English is the source. Each entry: "English": ["Català", "Español"]
   var D = {
+    "If we contact you by phone, it will be via WhatsApp.": ["Si et contactem per telèfon, serà per WhatsApp.","Si te contactamos por teléfono, será por WhatsApp."],
+    "Phone number (optional)": ["Telèfon (opcional)","Teléfono (opcional)"],
+    "Please enter your phone number.": ["Introdueix el teu telèfon.","Introduce tu teléfono."],
+    "Please enter a valid phone number.": ["Introdueix un telèfon vàlid.","Introduce un teléfono válido."],
     "Your sign-up could not be sent. Please check your connection and try again.": ["No s'ha pogut enviar la inscripció. Comprova la connexió i torna-ho a provar.","No se ha podido enviar la inscripción. Comprueba la conexión y vuelve a intentarlo."],
     "Sport (optional)": ["Esport (opcional)","Deporte (opcional)"],
     "Get in": ["Posa't en", "Ponte en"],
