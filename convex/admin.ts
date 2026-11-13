@@ -154,3 +154,31 @@ export const removeCaptain = mutation({
     await ctx.db.delete(id);
   },
 });
+
+// Alumni profiles sent from the website, newest first. Admins only (they see email and phone).
+export const listAlumniProfiles = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+    return ctx.db.query("alumniProfiles").order("desc").collect();
+  },
+});
+
+// Approve (publish on the website), reject (hide) or reset to pending. Admins only.
+export const setAlumniStatus = mutation({
+  args: { id: v.id("alumniProfiles"), status: v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected")) },
+  handler: async (ctx, { id, status }) => {
+    await requireAdmin(ctx);
+    if (!(await ctx.db.get(id))) throw new ConvexError("Profile not found.");
+    await ctx.db.patch(id, { status });
+  },
+});
+
+// Delete a profile for good (e.g. when the alumnus asks). Admins only.
+export const deleteAlumniProfile = mutation({
+  args: { id: v.id("alumniProfiles") },
+  handler: async (ctx, { id }) => {
+    await requireAdmin(ctx);
+    await ctx.db.delete(id);
+  },
+});

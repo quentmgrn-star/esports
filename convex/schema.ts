@@ -82,6 +82,34 @@ export default defineSchema({
     isExample: v.boolean(),
   }).index("by_grad_year", ["gradYear"]),
 
+  // Profiles sent from the Alumni corner (no login). Shown on the website only once an admin approves them.
+  // email and phone stay private: only admins see them in /admin; the public query never returns them.
+  alumniProfiles: defineTable({
+    first: v.string(),
+    last: v.string(),
+    nationality: v.string(),
+    programme: v.string(),
+    grad: v.number(),
+    sports: v.array(v.string()),
+    esadeRole: v.optional(v.string()),
+    headline: v.optional(v.string()),
+    exUni: v.string(),
+    exDomain: v.optional(v.string()),
+    exCity: v.string(),
+    inCo: v.string(),
+    inDomain: v.optional(v.string()),
+    inRole: v.string(),
+    interns: v.array(v.object({ co: v.string(), role: v.string(), year: v.optional(v.string()), domain: v.optional(v.string()) })),
+    assocs: v.array(v.object({ name: v.string(), domain: v.optional(v.string()) })),
+    linkedin: v.optional(v.string()),
+    photo: v.optional(v.string()), // small JPEG data URL (320 px)
+    email: v.string(),
+    phone: v.optional(v.string()),
+    status: v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected")),
+  })
+    .index("by_status", ["status"])
+    .index("by_email", ["email"]),
+
   // Try-outs and "join as coach" (open to Esade students and outsiders).
   teamApplications: defineTable({
     teamSlug: v.string(),

@@ -316,7 +316,7 @@ const uniq = (xs: string[]) => [...new Set(xs.filter(Boolean))].sort((a, b) => a
 
 // Top-level switch between the admin sections.
 function Dashboard({ me }: { me: NonNullable<Me> }) {
-  const [section, setSection] = useState<"applications" | "tryouts" | "messages" | "captains">(
+  const [section, setSection] = useState<"applications" | "tryouts" | "messages" | "captains" | "alumni">(
     me.isAdmin ? "applications" : "messages",
   );
   const messages = useQuery(api.admin.listContactMessages, {}) as ContactMessage[] | undefined;
@@ -335,7 +335,9 @@ function Dashboard({ me }: { me: NonNullable<Me> }) {
                 ? "Try-outs & coaches"
                 : section === "captains"
                   ? "Captains"
-                  : "Messages"}
+                  : section === "alumni"
+                    ? "Alumni profiles"
+                    : "Messages"}
           </h1>
         </div>
         <div className="adm-user">
@@ -364,6 +366,11 @@ function Dashboard({ me }: { me: NonNullable<Me> }) {
             Captains
           </button>
         )}
+        {me.isAdmin && (
+          <button type="button" aria-pressed={section === "alumni"} onClick={() => setSection("alumni")}>
+            Alumni profiles
+          </button>
+        )}
       </nav>
       {!me.isAdmin && (
         <p className="adm-p" style={{ marginBottom: 16 }}>
@@ -376,6 +383,8 @@ function Dashboard({ me }: { me: NonNullable<Me> }) {
         <Tryouts me={me} />
       ) : section === "captains" && me.isAdmin ? (
         <Captains />
+      ) : section === "alumni" && me.isAdmin ? (
+        <AlumniProfiles />
       ) : (
         <Messages messages={messages} />
       )}
@@ -1162,6 +1171,153 @@ function Captains() {
           </tbody>
         </table>
       </div>
+    </>
+  );
+}
+
+type AlumniStatus = "pending" | "approved" | "rejected";
+type AlumniProfile = {
+  _id: string;
+  _creationTime: number;
+  first: string;
+  last: string;
+  nationality: string;
+  programme: string;
+  grad: number;
+  sports: string[];
+  esadeRole?: string;
+  headline?: string;
+  exUni: string;
+  exCity: string;
+  inCo: string;
+  inRole: string;
+  interns: { co: string; role: string; year?: string }[];
+  assocs: { name: string }[];
+  linkedin?: string;
+  photo?: string;
+  email: string;
+  phone?: string;
+  status: AlumniStatus;
+};
+const ALUMNI_TABS: [AlumniStatus, string][] = [
+  ["pending", "Waiting for approval"],
+  ["approved", "On the website"],
+  ["rejected", "Rejected"],
+];
+
+// Profiles sent from the Alumni corner. Approving one publishes it (without email and phone).
+function AlumniProfiles() {
+  const rows = useQuery(api.admin.listAlumniProfiles, {}) as AlumniProfile[] | undefined;
+  const setStatus = useMutation(api.admin.setAlumniStatus);
+  const remove = useMutation(api.admin.deleteAlumniProfile);
+  const [tab, setTab] = useState<AlumniStatus>("pending");
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const list = (rows ?? []).filter((r) => r.status === tab);
+  return (
+    <>
+      <p className="adm-p">
+        Alumni send their profile from the Alumni corner, without an account. Approve it to show it on the website. Email
+        and phone are never shown publicly, only here.
+      </p>
+      <nav className="adm-tabs" role="tablist" aria-label="Profile status">
+        {ALUMNI_TABS.map(([k, label]) => (
+          <button key={k} type="button" className="adm-tab" role="tab" aria-selected={tab === k} onClick={() => setTab(k)}>
+            {label} <span>{(rows ?? []).filter((r) => r.status === k).length}</span>
+          </button>
+        ))}
+      </nav>
+      {rows === undefined ? (
+        <p className="adm-p">Loading…</p>
+      ) : list.length === 0 ? (
+        <p className="adm-p">No profiles here.</p>
+      ) : (
+        <div className="adm-alumni">
+          {list.map((r) => (
+            <article key={r._id} className="adm-alumni-card">
+              <header>
+                {r.photo ? <img src={r.photo} alt="" /> : <div className="adm-av">{(r.first[0] ?? "") + (r.last[0] ?? "")}</div>}
+                <div>
+                  <strong>
+                    {r.first} {r.last}
+                  </strong>
+                  <span className="adm-sub">
+                    {r.programme} · Class of {r.grad} · {r.nationality}
+                  </span>
+                  <span className="adm-sub">Sent {new Date(r._creationTime).toLocaleDateString("en-GB")}</span>
+                </div>
+              </header>
+              <dl>
+                <dt>Sports</dt>
+                <dd>{r.sports.join(", ")}{r.esadeRole ? ` · ${r.esadeRole}` : ""}</dd>
+                {r.headline && (
+                  <>
+                    <dt>Now</dt>
+                    <dd>{r.headline}</dd>
+                  </>
+                )}
+                <dt>Exchange</dt>
+                <dd>
+                  {r.exUni}, {r.exCity}
+                </dd>
+                <dt>Internship</dt>
+                <dd>
+                  {r.inRole}, {r.inCo}
+                  {r.interns.map((x, i) => (
+                    <span key={i} className="adm-sub">
+                      {x.role} {x.co && `· ${x.co}`} {x.year && `· ${x.year}`}
+                    </span>
+                  ))}
+                </dd>
+                <dt>Associations</dt>
+                <dd>{r.assocs.map((x) => x.name).join(", ")}</dd>
+                <dt>Email</dt>
+                <dd>
+                  <a href={`mailto:${r.email}`}>{r.email}</a>
+                </dd>
+                {r.phone && (
+                  <>
+                    <dt>Phone</dt>
+                    <dd>
+                      <Phone value={r.phone} />
+                    </dd>
+                  </>
+                )}
+                {r.linkedin && (
+                  <>
+                    <dt>LinkedIn</dt>
+                    <dd>
+                      <a href={`https://${r.linkedin}`} target="_blank" rel="noopener noreferrer">
+                        {r.linkedin}
+                      </a>
+                    </dd>
+                  </>
+                )}
+              </dl>
+              <div className="adm-alumni-actions">
+                {r.status !== "approved" && (
+                  <button className="btn btn-blue" type="button" onClick={() => setStatus({ id: r._id as never, status: "approved" })}>
+                    Approve
+                  </button>
+                )}
+                {r.status !== "rejected" && (
+                  <button className="btn btn-ghost-navy" type="button" onClick={() => setStatus({ id: r._id as never, status: "rejected" })}>
+                    {r.status === "approved" ? "Hide from website" : "Reject"}
+                  </button>
+                )}
+                {confirmDelete === r._id ? (
+                  <button className="btn btn-ghost-navy adm-danger" type="button" onClick={() => remove({ id: r._id as never })}>
+                    Confirm delete
+                  </button>
+                ) : (
+                  <button className="btn btn-ghost-navy" type="button" onClick={() => setConfirmDelete(r._id)}>
+                    Delete
+                  </button>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
     </>
   );
 }

@@ -9,3 +9,16 @@ export const list = query({
     return sport ? all.filter((a) => a.sports.includes(sport)) : all;
   },
 });
+
+// Approved profiles from the Alumni corner, for the public website. Never returns email or phone.
+export const listPublic = query({
+  args: {},
+  handler: async (ctx) => {
+    const rows = await ctx.db
+      .query("alumniProfiles")
+      .withIndex("by_status", (q) => q.eq("status", "approved"))
+      .order("desc")
+      .collect();
+    return rows.map(({ email: _e, phone: _p, status: _s, ...pub }) => pub);
+  },
+});

@@ -199,17 +199,36 @@ export function initSite(backend) {
   var state = { user: null, me: null, expenses: null, captains: null, teamApplications: {}, teamInfo: {}, teamResults: {}, tasks: {}, nextId: 100, al: { q: "", sport: "All", year: "" }, hubFilter: "all", appFilter: "all", teamOpen: null };
   try {
     var s = JSON.parse(localStorage.getItem("es-site") || "null");
-    if (s && s.v === 2) { state.user = s.user; state.me = s.me; state.expenses = s.expenses; state.captains = s.captains || null; state.teamApplications = s.teamApplications || {}; state.teamInfo = s.teamInfo || {}; state.teamResults = s.teamResults || {}; state.tasks = s.tasks || {}; state.nextId = s.nextId || 100; }
+    if (s && s.v === 2) { state.user = s.user && s.user.role === "alumni" ? null : s.user; state.expenses = s.expenses; state.captains = s.captains || null; state.teamApplications = s.teamApplications || {}; state.teamInfo = s.teamInfo || {}; state.teamResults = s.teamResults || {}; state.tasks = s.tasks || {}; state.nextId = s.nextId || 100; }
   } catch (e) {}
-  function save() { try { localStorage.setItem("es-site", JSON.stringify({ v: 2, user: state.user, me: state.me, expenses: state.expenses, captains: state.captains, teamApplications: state.teamApplications, teamInfo: state.teamInfo, teamResults: state.teamResults, tasks: state.tasks, nextId: state.nextId })); } catch (e) {} }
+  function save() { try { localStorage.setItem("es-site", JSON.stringify({ v: 2, user: state.user, expenses: state.expenses, captains: state.captains, teamApplications: state.teamApplications, teamInfo: state.teamInfo, teamResults: state.teamResults, tasks: state.tasks, nextId: state.nextId })); } catch (e) {} }
   var HUB_ROLES = { captain: 1, board: 1, associate: 1, council: 1 };
   // Real admin login (Better Auth, /admin). undefined = still checking, null = not an admin, else { email, name }.
   // The Hub is only open to a signed-in admin; the role picker only previews what a captain, the Board or the Council sees.
   var admin;
   if (state.user && (HUB_ROLES[state.user.role] || state.user.role === "guest")) state.user = null; // roles from before the real login existed
-  function signedIn() { return !!state.user && state.user.role === "alumni"; }
   function isHub() { return !!admin && !!state.user && HUB_ROLES[state.user.role]; }
-  function allAlumni() { return state.me && state.me.verified !== false ? [state.me].concat(ALUMNI) : ALUMNI; }
+  // Approved profiles from Convex (no email/phone), then the example profiles.
+  var REAL = [];
+  function allAlumni() { return REAL.concat(ALUMNI); }
+  function fromConvex(p) {
+    var a = { id: "p" + p._id, first: p.first, last: p.last, nationality: p.nationality, programme: p.programme, grad: p.grad, sports: p.sports || [],
+      exUni: p.exUni, exDomain: p.exDomain, exCity: p.exCity, inCo: p.inCo, inDomain: p.inDomain, inRole: p.inRole, linkedin: p.linkedin || "", photo: p.photo || null,
+      interns: (p.interns || []).map(function (x) { return [x.co, x.role, x.year || "", x.domain || ""]; }),
+      assocs: (p.assocs || []).map(function (x) { return [x.name, x.domain || ""]; }) };
+    a.assos = a.assocs.map(function (x) { return x[0]; }).join(", ");
+    a.headline = p.headline || (p.inRole + " · " + p.inCo);
+    a.esadeRole = p.esadeRole || a.sports.join(" · ") + " · Esade Sports";
+    return a;
+  }
+  function loadAlumni() {
+    if (!backend || !backend.listAlumni) return;
+    Promise.resolve(backend.listAlumni()).then(function (rows) {
+      REAL = (rows || []).map(fromConvex);
+      var h = location.hash.slice(1);
+      if (h === "alumni" || h.indexOf("alumni-") === 0 || h.indexOf("team-") === 0) render();
+    }, console.error);
+  }
 
   // ================= Header account area =================
   var captain = null; // signed-in captain (not admin): badge + inbox link, no Hub
@@ -224,9 +243,7 @@ export function initSite(backend) {
     var u = state.user, html;
     // Far right of the top bar: members sign-in, or the signed-in admin indicator.
     $("member").innerHTML = admin || captain ? adminBar() : '<a class="member-signin" href="#signin" title="Captains, associates, Board and Student Council">Sign in</a>';
-    if (u && u.role === "alumni") html = '<a href="' + (state.me ? "#alumni-me" : "#my-profile") + '">' + (state.me ? "My profile" : "Create profile") + "</a>" +
-        '<a class="acct-chip" href="#alumni-signin" title="Alumni access"><i>' + (u.active ? "Alumni · Member" : "Alumni") + "</i><span>Switch</span></a>";
-    else html = admin ? "" : '<a class="btn btn-blue" href="#apply-associate">Join</a>';
+    html = admin ? "" : '<a class="btn btn-blue" href="#apply-associate">Join</a>';
     $("acct").innerHTML = html;
   }
 
@@ -257,25 +274,6 @@ export function initSite(backend) {
       });
     });
   }
-  // Alumni access lives in the Alumni corner (simulated Esade login in this prototype).
-  function alumniSigninView() {
-    return '<section class="band"><div class="wrap"><p class="eyebrow">Alumni corner</p><h1 class="display">Alumni<br>sign in.</h1><p>Esade alumni and students get a profile and the contact details of alumni from their sport.</p></div></section>' +
-      '<section class="signin"><div class="wrap"><div class="access">' +
-      '<div class="acc"><p class="eyebrow">Esade login</p><strong>Alumni</strong>' +
-      '<div class="opts" role="radiogroup" aria-label="Are you in a sports team or association today?">' +
-      '<label class="radio"><input type="radio" name="act" id="act-yes" value="yes"><span><b>Currently in</b> an Esade sports team or association</span></label>' +
-      '<label class="radio"><input type="radio" name="act" id="act-no" value="no" checked><span><b>Not currently in</b> a team or association</span></label></div>' +
-      '<button class="btn btn-blue" id="alumni-go">Continue as alumni</button>' +
-      (state.user && state.user.role === "alumni" ? '<button class="btn btn-ghost-navy" id="alumni-out">Sign out</button>' : "") + '</div>' +
-      '</div><p class="hint">Prototype: this stands in for a real login with an Esade account.</p></div></section>';
-  }
-  function bindAlumniSignin() {
-    $("alumni-go").addEventListener("click", function () {
-      state.user = { role: "alumni", active: $("act-yes").checked }; save(); renderAcct(); toast("Signed in."); go(state.me ? "alumni" : "my-profile");
-    });
-    if ($("alumni-out")) $("alumni-out").addEventListener("click", function () { state.user = null; save(); renderAcct(); toast("Signed out."); go("alumni"); });
-  }
-
   // ================= Team page =================
   // Real league data, read from the league page Quentin saved (UniBall, apuntamelo.com) on 12/11/2026
   var LEAGUE = {
@@ -484,7 +482,7 @@ export function initSite(backend) {
   }
   function teamView(t, tab) {
     var others = TEAMS.filter(function (x) { return x.sport === t.sport && x.id !== t.id; });
-    var nAl = ALUMNI.filter(function (a) { return a.sports.indexOf(t.sport) > -1; }).length + (state.me && state.me.sports.indexOf(t.sport) > -1 ? 1 : 0);
+    var nAl = ALUMNI.filter(function (a) { return a.sports.indexOf(t.sport) > -1; }).length + REAL.filter(function (a) { return a.sports.indexOf(t.sport) > -1; }).length;
     var L = LEAGUE[t.id], D = teamData(t), U = L ? usRow(L) : null;
     var moreOn = TEAM_MORE.some(function (x) { return x[0] === tab; });
     var tabs = TEAM_TABS.map(function (x) { return '<a href="' + th(t, x[0]) + '"' + (x[0] === tab ? ' aria-current="page"' : "") + ">" + x[1] + "</a>"; }).join("") +
@@ -688,7 +686,7 @@ export function initSite(backend) {
   function initials(a) { return esc((a.first || "?").charAt(0) + (a.last || "").charAt(0)); }
   function avatar(a) { return '<div class="av">' + (a.photo ? '<img src="' + a.photo + '" alt="">' : initials(a)) + "</div>"; }
   function alumniBand(extra) {
-    return '<section class="band"><div class="wrap"><p class="eyebrow">Esade alumni network</p><h1 class="display">A community<br>beyond sports.</h1><p>Part of an Esade alumni network ranked #6 by the Financial Times. Search the Esade Sports alumni network like a professional directory. Anyone can browse profiles; sign in only when you want to create or edit your own profile or access consented contact details.</p>' + (extra || "") + "</div></section>";
+    return '<section class="band"><div class="wrap"><p class="eyebrow">Esade alumni network</p><h1 class="display">A community<br>beyond sports.</h1><p>Part of an Esade alumni network ranked #6 by the Financial Times. Search the Esade Sports alumni network like a professional directory. Anyone can browse profiles. Alumni add their own profile, and it appears once the Esade Sports team has checked it.</p>' + (extra || "") + "</div></section>";
   }
   // Graduation years: 1991 up to next year's class, newest first.
   function gradYears() { var out = [], top = new Date().getFullYear() + 1; for (var y = top; y >= 1991; y--) out.push(y); return out; }
@@ -707,7 +705,7 @@ export function initSite(backend) {
   function expRow(tile, title, line, meta) { return '<div class="exp">' + tile + "<div><strong>" + esc(title) + "</strong>" + (line ? "<span>" + esc(line) + "</span>" : "") + (meta ? '<span class="m">' + esc(meta) + "</span>" : "") + "</div></div>"; }
   function alumniView() {
     var years = gradYears();
-    var cta = state.me ? '<div class="ctas"><a class="btn btn-solid-white" href="#alumni-me">My profile</a><a class="btn btn-ghost-white" href="#my-profile">Edit profile</a></div>' : '<div class="ctas"><a class="btn btn-solid-white" href="#my-profile">Create your profile</a><a class="btn btn-ghost-white" href="#alumni-signin">Sign in</a></div>';
+    var cta = '<div class="ctas"><a class="btn btn-solid-white" href="#my-profile">Add your profile</a></div>';
     return alumniBand(cta) + '<section class="al"><div class="wrap body">' +
       '<div class="filters"><label class="field" for="al-q">Search<input id="al-q" type="search" placeholder="Name, headline, programme, sport or role" value="' + esc(state.al.q) + '"></label>' +
       '<label class="field" for="al-year">Graduation year<select id="al-year"><option value="">All years</option>' + years.map(function (y) { return '<option' + (String(y) === state.al.year ? " selected" : "") + ">" + y + "</option>"; }).join("") + "</select></label></div>" +
@@ -729,7 +727,7 @@ export function initSite(backend) {
     el.innerHTML = list.length ? list.map(function (a) {
       return '<li><a class="acard" href="#alumni-' + a.id + '"><div class="cover"></div><div class="in">' + avatar(a) +
         "<h3>" + esc(a.first + " " + a.last) + '</h3><span class="meta">' + esc(a.programme) + " · Class of " + a.grad + '</span><p class="headline">' + esc(a.headline) + "</p>" +
-        '<div class="tags">' + a.sports.map(function (s) { return '<span class="tag2">' + esc(s) + "</span>"; }).join("") + (a.active ? '<span class="tag2 soft">Active member</span>' : "") + (a.id === "me" ? '<span class="tag2 soft">You</span>' : "") + (a.example ? '<span class="tag2 ex">Example</span>' : "") + "</div>" +
+        '<div class="tags">' + a.sports.map(function (s) { return '<span class="tag2">' + esc(s) + "</span>"; }).join("") + (a.active ? '<span class="tag2 soft">Active member</span>' : "") + (a.example ? '<span class="tag2 ex">Example</span>' : "") + "</div>" +
         '<div class="job"><b>Esade Sports</b>' + esc(a.esadeRole) + "</div></div></a></li>";
     }).join("") : '<li class="empty-state" style="grid-column:1/-1">No alumni match these filters. Try another sport or clear the search.</li>';
   }
@@ -739,20 +737,19 @@ export function initSite(backend) {
       if (!val) return;
       rows.push("<div><dt>" + label + "</dt><dd>" + (href ? '<a href="' + href + '" target="_blank" rel="noopener">' + esc(val) + "</a>" : esc(val)) + '</dd><button class="copybtn" data-copy="' + esc(val) + '">Copy</button></div>');
     }
-    if (signedIn()) { crow("Phone", a.phone); crow("Esade email", a.esade); crow("Personal email", a.perso); }
     if (a.linkedin) crow("LinkedIn", a.linkedin, "https://" + a.linkedin.replace(/^https?:\/\//, ""));
     var interns = a.interns.filter(function (x) { return x[0]; });
     return '<section class="al"><div class="wrap body"><a class="back" href="#alumni">← Back to the Alumni corner</a><div class="prof"><article class="pcard"><div class="cover"></div><div class="head2">' + avatar(a) +
       "<h1>" + esc(a.first + " " + a.last) + '</h1><span class="sub2">' + esc(a.programme) + " · Class of " + a.grad + '</span><p class="headline" style="margin:8px 0 0">' + esc(a.headline) + "</p>" +
       '<div class="tags" style="margin-top:6px">' + a.sports.map(function (s) { return '<span class="tag2">' + esc(s) + "</span>"; }).join("") + (a.active ? '<span class="tag2 soft">Active member</span>' : "") + (a.example ? '<span class="tag2 ex">Example profile</span>' : "") + "</div>" +
-      (a.id === "me" ? '<div style="margin-top:10px"><a class="btn btn-ghost-navy" href="#my-profile">Edit profile</a></div>' : "") + "</div>" +
+      "</div>" +
       '<section class="psec"><h2>Esade Sports role</h2>' + expRow(esLogo(), a.esadeRole || "Member", "Esade Sports", "") + "</section>" +
       '<section class="psec"><h2>Sports at Esade</h2>' + a.sports.map(function (s) { return expRow(esLogo(s), s, "Esade Sports", ""); }).join("") + "</section>" +
       '<section class="psec"><h2>Exchange</h2>' + expRow(logo(a.exUni, a.exDomain), a.exUni, "Exchange semester", a.exCity) + "</section>" +
       '<section class="psec"><h2>Internships</h2>' + expRow(logo(a.inCo, a.inDomain), a.inRole, a.inCo, "4th-year internship") +
       interns.map(function (x) { return expRow(logo(x[0], x[3]), x[1] || x[0], x[1] ? x[0] : "", x[2] || ""); }).join("") + "</section>" +
       '<section class="psec"><h2>Associations</h2>' + assocList(a).map(function (x) { return expRow(isES(x[0]) ? esLogo() : logo(x[0], x[1]), x[0], isES(x[0]) ? "Sports association" : "Association", ""); }).join("") + "</section></article>" +
-      '<aside class="contact"><p class="eyebrow">Get in touch</p><dl>' + rows.join("") + '</dl><p style="margin:0;font-size:12px;color:var(--on-navy-soft)">' + (signedIn() ? "Contact details are shown only with this person’s consent." : "Sign in with an Esade account to see consented contact details.") + '</p></aside></div></div></section>';
+      '<aside class="contact"><p class="eyebrow">Get in touch</p>' + (rows.length ? "<dl>" + rows.join("") + "</dl>" : "") + '<p style="margin:0 0 14px;font-size:13px;color:var(--on-navy-soft)">Email and phone numbers stay private. To reach this person, send us a message and the Esade Sports team will pass it on.</p><a class="btn btn-solid-white" href="#contact">Send a message</a></aside></div></div></section>';
   }
 
   // Profile form
@@ -788,25 +785,27 @@ export function initSite(backend) {
     return '<div class="intern-row assoc-row" data-arow="' + i + '">' + fieldI("as-n-" + i, "Association", x[0], 'data-k="0"') + fieldI("as-d-" + i, "Website <small>(optional)</small>", x[1], 'data-k="1" placeholder="association.org"') + '<button type="button" class="rm" data-arm="' + i + '">Remove</button></div>';
   }
   function formView() {
-    if (!signedIn()) return alumniBand() + '<section class="al"><div class="wrap body"><div class="locked"><h2>Sign in first</h2><p>Only Esade alumni and students can create a profile.</p><a class="btn btn-blue" href="#alumni-signin">Sign in</a></div></div></section>';
-    var m = state.me || { first: "", last: "", nationality: "", programme: "BBA", grad: "", exUni: "", exDomain: "", exCity: "", inCo: "", inDomain: "", inRole: "", assos: "Esade Sports", assocs: [["Esade Sports", ""]], sports: [], linkedin: "", interns: [], phone: "", esade: "", perso: "", photo: null };
-    draftPhoto = m.photo || null;
-    return '<section class="band"><div class="wrap"><p class="eyebrow">Alumni corner</p><h1 class="display">' + (state.me ? "Edit your<br>profile." : "Create your<br>profile.") + "</h1><p>Your profile lets other Esade alumni and students who played sport find you. Fields marked optional can stay empty.</p></div></section>" +
+    var m = { programme: "BBA", sports: [], interns: [], assocs: [["Esade Sports", ""]] };
+    draftPhoto = null;
+    return '<section class="band"><div class="wrap"><p class="eyebrow">Alumni corner</p><h1 class="display">Add your<br>profile.</h1><p>Share what you did at Esade and since, so other Esade alumni and students who played sport can find you. The Esade Sports team checks each profile before it appears in the directory. Your email and phone stay private.</p></div></section>' +
       '<section class="al"><div class="wrap body"><form class="pform" id="pform" novalidate>' +
-      '<div class="fsec"><h2>About you</h2><div class="photo-row"><div class="av" id="ph-prev">' + (draftPhoto ? '<img src="' + draftPhoto + '" alt="">' : initials(m.first ? m : { first: "?", last: "" })) + '</div><label class="field" for="f-photo">Profile photo <small>(optional)</small><input id="f-photo" type="file" accept="image/*"></label></div>' +
-      '<div class="fgrid">' + fieldI("f-first", "First name", m.first, "required autocomplete=\"given-name\"") + fieldI("f-last", "Last name", m.last, "required autocomplete=\"family-name\"") + fieldI("f-nat", "Nationality", m.nationality, "required") + "</div></div>" +
+      '<div class="fsec"><h2>About you</h2><div class="photo-row"><div class="av" id="ph-prev">?</div><label class="field" for="f-photo">Profile photo <small>(optional)</small><input id="f-photo" type="file" accept="image/*"></label></div>' +
+      '<div class="fgrid">' + fieldI("f-first", "First name", "", "required autocomplete=\"given-name\"") + fieldI("f-last", "Last name", "", "required autocomplete=\"family-name\"") + fieldI("f-nat", "Nationality", "", "required") +
+      fieldI("f-headline", "What you do now <small>(optional)</small>", "", 'placeholder="Brand manager · sportswear company"') + "</div></div>" +
       '<div class="fsec"><h2>At Esade</h2><div class="fgrid">' + fieldI("f-prog", "Programme studied", m.programme, 'required list="progs"') + '<datalist id="progs"><option>BBA</option><option>Double degree BBA + Law</option><option>MSc</option><option>MBA</option></datalist>' +
-      '<label class="field" for="f-grad">Graduation year<select id="f-grad" required><option value="">Choose a year</option>' + gradYears().map(function (y) { return "<option" + (+m.grad === y ? " selected" : "") + ">" + y + "</option>"; }).join("") + "</select></label>" +
-      fieldI("f-exuni", "Exchange university", m.exUni, 'required placeholder="University of Michigan"') + fieldI("f-excity", "Exchange city and country", m.exCity, "required") +
-      fieldI("f-exdom", "Exchange university website <small>(for the logo, optional)</small>", m.exDomain, 'placeholder="umich.edu"', true) +
-      fieldI("f-inco", "4th-year internship: company", m.inCo, "required") + fieldI("f-inrole", "4th-year internship: role", m.inRole, "required") +
-      fieldI("f-indom", "Company website <small>(for the logo, optional)</small>", m.inDomain, 'placeholder="company.com"', true) + "</div>" +
+      '<label class="field" for="f-grad">Graduation year<select id="f-grad" required><option value="">Choose a year</option>' + gradYears().map(function (y) { return "<option>" + y + "</option>"; }).join("") + "</select></label>" +
+      fieldI("f-role", "Your role at Esade Sports <small>(optional)</small>", "", 'placeholder="Captain, Football 7"', true) +
+      fieldI("f-exuni", "Exchange university", "", 'required placeholder="University of Michigan"') + fieldI("f-excity", "Exchange city and country", "", "required") +
+      fieldI("f-exdom", "Exchange university website <small>(for the logo, optional)</small>", "", 'placeholder="umich.edu"', true) +
+      fieldI("f-inco", "4th-year internship: company", "", "required") + fieldI("f-inrole", "4th-year internship: role", "", "required") +
+      fieldI("f-indom", "Company website <small>(for the logo, optional)</small>", "", 'placeholder="company.com"', true) + "</div>" +
       '<div class="field full">Associations you joined<div id="assocs" style="display:grid;gap:12px"></div><button type="button" class="btn btn-ghost-navy" id="add-assoc" style="justify-self:start">Add an association</button></div>' +
-      '<div class="field">Sports you played at Esade<div class="checks" id="f-sports">' + SPORTS.map(function (s, i) { return '<label for="sp-' + i + '"><input type="checkbox" id="sp-' + i + '" value="' + s + '"' + (m.sports.indexOf(s) > -1 ? " checked" : "") + ">" + s + "</label>"; }).join("") + "</div></div></div>" +
-      '<div class="fsec"><h2>Other internships during Esade <small>Optional</small></h2><div id="interns" style="display:grid;gap:12px">' + m.interns.map(internRow).join("") + '</div><button type="button" class="btn btn-ghost-navy" id="add-intern" style="justify-self:start">Add an internship</button></div>' +
-      '<div class="fsec"><h2>Contact details <small>Visible to signed-in alumni and students</small></h2><div class="fgrid">' + fieldI("f-phone", "Phone number", m.phone, 'required type="tel" autocomplete="tel"') + fieldI("f-esade", "Esade email", m.esade, 'type="email"') + fieldI("f-perso", "Personal email", m.perso, 'type="email" autocomplete="email"') + fieldI("f-li", "LinkedIn <small>(optional)</small>", m.linkedin, 'placeholder="linkedin.com/in/..."') + "</div>" +
-      '<label class="consent" for="f-consent"><input type="checkbox" id="f-consent"' + (state.me ? " checked" : "") + '><span>I agree that signed-in Esade alumni and students can see my profile and contact details. I can edit or delete my profile at any time.</span></label></div>' +
-      '<p class="err" id="f-err" hidden></p><div class="form-actions"><button class="btn btn-blue" type="submit">' + (state.me ? "Save changes" : "Publish my profile") + "</button>" + (state.me ? '<button type="button" class="btn btn-ghost-navy" id="del-prof">Delete my profile</button>' : "") + "</div></form></div></section>";
+      '<div class="field">Sports you played at Esade<div class="checks" id="f-sports">' + SPORTS.map(function (s, i) { return '<label for="sp-' + i + '"><input type="checkbox" id="sp-' + i + '" value="' + s + '">' + s + "</label>"; }).join("") + "</div></div></div>" +
+      '<div class="fsec"><h2>Other internships and jobs <small>Optional</small></h2><div id="interns" style="display:grid;gap:12px"></div><button type="button" class="btn btn-ghost-navy" id="add-intern" style="justify-self:start">Add an internship</button></div>' +
+      '<div class="fsec"><h2>Contact details <small>Email and phone are only seen by the Esade Sports team</small></h2><div class="fgrid">' + fieldI("f-email", "Email", "", 'required type="email" autocomplete="email"') + phoneField("f-phone", "Phone number", false) + fieldI("f-li", "LinkedIn <small>(optional, shown on your profile)</small>", "", 'placeholder="linkedin.com/in/..."', true) + "</div>" +
+      '<input type="text" id="f-website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px">' +
+      '<label class="consent" for="f-consent"><input type="checkbox" id="f-consent"><span>I agree that my profile (without my email and phone) is shown on the Esade Sports website once approved. To change or remove it later, I can write to esadesports@alumni.esade.edu.</span></label></div>' +
+      '<p class="err" id="f-err" hidden></p><div class="form-actions"><button class="btn btn-blue" type="submit" id="f-submit">Send my profile</button></div></form></div></section>';
   }
   function readRows(attr, n) {
     var out = []; page.querySelectorAll("[" + attr + "]").forEach(function (r) { var x = []; for (var k = 0; k < n; k++) x.push(""); r.querySelectorAll("input").forEach(function (i) { x[+i.getAttribute("data-k")] = i.value.trim(); }); out.push(x); }); return out;
@@ -815,11 +814,11 @@ export function initSite(backend) {
   function readAssocs() { return readRows("data-arow", 2); }
   function bindForm() {
     var f = $("pform"); if (!f) return;
-    var interns = state.me ? state.me.interns.slice() : [];
+    var interns = [];
     function redrawInterns() { $("interns").innerHTML = interns.map(internRow).join(""); page.querySelectorAll("[data-rm]").forEach(function (b) { b.addEventListener("click", function () { interns = readInterns(); interns.splice(+b.getAttribute("data-rm"), 1); redrawInterns(); }); }); }
     redrawInterns();
     $("add-intern").addEventListener("click", function () { interns = readInterns(); interns.push(["", "", "", ""]); redrawInterns(); });
-    var assocs = state.me ? assocList(state.me) : [["Esade Sports", ""]];
+    var assocs = [["Esade Sports", ""]];
     function redrawAssocs() { $("assocs").innerHTML = assocs.map(assocRow).join(""); page.querySelectorAll("[data-arm]").forEach(function (b) { b.addEventListener("click", function () { assocs = readAssocs(); assocs.splice(+b.getAttribute("data-arm"), 1); redrawAssocs(); }); }); }
     redrawAssocs();
     $("add-assoc").addEventListener("click", function () { assocs = readAssocs(); assocs.push(["", ""]); redrawAssocs(); });
@@ -833,38 +832,38 @@ export function initSite(backend) {
         }; img.src = r.result;
       }; r.readAsDataURL(file);
     });
-    var del = $("del-prof"); if (del) del.addEventListener("click", function () { state.me = null; save(); renderAcct(); toast("Profile deleted."); go("alumni"); });
     f.addEventListener("submit", function (e) {
       e.preventDefault();
       var v = function (id) { return $(id).value.trim(); }, err = $("f-err");
       var sports = []; page.querySelectorAll("#f-sports input:checked").forEach(function (c) { sports.push(c.value); });
-      var missing = [["f-first", "first name"], ["f-last", "last name"], ["f-nat", "nationality"], ["f-prog", "programme"], ["f-grad", "graduation year"], ["f-exuni", "exchange university"], ["f-excity", "exchange city"], ["f-inco", "internship company"], ["f-inrole", "internship role"], ["f-phone", "phone number"]].filter(function (x) { return !v(x[0]); }).map(function (x) { return x[1]; });
       var assocRows = readAssocs().filter(function (x) { return x[0]; });
+      var missing = [["f-first", "first name"], ["f-last", "last name"], ["f-nat", "nationality"], ["f-prog", "programme"], ["f-grad", "graduation year"], ["f-exuni", "exchange university"], ["f-excity", "exchange city"], ["f-inco", "internship company"], ["f-inrole", "internship role"], ["f-email", "email"]].filter(function (x) { return !v(x[0]); }).map(function (x) { return x[1]; });
       if (!assocRows.length) missing.push("at least one association");
       if (!sports.length) missing.push("at least one sport");
-      if (!v("f-esade") && !v("f-perso")) missing.push("an Esade or personal email");
       if (missing.length) { err.textContent = "Please add: " + missing.join(", ") + "."; err.hidden = false; return; }
-      if (!$("f-consent").checked) { err.textContent = "Tick the consent box so other alumni can see your contact details."; err.hidden = false; return; }
-      state.me = { id: "me", first: v("f-first"), last: v("f-last"), nationality: v("f-nat"), programme: v("f-prog"), grad: +v("f-grad"), exUni: v("f-exuni"), exDomain: cleanDomain(v("f-exdom")), exCity: v("f-excity"), inCo: v("f-inco"), inDomain: cleanDomain(v("f-indom")), inRole: v("f-inrole"), assos: assocRows.map(function (x) { return x[0]; }).join(", "), assocs: assocRows.map(function (x) { return [x[0], cleanDomain(x[1])]; }), sports: sports, linkedin: v("f-li"), interns: readInterns().filter(function (x) { return x[0] || x[1]; }).map(function (x) { return [x[0], x[1], x[2], cleanDomain(x[3])]; }), phone: v("f-phone"), esade: v("f-esade"), perso: v("f-perso"), photo: draftPhoto, active: !!(state.user && state.user.active), verified: !!(state.me && state.me.verified !== false) };
-      save(); renderAcct();
-      if (state.me.verified) { toast("Profile updated."); go("alumni-me"); } else go("alumni-verify");
+      var ph = phoneValue("f-phone", false);
+      if (ph.error) { err.textContent = ph.error; err.hidden = false; return; }
+      if (!$("f-consent").checked) { err.textContent = "Tick the consent box so your profile can be shown."; err.hidden = false; return; }
+      err.hidden = true;
+      var data = { first: v("f-first"), last: v("f-last"), nationality: v("f-nat"), programme: v("f-prog"), grad: +v("f-grad"), sports: sports,
+        esadeRole: v("f-role") || undefined, headline: v("f-headline") || undefined,
+        exUni: v("f-exuni"), exDomain: cleanDomain(v("f-exdom")) || undefined, exCity: v("f-excity"), inCo: v("f-inco"), inDomain: cleanDomain(v("f-indom")) || undefined, inRole: v("f-inrole"),
+        interns: readInterns().filter(function (x) { return x[0] || x[1]; }).map(function (x) { return { co: x[0], role: x[1], year: x[2] || undefined, domain: cleanDomain(x[3]) || undefined }; }),
+        assocs: assocRows.map(function (x) { return { name: x[0], domain: cleanDomain(x[1]) || undefined }; }),
+        linkedin: v("f-li") || undefined, photo: draftPhoto || undefined, email: v("f-email"), phone: ph.value || undefined, consent: true, website: v("f-website") || undefined };
+      var btn = $("f-submit"); btn.disabled = true; btn.textContent = "Sending…";
+      function done() {
+        page.innerHTML = '<section class="band"><div class="wrap"><p class="eyebrow">Alumni corner</p><h1 class="display">Thank<br>you.</h1><p>We received your profile. It will appear in the alumni directory once the Esade Sports team has checked it, usually within a few days.</p><div class="ctas"><a class="btn btn-solid-white" href="#alumni">Back to the Alumni corner</a></div></div></section>';
+        window.scrollTo(0, 0);
+      }
+      if (!backend || !backend.submitAlumniProfile) { done(); return; }
+      Promise.resolve(backend.submitAlumniProfile(data)).then(done, function (x) {
+        console.error(x); btn.disabled = false; btn.textContent = "Send my profile";
+        var msg = String((x && x.data) || (x && x.message) || ""); var m2 = msg.match(/ConvexError: (.*)/);
+        err.textContent = (x && typeof x.data === "string") ? x.data : m2 ? m2[1] : "Your profile could not be sent. Please check your connection and try again."; err.hidden = false;
+      });
     });
   }
-
-  // ================= Alumni email verification (demo of the real flow) =================
-  function verifyView() {
-    var m = state.me, mail = m ? (m.esade || m.perso) : "";
-    if (m && m.verified) return '<section class="band"><div class="wrap"><p class="eyebrow">Alumni profile</p><h1 class="display">You are<br>verified.</h1><p>Your profile is registered and visible in the alumni search.</p><div class="ctas"><a class="btn btn-solid-white" href="#alumni-me">See my profile</a></div></div></section>';
-    return '<section class="band"><div class="wrap"><p class="eyebrow">One last step</p><h1 class="display">Check your<br>inbox.</h1><p>' + (mail ? "We sent a verification link to <strong>" + esc(mail) + "</strong>. " : "") + 'Your profile stays private, and out of the alumni search, until you click the link. The link works once and expires after 24 hours.</p></div></section>' +
-      '<section class="al"><div class="wrap body"><div class="locked"><p class="eyebrow" style="color:var(--blue)">Prototype</p><h2>No email is sent in this demo</h2><p>On the real site, the email arrives in a few seconds. Here, use the button to do what the link would do.</p>' +
-      '<div class="form-actions"><button class="btn btn-blue" type="button" id="v-do">Open the verification link</button><button class="btn btn-ghost-navy" type="button" id="v-resend">Resend the email</button></div></div></div></section>';
-  }
-  function bindVerify() {
-    var d = $("v-do"), r = $("v-resend"), sent = 0;
-    if (d) d.addEventListener("click", function () { if (!state.me) { go("my-profile"); return; } state.me.verified = true; save(); toast("Email verified. Your profile is now registered."); go("alumni-me"); });
-    if (r) r.addEventListener("click", function () { sent++; toast(sent > 2 ? "Please wait a few minutes before asking again." : "A new link is on its way."); r.disabled = sent > 2; });
-  }
-  function pendingNote() { return '<div class="wrap" style="padding-top:20px"><p class="exnote"><b>Waiting for verification</b> <span>Only you can see this profile until you click the link in your email. <a href="#alumni-verify">Verify now</a></span></p></div>'; }
 
   // ================= Privacy =================
   function privacyView() {
@@ -1124,7 +1123,7 @@ export function initSite(backend) {
       hub.innerHTML = hubShell(h, inner); show("hub"); bindHub(); return;
     }
     if (h === "signin") html = signinView();
-    else if (h === "alumni-signin") html = alumniSigninView();
+    else if (h === "alumni-signin" || h === "alumni-me" || h === "alumni-verify") { location.replace("#alumni"); return; }
     else if (h.indexOf("team-") === 0 && parseTeam(h)) { var pt = parseTeam(h); html = teamView(pt.t, pt.tab); }
     else if (h === "alumni") html = alumniView();
     else if (h === "apply-associate") html = applyAssociateView();
@@ -1134,20 +1133,17 @@ export function initSite(backend) {
     else if (h === "contact") html = contactView();
     else if (h === "calendar") html = calendarView();
     else if (h === "all-events") html = eventsView();
-    else if (h === "alumni-verify") html = verifyView();
     else if (h.indexOf("alumni-") === 0) {
       var id = h.slice(7), a = null;
-      if (id === "me" && state.me) a = state.me; else allAlumni().forEach(function (x) { if (x.id === id) a = x; });
-      html = a ? (a.id === "me" && a.verified === false ? pendingNote() : "") + profileView(a) : alumniView();
+      allAlumni().forEach(function (x) { if (x.id === id) a = x; });
+      html = a ? profileView(a) : alumniView();
     }
     if (html !== null) {
       render.lastPub = false;
       page.innerHTML = html; show("page");
       if (h === "signin") bindSignin();
-      if (h === "alumni-signin") bindAlumniSignin();
       if (h === "alumni") bindAlumni();
       if (h === "my-profile") bindForm();
-      if (h === "alumni-verify") bindVerify();
       if (h === "apply-associate") bindAssociateApply();
       if (h === "contact") bindContact();
       if (h === "calendar") bindCalendar();
@@ -1277,7 +1273,7 @@ export function initSite(backend) {
     secs.forEach(function (sct) { if (sct.id) spy.observe(sct); });
   })();
   window.addEventListener("hashchange", function () { state.teamOpen = null; render(); });
-  renderAcct(); render();
+  renderAcct(); render(); loadAlumni();
   return { setAdmin: setAdmin };
 
 }

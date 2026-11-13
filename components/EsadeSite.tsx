@@ -46,6 +46,9 @@ export default function EsadeSite() {
         client.mutation(api.forms.submitPartnerInquiry, a as never).catch(console.error),
       // Errors are passed back so the form can show them (e.g. rate limit).
       submitContactMessage: (a: Record<string, unknown>) => client.mutation(api.forms.submitContactMessage, a as never),
+      // Alumni corner: profiles wait for an admin's approval; the public list never includes email or phone.
+      submitAlumniProfile: (a: Record<string, unknown>) => client.mutation(api.forms.submitAlumniProfile, a as never),
+      listAlumni: () => client.query(api.alumni.listPublic, {}),
       // Uploads the CV (and optional video) to Convex storage, then stores the application.
       submitAssociationApplication: async (a: Record<string, unknown>, files: { cv: File; video?: File }) => {
         const upload = async (file: File) => {

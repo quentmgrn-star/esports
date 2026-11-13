@@ -145,3 +145,83 @@ export const submitContactMessage = mutation({
     return id;
   },
 });
+
+// Alumni corner: anyone can send a profile, it waits for an admin's approval before it is public.
+// "website" is a honeypot field, like on the contact form.
+const short = (s: string | undefined, n: number) => (s ?? "").trim().slice(0, n);
+const domain = (s: string | undefined) =>
+  short(s, 100).toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").split(/[/?#\s]/)[0] || undefined;
+export const submitAlumniProfile = mutation({
+  args: {
+    first: v.string(),
+    last: v.string(),
+    nationality: v.string(),
+    programme: v.string(),
+    grad: v.number(),
+    sports: v.array(v.string()),
+    esadeRole: v.optional(v.string()),
+    headline: v.optional(v.string()),
+    exUni: v.string(),
+    exDomain: v.optional(v.string()),
+    exCity: v.string(),
+    inCo: v.string(),
+    inDomain: v.optional(v.string()),
+    inRole: v.string(),
+    interns: v.array(v.object({ co: v.string(), role: v.string(), year: v.optional(v.string()), domain: v.optional(v.string()) })),
+    assocs: v.array(v.object({ name: v.string(), domain: v.optional(v.string()) })),
+    linkedin: v.optional(v.string()),
+    photo: v.optional(v.string()),
+    email: v.string(),
+    phone: v.optional(v.string()),
+    consent: v.boolean(),
+    website: v.optional(v.string()),
+  },
+  handler: async (ctx, a) => {
+    if (a.website) return null;
+    const email = short(a.email, 200).toLowerCase();
+    if (!EMAIL_RE.test(email)) throw new ConvexError("Please enter a valid email address.");
+    if (!a.consent) throw new ConvexError("Please tick the consent box.");
+    const year = new Date().getFullYear() + 1;
+    if (!Number.isInteger(a.grad) || a.grad < 1991 || a.grad > year) throw new ConvexError("Choose your graduation year.");
+    const p = {
+      first: short(a.first, 60),
+      last: short(a.last, 60),
+      nationality: short(a.nationality, 60),
+      programme: short(a.programme, 80),
+      grad: a.grad,
+      sports: a.sports.map((x) => short(x, 40)).filter(Boolean).slice(0, 10),
+      esadeRole: short(a.esadeRole, 100) || undefined,
+      headline: short(a.headline, 120) || undefined,
+      exUni: short(a.exUni, 100),
+      exDomain: domain(a.exDomain),
+      exCity: short(a.exCity, 80),
+      inCo: short(a.inCo, 100),
+      inDomain: domain(a.inDomain),
+      inRole: short(a.inRole, 100),
+      interns: a.interns
+        .slice(0, 10)
+        .map((x) => ({ co: short(x.co, 100), role: short(x.role, 100), year: short(x.year, 10) || undefined, domain: domain(x.domain) }))
+        .filter((x) => x.co || x.role),
+      assocs: a.assocs
+        .slice(0, 10)
+        .map((x) => ({ name: short(x.name, 100), domain: domain(x.domain) }))
+        .filter((x) => x.name),
+      linkedin: short(a.linkedin, 200).replace(/^https?:\/\//, "") || undefined,
+      photo: a.photo && a.photo.startsWith("data:image/") && a.photo.length < 300_000 ? a.photo : undefined,
+      email,
+      phone: a.phone?.replace(/[^\d+]/g, "").slice(0, 20) || undefined,
+    };
+    if (!p.first || !p.last || !p.nationality || !p.programme || !p.exUni || !p.exCity || !p.inCo || !p.inRole)
+      throw new ConvexError("Please fill in every required field.");
+    if (!p.sports.length) throw new ConvexError("Choose at least one sport.");
+    // Simple rate limit: at most 3 profiles per email address in 10 minutes.
+    const since = Date.now() - 10 * 60 * 1000;
+    const recent = await ctx.db
+      .query("alumniProfiles")
+      .withIndex("by_email", (q) => q.eq("email", email))
+      .filter((q) => q.gt(q.field("_creationTime"), since))
+      .collect();
+    if (recent.length >= 3) throw new ConvexError("You have sent several profiles in a short time. Please wait a few minutes.");
+    return await ctx.db.insert("alumniProfiles", { ...p, status: "pending" });
+  },
+});
