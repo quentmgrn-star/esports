@@ -5,6 +5,9 @@ export function initI18n() {
   "use strict";
   // English is the source. Each entry: "English": ["Català", "Español"]
   var D = {
+    "Once Esade Sports, always Esade Sports": ["Un cop Esade Sports, sempre Esade Sports","Una vez Esade Sports, siempre Esade Sports"],
+    "Open the Alumni corner →": ["Obre el racó Alumni →","Abrir el rincón Alumni →"],
+    "Former players, captains and associates keep a profile and stay in touch. Find alumni from your sport, see what they do now and reach out.": ["Antics jugadors, capitans i associats mantenen un perfil i segueixen en contacte. Troba alumni del teu esport, mira què fan ara i contacta-hi.","Antiguos jugadores, capitanes y asociados mantienen un perfil y siguen en contacto. Encuentra alumni de tu deporte, mira a qué se dedican ahora y contáctalos."],
     "About": ["Qui som", "Quiénes somos"],
     "About Esade Sports": ["Sobre Esade Sports", "Sobre Esade Sports"],
     "The home of": ["La casa de", "La casa del"],

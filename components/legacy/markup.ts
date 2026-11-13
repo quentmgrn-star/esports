@@ -87,72 +87,6 @@ export const SITE_MARKUP = `
     </div>
   </section>
 
-  <section class="strip" aria-label="Next match">
-    <div class="wrap">
-      <p class="eyebrow">Next match · Football 7</p>
-      <p class="vs" style="margin:0">EUBS <b>vs</b> Esade FC</p>
-      <div class="meta">
-        <span>Sat 14/11 · 17:00 · Field A</span>
-        <a class="link-arrow" href="#team-football7-men-schedule">Match details →</a>
-      </div>
-    </div>
-  </section>
-
-  <section class="sec" id="teams">
-    <div class="wrap">
-      <div class="sec-head">
-        <div>
-          <p class="eyebrow">Twelve official teams, one family</p>
-          <h2 class="h2">Our teams</h2>
-        </div>
-        <a class="link-arrow" href="#teams">All sports →</a>
-      </div>
-      <ul class="teams" id="teams-grid"></ul>
-    </div>
-  </section>
-
-  <section class="sec" id="fixtures" style="padding-top:0">
-    <div class="wrap">
-      <div class="sec-head">
-        <div>
-          <p class="eyebrow">Schedules and results</p>
-          <h2 class="h2">This week at Esade</h2>
-        </div>
-        <a class="link-arrow" href="#fixtures">Full calendar →</a>
-      </div>
-      <div class="fx-grid">
-        <div>
-          <div class="tabs" role="tablist" aria-label="Schedules or results">
-            <button role="tab" id="tab-up" aria-selected="true" aria-controls="list-up">Upcoming</button>
-            <button role="tab" id="tab-res" aria-selected="false" aria-controls="list-res">Results</button>
-          </div>
-          <ul class="rows" id="list-up" role="tabpanel" aria-labelledby="tab-up">
-            <li class="row match-button" data-match-id="football-7" role="button" tabindex="0" aria-label="View Football 7 match details"><span class="when"><b>Sat 14/11</b>17:00</span><span class="match"><span class="sport">Football 7 · Men</span><div class="teamsline">EUBS vs Esade FC</div><span class="where">Field A · UniBall Elite</span></span><span class="tag">Away</span></li>
-            <li class="row match-button" data-match-id="basketball-men" role="button" tabindex="0" aria-label="View Basketball men match details"><span class="when"><b>Tue 17/11</b>21:00</span><span class="match"><span class="sport">Basketball · Men</span><div class="teamsline">Esade vs FE NATURAL</div><span class="where">Thau Pedralbes · CSS 1ª Divisió</span></span><span class="tag">Home</span></li>
-            <li class="row match-button" data-match-id="basketball-women" role="button" tabindex="0" aria-label="View Basketball women match details"><span class="when"><b>Sat 21/11</b>12:00</span><span class="match"><span class="sport">Basketball · Women <em class="ex">Example</em></span><div class="teamsline">Esade vs GBSB Global</div><span class="where">Court 2 · Barcelona Sports Hub</span></span><span class="tag">Home</span></li>
-            <li class="row match-button" data-match-id="volleyball-men" role="button" tabindex="0" aria-label="View Volleyball men match details"><span class="when"><b>Sun 22/11</b>11:00</span><span class="match"><span class="sport">Volleyball · Men <em class="ex">Example</em></span><div class="teamsline">Esade vs TBS United</div><span class="where">Court 1 · Esade Pedralbes Campus</span></span><span class="tag">Home</span></li>
-            <li class="row match-button" data-match-id="padel-women" role="button" tabindex="0" aria-label="View Padel women match details"><span class="when"><b>Wed 25/11</b>18:30</span><span class="match"><span class="sport">Padel · Women <em class="ex">Example</em></span><div class="teamsline">Esade vs EU Business School</div><span class="where">Padel Court 4 · Vall d’Hebron Sports Centre</span></span><span class="tag">Home</span></li>
-          </ul>
-          <ul class="rows" id="list-res" role="tabpanel" aria-labelledby="tab-res" hidden>
-            <li class="row match-button" data-match-id="futsal-women-result" role="button" tabindex="0" aria-label="View Futsal women result details"><span class="when"><b>Sat 07/11</b>Final</span><span class="match"><span class="sport">Futsal · Women <em class="ex">Example</em></span><div class="teamsline">Esade 4–2 Sant Cugat FC</div><span class="where">Court 3 · Esade Pedralbes Campus</span></span><span class="score">4–2</span></li>
-            <li class="row match-button" data-match-id="basketball-men-result" role="button" tabindex="0" aria-label="View Basketball men result details"><span class="when"><b>Tue 10/11</b>Final</span><span class="match"><span class="sport">Basketball · Men</span><div class="teamsline">Esade vs TOP</div><span class="where">Thau Pedralbes · CSS 1ª Divisió</span></span><span class="score">56–37</span></li>
-            <li class="row match-button" data-match-id="volleyball-women-result" role="button" tabindex="0" aria-label="View Volleyball women result details"><span class="when"><b>Wed 04/11</b>Final</span><span class="match"><span class="sport">Volleyball · Women <em class="ex">Example</em></span><div class="teamsline">Esade 2–1 ESADE Business School</div><span class="where">Court 2 · Esade Pedralbes Campus</span></span><span class="score">2–1</span></li>
-          </ul>
-        </div>
-        <aside class="fx-side" aria-label="Match day">
-          <p class="eyebrow">Basketball · Home game</p>
-          <h3 class="display">Match<br>day.</h3>
-          <p>Come and support your classmates. Every home game is open to all Esade students.</p>
-          <dl>
-            <div><dt>When</dt><dd>Tue 17/11 · 21:00</dd></div>
-            <div><dt>Where</dt><dd>Thau Pedralbes</dd></div>
-            <div><dt>Against</dt><dd>FE NATURAL</dd></div>
-          </dl>
-        </aside>
-      </div>
-    </div>
-  </section>
-
   <section class="sec pillars-sec about" id="about" aria-labelledby="about-title">
     <div class="wrap">
       <p class="eyebrow" style="color:var(--blue);margin-bottom:16px">About Esade Sports</p>
@@ -197,6 +131,72 @@ export const SITE_MARKUP = `
     </div>
   </section>
 
+  <section class="sec" id="teams">
+    <div class="wrap">
+      <div class="sec-head">
+        <div>
+          <p class="eyebrow">Twelve official teams, one family</p>
+          <h2 class="h2">Our teams</h2>
+        </div>
+        <a class="link-arrow" href="#teams">All sports →</a>
+      </div>
+      <ul class="teams" id="teams-grid"></ul>
+    </div>
+  </section>
+
+  <section class="strip" aria-label="Next match">
+    <div class="wrap">
+      <p class="eyebrow">Next match · Football 7</p>
+      <p class="vs" style="margin:0">EUBS <b>vs</b> Esade FC</p>
+      <div class="meta">
+        <span>Sat 14/11 · 17:00 · Field A</span>
+        <a class="link-arrow" href="#team-football7-men-schedule">Match details →</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="fixtures">
+    <div class="wrap">
+      <div class="sec-head">
+        <div>
+          <p class="eyebrow">Schedules and results</p>
+          <h2 class="h2">This week at Esade</h2>
+        </div>
+        <a class="link-arrow" href="#fixtures">Full calendar →</a>
+      </div>
+      <div class="fx-grid">
+        <div>
+          <div class="tabs" role="tablist" aria-label="Schedules or results">
+            <button role="tab" id="tab-up" aria-selected="true" aria-controls="list-up">Upcoming</button>
+            <button role="tab" id="tab-res" aria-selected="false" aria-controls="list-res">Results</button>
+          </div>
+          <ul class="rows" id="list-up" role="tabpanel" aria-labelledby="tab-up">
+            <li class="row match-button" data-match-id="football-7" role="button" tabindex="0" aria-label="View Football 7 match details"><span class="when"><b>Sat 14/11</b>17:00</span><span class="match"><span class="sport">Football 7 · Men</span><div class="teamsline">EUBS vs Esade FC</div><span class="where">Field A · UniBall Elite</span></span><span class="tag">Away</span></li>
+            <li class="row match-button" data-match-id="basketball-men" role="button" tabindex="0" aria-label="View Basketball men match details"><span class="when"><b>Tue 17/11</b>21:00</span><span class="match"><span class="sport">Basketball · Men</span><div class="teamsline">Esade vs FE NATURAL</div><span class="where">Thau Pedralbes · CSS 1ª Divisió</span></span><span class="tag">Home</span></li>
+            <li class="row match-button" data-match-id="basketball-women" role="button" tabindex="0" aria-label="View Basketball women match details"><span class="when"><b>Sat 21/11</b>12:00</span><span class="match"><span class="sport">Basketball · Women <em class="ex">Example</em></span><div class="teamsline">Esade vs GBSB Global</div><span class="where">Court 2 · Barcelona Sports Hub</span></span><span class="tag">Home</span></li>
+            <li class="row match-button" data-match-id="volleyball-men" role="button" tabindex="0" aria-label="View Volleyball men match details"><span class="when"><b>Sun 22/11</b>11:00</span><span class="match"><span class="sport">Volleyball · Men <em class="ex">Example</em></span><div class="teamsline">Esade vs TBS United</div><span class="where">Court 1 · Esade Pedralbes Campus</span></span><span class="tag">Home</span></li>
+            <li class="row match-button" data-match-id="padel-women" role="button" tabindex="0" aria-label="View Padel women match details"><span class="when"><b>Wed 25/11</b>18:30</span><span class="match"><span class="sport">Padel · Women <em class="ex">Example</em></span><div class="teamsline">Esade vs EU Business School</div><span class="where">Padel Court 4 · Vall d’Hebron Sports Centre</span></span><span class="tag">Home</span></li>
+          </ul>
+          <ul class="rows" id="list-res" role="tabpanel" aria-labelledby="tab-res" hidden>
+            <li class="row match-button" data-match-id="futsal-women-result" role="button" tabindex="0" aria-label="View Futsal women result details"><span class="when"><b>Sat 07/11</b>Final</span><span class="match"><span class="sport">Futsal · Women <em class="ex">Example</em></span><div class="teamsline">Esade 4–2 Sant Cugat FC</div><span class="where">Court 3 · Esade Pedralbes Campus</span></span><span class="score">4–2</span></li>
+            <li class="row match-button" data-match-id="basketball-men-result" role="button" tabindex="0" aria-label="View Basketball men result details"><span class="when"><b>Tue 10/11</b>Final</span><span class="match"><span class="sport">Basketball · Men</span><div class="teamsline">Esade vs TOP</div><span class="where">Thau Pedralbes · CSS 1ª Divisió</span></span><span class="score">56–37</span></li>
+            <li class="row match-button" data-match-id="volleyball-women-result" role="button" tabindex="0" aria-label="View Volleyball women result details"><span class="when"><b>Wed 04/11</b>Final</span><span class="match"><span class="sport">Volleyball · Women <em class="ex">Example</em></span><div class="teamsline">Esade 2–1 ESADE Business School</div><span class="where">Court 2 · Esade Pedralbes Campus</span></span><span class="score">2–1</span></li>
+          </ul>
+        </div>
+        <aside class="fx-side" aria-label="Match day">
+          <p class="eyebrow">Basketball · Home game</p>
+          <h3 class="display">Match<br>day.</h3>
+          <p>Come and support your classmates. Every home game is open to all Esade students.</p>
+          <dl>
+            <div><dt>When</dt><dd>Tue 17/11 · 21:00</dd></div>
+            <div><dt>Where</dt><dd>Thau Pedralbes</dd></div>
+            <div><dt>Against</dt><dd>FE NATURAL</dd></div>
+          </dl>
+        </aside>
+      </div>
+    </div>
+  </section>
+
   <section class="sec" id="events">
     <div class="wrap">
       <div class="sec-head">
@@ -220,6 +220,19 @@ export const SITE_MARKUP = `
           <dl><div><dt>When</dt><dd>Thursday 04/03/2027 · 18:30</dd></div><div><dt>Speaker</dt><dd>Laia Martín · Sports Partnerships Director</dd></div><div><dt>Format</dt><dd>Talk, panel or workshop</dd></div></dl>
         </article>
       </div>
+    </div>
+  </section>
+
+  <section class="sec alumni-teaser" id="alumni-home" aria-labelledby="alumni-home-title">
+    <div class="wrap">
+      <div class="sec-head">
+        <div>
+          <p class="eyebrow">Alumni corner</p>
+          <h2 class="h2" id="alumni-home-title">Once Esade Sports, always Esade Sports</h2>
+        </div>
+        <a class="link-arrow" href="#alumni">Open the Alumni corner →</a>
+      </div>
+      <p class="alumni-teaser-text">Former players, captains and associates keep a profile and stay in touch. Find alumni from your sport, see what they do now and reach out.</p>
     </div>
   </section>
 
