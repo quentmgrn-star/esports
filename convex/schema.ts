@@ -17,7 +17,7 @@ export default defineSchema({
     slug: v.string(), // "basketball-men"
     sportId: v.id("sports"),
     name: v.string(),
-    squad: v.union(v.literal("Men"), v.literal("Women"), v.literal("Mixed")),
+    squad: v.union(v.literal("Men"), v.literal("Women"), v.literal("Mixed"), v.literal("Open")), // "Open" = one squad for everyone
     league: v.optional(v.string()),
     club: v.optional(v.string()), // the team's name in the league table
     captain: v.optional(v.string()),

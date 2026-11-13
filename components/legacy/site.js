@@ -54,17 +54,22 @@ export function initSite(backend) {
     { id: "volleyball-women", name: "Volleyball", squad: "Women", sport: "Volleyball", budget: 2600, status: "agreed" },
     { id: "volleyball-mixed", name: "Volleyball", squad: "Mixed", sport: "Volleyball", budget: 2200, status: "draft" },
     { id: "padel-men", name: "Padel", squad: "Men", sport: "Padel", budget: 2000, status: "agreed" },
-    { id: "padel-women", name: "Padel", squad: "Women", sport: "Padel", budget: 2000, status: "review" }
+    { id: "padel-women", name: "Padel", squad: "Women", sport: "Padel", budget: 2000, status: "review" },
+    // New sports (13/11/2026): one open squad each until the club decides on men's/women's teams. No budget, roster or results yet.
+    { id: "rugby", name: "Rugby", squad: "Open", sport: "Rugby", budget: 0, status: "draft" },
+    { id: "tennis", name: "Tennis", squad: "Open", sport: "Tennis", budget: 0, status: "draft" }
   ];
-  var SPORTS = ["Football 7", "Futsal", "Basketball", "Volleyball", "Padel"];
+  var SPORTS = ["Football 7", "Futsal", "Basketball", "Volleyball", "Padel", "Rugby", "Tennis"];
   var POS = { "Football 7": ["Goalkeeper", "Defender", "Defender", "Midfielder", "Midfielder", "Forward", "Forward", "Midfielder"],
     Futsal: ["Goalkeeper", "Defender", "Winger", "Winger", "Pivot", "Defender", "Winger", "Pivot"],
     Basketball: ["Guard", "Guard", "Forward", "Forward", "Center", "Guard", "Forward", "Center"],
     Volleyball: ["Setter", "Outside hitter", "Outside hitter", "Middle blocker", "Middle blocker", "Opposite", "Libero", "Setter"],
-    Padel: ["Right side", "Left side", "Right side", "Left side", "Right side", "Left side", "Right side", "Left side"] };
+    Padel: ["Right side", "Left side", "Right side", "Left side", "Right side", "Left side", "Right side", "Left side"],
+    Rugby: ["Prop", "Hooker", "Lock", "Flanker", "Number 8", "Scrum-half", "Fly-half", "Centre", "Wing", "Full-back"],
+    Tennis: ["Singles", "Doubles", "Singles", "Doubles", "Singles", "Doubles", "Singles", "Doubles"] };
   function team(id) { for (var i = 0; i < TEAMS.length; i++) if (TEAMS[i].id === id) return TEAMS[i]; }
   function tLabel(t) { return t.name + " · " + t.squad; }
-  function tSquad(t) { return t.squad === "Men" ? "Men's team" : t.squad === "Women" ? "Women's team" : "Mixed team"; }
+  function tSquad(t) { return t.squad === "Men" ? "Men's team" : t.squad === "Women" ? "Women's team" : t.squad === "Open" ? "Open team" : "Mixed team"; }
 
   // Home grid
   $("teams-grid").innerHTML = TEAMS.map(function (t, i) {
@@ -296,7 +301,9 @@ export function initSite(backend) {
     Futsal: ["GP", "Goals", "Assists", "Yellow", "Red"],
     "Football 7": ["GP", "Goals", "Assists", "Yellow", "Red"],
     Volleyball: ["GP", "Sets", "Points", "Aces", "Blocks"],
-    Padel: ["Matches", "Won", "Lost", "Sets won"]
+    Padel: ["Matches", "Won", "Lost", "Sets won"],
+    Rugby: ["GP", "Tries", "Conversions", "Penalties", "Points"],
+    Tennis: ["Matches", "Won", "Lost", "Sets won"]
   };
   var TEAM_TABS = [["home", "Overview"], ["roster", "Roster"], ["staff", "Staff"], ["schedule", "Schedule"], ["stats", "Stats"], ["news", "News"], ["join", "Join"]];
   var TEAM_MORE = [["archives", "Season archives"], ["records", "Record book"]];
@@ -670,7 +677,7 @@ export function initSite(backend) {
   var DEPTS = [
     { id: "board", name: "Board", head: "President + Vice-Presidents", size: "3", remit: "Oversees the association and owns the Student Council relationship.", tasks: [["Monthly check-in with the Student Council", "done"], ["Captains' meeting, all teams", "doing"], ["Semester budget report sign-off", "todo"]] },
     { id: "fin", name: "Finance", head: "Head of Finance", size: "2–3", remit: "Agrees budgets with captains, pays fees and expenses directly, prepares reports.", tasks: [["Agree remaining season budgets (4 teams)", "doing"], ["Pay validated expenses", "doing"], ["Draft semester report for the Council", "todo"]] },
-    { id: "med", name: "Media & Marketing", head: "Head of Media & Marketing", size: "5–6", remit: "Runs every team's social media, covers games, results and try-outs.", tasks: [["Match-day posts for every home game", "doing"], ["Team intro reels (10 teams)", "todo"], ["Rebuild the Linktree", "done"]] },
+    { id: "med", name: "Media & Marketing", head: "Head of Media & Marketing", size: "5–6", remit: "Runs every team's social media, covers games, results and try-outs.", tasks: [["Match-day posts for every home game", "doing"], ["Team intro reels (12 teams)", "todo"], ["Rebuild the Linktree", "done"]] },
     { id: "ops", name: "Operations", head: "Head of Operations", size: "5–6", remit: "Trainings, try-outs, bookings, friendlies, registrations, jerseys and travel.", tasks: [["Book spring try-out slots", "todo"], ["Order jerseys for Volleyball Mixed", "doing"], ["Tournament travel plan", "todo"]] },
     { id: "par", name: "Partnerships", head: "Head of Partnerships", size: "4–5", remit: "Sponsors for the teams first, partners for business events, Industry Platform.", tasks: [["Shortlist kit sponsors", "doing"], ["First sports-business talk: speaker", "todo"], ["Industry Platform: partner list", "todo"]] }
   ];

@@ -31,6 +31,14 @@ export const SPORTS = [
   {
     "slug": "padel",
     "name": "Padel"
+  },
+  {
+    "slug": "rugby",
+    "name": "Rugby"
+  },
+  {
+    "slug": "tennis",
+    "name": "Tennis"
   }
 ];
 export const TEAMS: SeedTeam[] = [
@@ -178,6 +186,23 @@ export const TEAMS: SeedTeam[] = [
     "updated": "12/11/2026",
     "dataStatus": "example",
     "note": "Prototype women's padel data with fictional pairings and sample match records."
+  },
+  // Added 13/11/2026: one open squad per sport. Placeholder only: no league, captain, roster or results yet.
+  {
+    "slug": "rugby",
+    "sport": "rugby",
+    "name": "Rugby",
+    "squad": "Open",
+    "dataStatus": "example",
+    "note": "New team. League, captain, roster and results to be added by the club."
+  },
+  {
+    "slug": "tennis",
+    "sport": "tennis",
+    "name": "Tennis",
+    "squad": "Open",
+    "dataStatus": "example",
+    "note": "New team. League, captain, roster and results to be added by the club."
   }
 ];
 export const PLAYERS: SeedPlayer[] = [

@@ -652,7 +652,7 @@ a { color: inherit; }
 .rail .lang button { color: var(--on-navy-soft); }
 .rail .lang button[aria-pressed="true"] { background: var(--white); color: var(--navy); }
 @media (max-width: 860px) { .nav .lang { margin-top: 14px; align-self: flex-start; } }
-.teams { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.teams { grid-template-columns: repeat(4, minmax(0, 1fr)); } /* 12 teams = 3 rows of 4 */
 @media (max-width: 1000px) { .teams { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 /* Photos (Unsplash placeholders) */
