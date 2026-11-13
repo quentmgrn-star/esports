@@ -1004,6 +1004,31 @@ export function initSite(backend) {
     var h = location.hash.slice(1);
     if (h === "signin" || h.indexOf("hub-") === 0) render();
   }
+  // Hero photo slideshow: auto-advances every 5 s, pauses on hover/focus, swipe on touch, still if reduced motion is on.
+  (function () {
+    var box = $("hero-slides"); if (!box) return;
+    var slides = box.querySelectorAll(".slide"), dots = box.querySelectorAll("[data-slide]"), cur = 0, timer = null, paused = false;
+    var still = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    function show(i) {
+      cur = (i + slides.length) % slides.length;
+      slides.forEach(function (s, k) { s.classList.toggle("on", k === cur); s.setAttribute("aria-hidden", k !== cur); });
+      dots.forEach(function (d, k) { d.setAttribute("aria-pressed", k === cur); });
+    }
+    function start() { stop(); if (!still) timer = setInterval(function () { if (!paused && !document.hidden) show(cur + 1); }, 5000); }
+    function stop() { if (timer) clearInterval(timer); timer = null; }
+    dots.forEach(function (d) { d.addEventListener("click", function () { show(+d.getAttribute("data-slide")); start(); }); });
+    box.addEventListener("mouseenter", function () { paused = true; });
+    box.addEventListener("mouseleave", function () { paused = false; });
+    box.addEventListener("focusin", function () { paused = true; });
+    box.addEventListener("focusout", function () { paused = false; });
+    var x0 = null;
+    box.addEventListener("touchstart", function (e) { x0 = e.touches[0].clientX; }, { passive: true });
+    box.addEventListener("touchend", function (e) {
+      if (x0 === null) return; var dx = e.changedTouches[0].clientX - x0; x0 = null;
+      if (Math.abs(dx) > 40) { show(cur + (dx < 0 ? 1 : -1)); start(); }
+    });
+    start();
+  })();
   window.addEventListener("hashchange", function () { state.teamOpen = null; render(); });
   renderAcct(); render();
   return { setAdmin: setAdmin };

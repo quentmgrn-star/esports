@@ -706,3 +706,18 @@ a { color: inherit; }
 }
 @media (max-width: 480px) { .board-grid { grid-template-columns: 1fr; } .about-what li { grid-template-columns: 1fr; gap: 2px; } }
 #about { scroll-margin-top: 70px; }
+
+/* Hero slideshow */
+.plate.slideshow::after { display: none; }
+.plate .slide { position: absolute; inset: 0; margin: 0; opacity: 0; transition: opacity .8s ease; }
+.plate .slide.on { opacity: 1; }
+.plate .slide figcaption { position: absolute; right: 13%; bottom: 7%; font-size: 11px; font-weight: 800; letter-spacing: .2em; text-transform: uppercase; color: var(--white); background: rgba(0,11,61,.7); padding: 6px 10px; }
+.slide-dots { position: absolute; left: 6%; bottom: 7%; display: flex; gap: 6px; z-index: 2; }
+.slide-dots { bottom: calc(7% - 5px); }
+.slide-dots button { position: relative; width: 22px; height: 14px; padding: 0; border: 0; background: none; cursor: pointer; }
+.slide-dots button::before { content: ""; position: absolute; left: 0; right: 0; top: 5px; height: 4px; background: rgba(255,255,255,.4); }
+.slide-dots button[aria-pressed="true"] { width: 44px; }
+.slide-dots button[aria-pressed="true"]::before { background: var(--white); }
+.slide-dots button:focus-visible { outline: 2px solid var(--white); outline-offset: 3px; }
+@media (max-width: 600px) { .slide-dots { left: 8%; } .slide-dots button { width: 14px; } .slide-dots button[aria-pressed="true"] { width: 28px; } .plate .slide figcaption { right: 10%; } }
+@media (prefers-reduced-motion: reduce) { .plate .slide { transition: none; } }

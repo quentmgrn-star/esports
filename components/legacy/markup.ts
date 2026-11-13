@@ -1,4 +1,17 @@
-import { HERO_IMAGE } from "@/lib/images";
+import { HERO_IMAGE, SPORT_IMAGES } from "@/lib/images";
+
+// Hero slideshow: one photo per sport (generic Unsplash photos until Esade Sports sends its own).
+const HERO_SLIDES: [string, string][] = [
+  ["Football 7", HERO_IMAGE],
+  ...(["Futsal", "Basketball", "Volleyball", "Padel", "Rugby", "Tennis"] as const).map((s) => [s, SPORT_IMAGES[s]] as [string, string]),
+];
+const heroSlides = HERO_SLIDES.map(
+  ([sport, src], i) =>
+    `<figure class="slide${i === 0 ? " on" : ""}" aria-hidden="${i !== 0}"><img class="plate-img" src="${src}" alt="${sport}" ${i === 0 ? 'fetchpriority="high"' : 'loading="lazy"'}><figcaption>${sport}</figcaption></figure>`,
+).join("");
+const heroDots = HERO_SLIDES.map(
+  ([sport], i) => `<button type="button" data-slide="${i}" aria-label="${sport}" aria-pressed="${i === 0}"></button>`,
+).join("");
 
 // Static markup of the original single-page prototype (header, home sections, footer).
 // Dynamic views (team pages, alumni, forms, Hub) are rendered by site.js.
@@ -45,12 +58,13 @@ export const SITE_MARKUP = `
         <p class="sub rise d2">Competitive teams, social leagues and events for every Esade student. Find your sport and join a squad.</p>
         <div class="ctas rise d3">
           <a class="btn btn-solid-white" href="#apply">Join a team</a>
-          <a class="btn btn-ghost-white" href="#fixtures">See fixtures</a>
+          <a class="btn btn-ghost-white" href="#fixtures">See schedules</a>
         </div>
       </div>
-      <div class="plate">
-        <img class="plate-img" src="${HERO_IMAGE}" alt="Students huddling before a football match" fetchpriority="high">
+      <div class="plate slideshow" id="hero-slides" aria-roledescription="carousel" aria-label="Esade Sports photos">
+        ${heroSlides}
         <div class="stripes"></div>
+        <div class="slide-dots" role="group" aria-label="Choose a photo">${heroDots}</div>
       </div>
     </div>
   </section>

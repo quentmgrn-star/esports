@@ -154,7 +154,7 @@ export function initI18n() {
     "Esade.": ["Esade.","Esade."],
     "Competitive teams, social leagues and events for every Esade student. Find your sport and join a squad.": ["Equips competitius, lligues socials i esdeveniments per a tots els estudiants d'Esade. Troba el teu esport i uneix-te a un equip.","Equipos competitivos, ligas sociales y eventos para todos los estudiantes de Esade. Encuentra tu deporte y únete a un equipo."],
     "Join a team": ["Uneix-te a un equip","Únete a un equipo"],
-    "See fixtures": ["Mira els partits","Ver partidos"],
+    "See schedules": ["Mira els calendaris","Ver calendarios"],
     "Action photo placeholder": ["Espai per a una foto d'acció","Espacio para una foto de acción"],
     "[ Action photo ]": ["[ Foto d'acció ]","[ Foto de acción ]"],
     "[ Team photo ]": ["[ Foto de l'equip ]","[ Foto del equipo ]"],
