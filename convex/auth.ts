@@ -11,7 +11,7 @@ import authConfig from "./auth.config";
 export function adminEmails(): string[] {
   return (process.env.ADMIN_EMAILS ?? "")
     .split(",")
-    .map((e) => e.trim().toLowerCase())
+    .map((e) => e.trim().replace(/^["']|["']$/g, "").trim().toLowerCase())
     .filter(Boolean);
 }
 

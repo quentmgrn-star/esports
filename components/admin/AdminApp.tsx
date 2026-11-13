@@ -81,6 +81,17 @@ function SignOut() {
   );
 }
 
+// Turns a Better Auth error into something actionable, including the HTTP status.
+function describeError(e: { message?: string; status?: number; statusText?: string }) {
+  const status = e.status ? ` (HTTP ${e.status}${e.statusText ? " " + e.statusText : ""})` : "";
+  if (e.message) return e.message + status;
+  if (e.status === 404)
+    return "The sign-in service was not found on Convex: the Convex functions are probably not deployed to this deployment" + status + ".";
+  if (e.status && e.status >= 500)
+    return "Server error in Convex. Open the Convex dashboard, Logs tab, for the details (often BETTER_AUTH_SECRET or SITE_URL missing on this deployment)" + status + ".";
+  return "Something went wrong" + status + ". Please try again.";
+}
+
 function AuthForm() {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [name, setName] = useState("");
@@ -93,12 +104,16 @@ function AuthForm() {
     e.preventDefault();
     setError("");
     setBusy(true);
-    const res =
-      mode === "signin"
-        ? await authClient.signIn.email({ email, password })
-        : await authClient.signUp.email({ email, password, name: name || email });
+    try {
+      const res =
+        mode === "signin"
+          ? await authClient.signIn.email({ email, password })
+          : await authClient.signUp.email({ email, password, name: name || email });
+      if (res.error) setError(describeError(res.error));
+    } catch (err) {
+      setError(`Could not reach the server (${err instanceof Error ? err.message : String(err)}).`);
+    }
     setBusy(false);
-    if (res.error) setError(res.error.message || "Something went wrong. Please try again.");
   }
 
   return (
