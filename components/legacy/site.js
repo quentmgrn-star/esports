@@ -1011,6 +1011,33 @@ export function initSite(backend) {
     if (sc.viewer) out.push({ role: "viewer" });
     return out;
   }
+  // Prototype demo (admins only): switch perspective in one click to show how each person sees the Hub.
+  // It only changes this preview; real data access is checked in Convex for the signed-in account.
+  var DEMO = [
+    ["student", "1 · Student (public website)"],
+    ["exec", "2 · Board: President / Vice-president", { role: "exec" }],
+    ["head-fin", "2 · Board: Head of Finance (all teams)", { role: "head", dept: "fin" }],
+    ["head-ops", "2 · Board: Head of Operations (all teams)", { role: "head", dept: "ops" }],
+    ["assoc", "3 · Associate: Finance, Basketball Women", { role: "associate", dept: "fin", teams: ["basketball-women"] }],
+    ["captain", "4 · Captain: Basketball Women", { role: "captain", teams: ["basketball-women"] }],
+    ["viewer", "Student Council (Eva Morta), view only", { role: "viewer" }],
+    ["admin", "Admin (back to full access)", { role: "admin" }]
+  ];
+  function demoKey(u) { var k = ""; DEMO.forEach(function (d) { if (d[2] && d[2].role === u.role && d[2].dept === u.dept && (d[2].teams || []).join() === (u.teams || []).join()) k = d[0]; }); return k; }
+  function demoBar(u) {
+    var k = demoKey(u);
+    return '<div class="banner demo"><b>Prototype demo</b><span>Viewing as <strong>' + esc(viewLabel(u)) + "</strong> (example data).</span>" +
+      '<label class="demo-as">Demo as<select id="demo-as">' + (k ? "" : '<option value="" selected>Custom view</option>') + DEMO.map(function (d) { return '<option value="' + d[0] + '"' + (d[0] === k ? " selected" : "") + ">" + esc(d[1]) + "</option>"; }).join("") + "</select></label>" +
+      (u.role !== "admin" ? '<button type="button" class="btn sm" data-demo="admin">Back to admin</button>' : "") + "</div>";
+  }
+  function setDemo(key) {
+    if (!admin) return; // demo mode is for signed-in admins only
+    var d = null; DEMO.forEach(function (x) { if (x[0] === key) d = x; });
+    if (!d) return;
+    if (key === "student") { go("home"); toast("Public website: what every student sees. Use Hub in the top bar to come back."); return; }
+    state.user = JSON.parse(JSON.stringify(d[2])); state.teamOpen = null; save(); renderAcct();
+    if (location.hash === "#hub-overview") render(); else go("hub-overview");
+  }
   function viewAllowed(u) {
     if (!u || !HUB_ROLES[u.role]) return false;
     if (admin) return true;
@@ -1044,7 +1071,7 @@ export function initSite(backend) {
     return '<div class="app"><aside class="rail"><div class="top"><a class="lock" href="#home" aria-label="Back to Esade Sports home">' + mono(38) + '<span>ESADE SPORTS<br>HUB</span></a><div class="history" aria-label="Page navigation"><button type="button" data-history="back" aria-label="Go back">←</button><button type="button" data-history="forward" aria-label="Go forward">→</button></div>' +
       '<div class="who"><p class="eyebrow">Signed in' + (admin ? " as admin" : "") + '</p><strong>' + esc(me.email) + "</strong><small>Viewing as " + esc(viewLabel(u)) + (hRO() ? " · read-only" : "") + "</small>" + (multi ? '<a class="back-site" href="#signin">Change view</a>' : "") + '<a class="back-site" href="#home">← Public site</a><button type="button" data-signout>Sign out</button>' + langSwitch() + '</div></div>' +
       '<nav aria-label="Hub">' + nav + "</nav></aside>" +
-      '<main class="main"><div class="banner"><b>Prototype</b><span>Example figures and tasks. In the live version, access comes from an approved Esade login and data from a shared database.</span></div>' + inner + "</main></div>";
+      '<main class="main">' + (admin ? demoBar(u) : '<div class="banner"><b>Prototype</b><span>Example figures and tasks. In the live version, access comes from an approved Esade login and data from a shared database.</span></div>') + inner + "</main></div>";
   }
   function expTable(list, compact) {
     if (!list.length) return '<p class="empty">Nothing here. Every request has been handled.</p>';
@@ -1143,13 +1170,13 @@ export function initSite(backend) {
       '<section class="panel"><div class="panel-head"><h2>Routing rule</h2><span class="pill ok">Active in prototype</span></div><p class="muted" style="margin:0">When a student applies to a team, their try-out or coaching information is stored in that team’s Applications for sports folder and is visible to the active captain for that team. In production, this same event should also send the captain a notification email.</p></section>';
   }
   function hubCaptains() {
-    var active = state.captains.filter(function (c) { return c.active; });
+    var active = state.captains.filter(function (c) { return c.active; }), edit = !hRO();
     var rows = active.map(function (c) {
-      return '<tr><td><strong>' + esc(captainName(c)) + '</strong><br><small class="muted">' + esc(c.email) + '</small></td><td class="tname">' + esc(tLabel(team(c.team))) + '</td><td>' + esc(c.role) + '</td><td>' + esc(c.programme) + '</td><td class="num">' + esc(c.start) + '</td><td class="r"><button class="btn sm" data-captain-deactivate="' + c.id + '">Deactivate</button></td></tr>';
+      return '<tr><td><strong>' + esc(captainName(c)) + '</strong><br><small class="muted">' + esc(c.email) + '</small></td><td class="tname">' + esc(tLabel(team(c.team))) + '</td><td>' + esc(c.role) + '</td><td>' + esc(c.programme) + '</td><td class="num">' + esc(c.start) + '</td><td class="r">' + (edit ? '<button class="btn sm" data-captain-deactivate="' + c.id + '">Deactivate</button>' : "") + '</td></tr>';
     }).join("");
     return '<div class="ph-head"><div><p class="eyebrow">Board workspace</p><h1 class="display">Captains.</h1><p>One current record for every team, with a clear owner, role and start date. This demo stores changes in this browser; production data should move to the shared database.</p></div></div>' +
       '<section class="panel"><div class="panel-head"><h2>Active captains</h2><span class="muted">' + active.length + ' records</span></div><div class="table-wrap"><table><thead><tr><th>Captain</th><th>Team</th><th>Role</th><th>Programme</th><th>Since</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div></section>' +
-      '<section class="panel"><div class="panel-head"><h2>Add a captain</h2><span class="muted">Board only</span></div><form class="form" id="captain-form"><label>First name<input id="c-first" required placeholder="First name"></label><label>Last name<input id="c-last" required placeholder="Last name"></label><label>Email<input id="c-email" type="email" required placeholder="name@esade.edu"></label><label>Team<select id="c-team">' + TEAMS.map(function (t) { return '<option value="' + t.id + '">' + esc(tLabel(t)) + '</option>'; }).join('') + '</select></label><label>Role<select id="c-role"><option>Captain</option><option>Vice-captain</option></select></label><label>Programme<input id="c-programme" required placeholder="BBA, MSc..."></label><div><button class="btn solid" type="submit">Add captain</button></div></form></section>';
+      (edit ?       '<section class="panel"><div class="panel-head"><h2>Add a captain</h2><span class="muted">Board only</span></div><form class="form" id="captain-form"><label>First name<input id="c-first" required placeholder="First name"></label><label>Last name<input id="c-last" required placeholder="Last name"></label><label>Email<input id="c-email" type="email" required placeholder="name@esade.edu"></label><label>Team<select id="c-team">' + TEAMS.map(function (t) { return '<option value="' + t.id + '">' + esc(tLabel(t)) + '</option>'; }).join('') + '</select></label><label>Role<select id="c-role"><option>Captain</option><option>Vice-captain</option></select></label><label>Programme<input id="c-programme" required placeholder="BBA, MSc..."></label><div><button class="btn solid" type="submit">Add captain</button></div></form></section>' : '<p class="muted">View only: changes are made by the Board.</p>');
   }
   function hubDepts() {
     return '<div class="ph-head"><div><p class="eyebrow">One Board, four departments</p><h1 class="display">Departments.</h1><p>Who leads each department, what it is responsible for, and where its work stands.' + (can("tasks") ? "" : " Read-only for your role.") + "</p></div></div>" +
@@ -1167,6 +1194,8 @@ export function initSite(backend) {
       '<section style="display:grid;gap:12px"><h2 style="margin:0;font-size:15px;font-weight:800">Seven metrics</h2><ul class="metrics">' + METRICS.map(function (m) { return '<li class="metric"><p class="eyebrow">' + m[0] + "</p><strong>—</strong><small>" + m[1] + "</small></li>"; }).join("") + '</ul><p class="muted" style="margin:0;font-size:12px">Metrics fill in once the association is running. Shown empty on purpose.</p></section>';
   }
   function bindHub() {
+    var da = $("demo-as"); if (da) da.addEventListener("change", function () { setDemo(da.value); });
+    hub.querySelectorAll("[data-demo]").forEach(function (b) { b.addEventListener("click", function () { setDemo(b.getAttribute("data-demo")); }); });
     hub.querySelectorAll("[data-history]").forEach(function (b) { b.addEventListener("click", function () {
       if (b.getAttribute("data-history") === "back") history.back(); else history.forward();
     }); });

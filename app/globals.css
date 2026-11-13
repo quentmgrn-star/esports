@@ -824,3 +824,8 @@ a { color: inherit; }
 .acc.req .fgrid { grid-template-columns: 1fr; gap: 12px; margin: 12px 0; }
 .acc.req select, .acc.req textarea { width: 100%; }
 .acc.req .err { color: #b42318; font-weight: 600; }
+
+/* Hub prototype demo switcher (admins only) */
+.banner.demo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.banner.demo .demo-as { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; margin-left: auto; }
+.banner.demo select { font: 600 13px var(--font); padding: 6px 8px; border: 1.5px solid var(--navy); background: #fff; color: var(--navy); max-width: 100%; }
