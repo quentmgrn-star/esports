@@ -1,5 +1,6 @@
 /* eslint-disable */
 import { SPORT_IMAGES } from "@/lib/images";
+import { BOARD_BLOCK } from "./markup";
 // Ported from the original prototype script. Runs once on the client after the markup mounts.
 export function initSite(backend) {
 
@@ -139,7 +140,8 @@ export function initSite(backend) {
         '<button class="btn btn-blue" data-go="hub">Open the Hub</button></div>'
       : '<div class="acc"><p class="eyebrow">Captains · Board · Associates</p><strong>Sign in to the Hub</strong><p>Expenses and budgets, team updates, try-out applications, department tasks and reports for the Student Council.</p>' +
         '<a class="btn btn-blue" href="/admin">' + (admin === undefined ? "Checking your login\u2026" : "Sign in") + '</a></div>') +
-      '</div><p class="hint">Only accounts approved by the Board can sign in.</p></div></section>';
+      '</div><p class="hint">Only accounts approved by the Board can sign in.</p>' +
+      (admin ? '<div class="members-board">' + BOARD_BLOCK + '</div>' : "") + '</div></section>';
   }
   function bindSignin() {
     var role = $("hub-role"), wrap = $("hub-team-wrap");

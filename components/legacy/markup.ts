@@ -1,7 +1,7 @@
 import { HERO_IMAGE, SPORT_IMAGES } from "@/lib/images";
+import { SOCIAL } from "@/lib/social";
 
-// "The Board" block of the About section: hidden for now at Quentin's request (13 Nov 2026).
-// To show it again, put ${BOARD_BLOCK} back where the comment in the About section is.
+// "The Board" block: shown only in the Members area to signed-in admins (Quentin, 13 Nov 2026), not on public pages.
 export const BOARD_BLOCK = `
       <div class="about-board">
         <div class="sec-head"><div><p class="eyebrow">The team</p><h3 class="h2">The Board</h3></div><span class="tbc-note">Names to be confirmed</span></div>
@@ -135,7 +135,6 @@ export const SITE_MARKUP = `
         <div class="pillar"><p class="eyebrow">Pillar 02</p><h3>Events</h3><p>Tournaments for the community, and real sports-business events with people from the industry.</p></div>
         <div class="pillar"><p class="eyebrow">Pillar 03</p><h3>Industry</h3><p>A bridge between Esade students and sports-industry companies, through the Industry Platform.</p></div>
       </div>
-      <!-- The Board block is hidden for now (Quentin, 13 Nov 2026); see BOARD_BLOCK at the top of this file. -->
     </div>
   </section>
 
@@ -331,9 +330,9 @@ export const SITE_MARKUP = `
       <span>ESADE SPORTS</span>
     </a>
     <nav aria-label="Footer">
-      <a href="#top">Instagram</a>
-      <a href="#top">TikTok</a>
-      <a href="#top">LinkedIn</a>
+      <a href="${SOCIAL.instagram}" target="_blank" rel="noopener noreferrer">Instagram</a>
+      <a href="${SOCIAL.tiktok}" target="_blank" rel="noopener noreferrer">TikTok</a>
+      <a href="${SOCIAL.linkedin}" target="_blank" rel="noopener noreferrer">LinkedIn</a>
       <a href="#partners">Partner with us!</a>
       <a href="mailto:esadesports@alumni.esade.edu">Contact</a>
       <a href="#privacy">Privacy</a>
