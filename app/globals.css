@@ -247,6 +247,12 @@ a { color: inherit; }
 .acct-chip i { font-style: normal; font-size: 10px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--blue); }
 .acct-chip:hover { background: var(--line); }
 @media (max-width: 860px) { .acct-chip { justify-content: space-between; margin-top: 12px; padding: 12px; } }
+.admin-badge { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; background: var(--navy); color: var(--white) !important; padding: 7px 12px; text-decoration: none; max-width: 180px; white-space: nowrap; }
+.admin-badge i { font-style: normal; font-size: 10px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; background: var(--blue); padding: 2px 6px; }
+.admin-badge span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#acct .signout { background: none; border: 1.5px solid var(--navy); color: var(--navy); font: inherit; font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; padding: 6px 10px; cursor: pointer; white-space: nowrap; }
+#acct .signout:hover { background: var(--navy); color: var(--white); }
+@media (max-width: 860px) { .admin-badge { max-width: none; margin-top: 12px; padding: 12px; } #acct .signout { justify-self: start; margin-top: 8px; padding: 10px 12px; } }
 
 .page { min-height: 70vh; }
 .band { background: var(--navy); color: var(--white); }

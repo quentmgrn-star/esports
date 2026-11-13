@@ -1,13 +1,34 @@
 "use client";
 
 import { useEffect } from "react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { authClient } from "@/lib/auth-client";
 import { convex } from "./ConvexClientProvider";
 import { SITE_MARKUP } from "./legacy/markup";
-import { initSite } from "./legacy/site";
+import { initSite, type SiteAdmin } from "./legacy/site";
 import { initI18n } from "./legacy/i18n";
 
 let started = false; // the prototype script binds global listeners: run it once per page load
+let site: ReturnType<typeof initSite> | null = null;
+let admin: SiteAdmin = undefined; // latest login state, kept until the site script has started
+function pushAdmin(a: SiteAdmin) {
+  admin = a;
+  site?.setAdmin(a);
+}
+
+// Tells the site script whether an admin is signed in (same check as /admin: email on ADMIN_EMAILS in Convex).
+function AdminBridge() {
+  const { isLoading, isAuthenticated } = useConvexAuth();
+  const me = useQuery(api.admin.me, isAuthenticated ? {} : "skip") as
+    | { email: string; name: string; isAdmin: boolean }
+    | null
+    | undefined;
+  const value: SiteAdmin =
+    isLoading || (isAuthenticated && me === undefined) ? undefined : me?.isAdmin ? { email: me.email, name: me.name } : null;
+  useEffect(() => pushAdmin(value), [value === undefined ? "?" : value ? value.email : ""]); // eslint-disable-line react-hooks/exhaustive-deps
+  return null;
+}
 
 export default function EsadeSite() {
   useEffect(() => {
@@ -15,6 +36,7 @@ export default function EsadeSite() {
     started = true;
     const client = convex;
     const backend = client && {
+      signOut: () => authClient.signOut(),
       submitTeamApplication: (a: Record<string, unknown>) =>
         client.mutation(api.forms.submitTeamApplication, a as never).catch(console.error),
       submitPartnerInquiry: (a: Record<string, unknown>) =>
@@ -36,9 +58,15 @@ export default function EsadeSite() {
         return client.mutation(api.forms.submitAssociationApplication, { ...a, cvId, videoId } as never);
       },
     };
-    initSite(backend);
+    site = initSite(backend);
+    site.setAdmin(client ? admin : null);
     initI18n();
   }, []);
 
-  return <div id="site-root" dangerouslySetInnerHTML={{ __html: SITE_MARKUP }} />;
+  return (
+    <>
+      {convex && <AdminBridge />}
+      <div id="site-root" dangerouslySetInnerHTML={{ __html: SITE_MARKUP }} />
+    </>
+  );
 }

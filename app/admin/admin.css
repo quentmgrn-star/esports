@@ -1,6 +1,6 @@
 .adm { min-height: 100vh; background: var(--mist); }
 .adm-head { background: var(--navy); color: var(--white); }
-.adm-head .wrap { display: flex; align-items: center; justify-content: space-between; height: 60px; }
+.adm-head .wrap { display: flex; align-items: center; justify-content: space-between; min-height: 60px; gap: 12px; }
 .adm-main { padding-block: 40px 64px; }
 .adm-card { max-width: 440px; margin: 24px auto; background: var(--white); padding: 32px; display: grid; gap: 16px; }
 .adm-title { font-size: clamp(30px, 5vw, 48px); }
@@ -26,3 +26,13 @@
 .adm-h3 { margin: 24px 0 8px; font-size: 13px; letter-spacing: .12em; text-transform: uppercase; }
 .adm-motivation { margin: 0; white-space: pre-wrap; color: var(--ink-soft); }
 @media (max-width: 480px) { .adm-card { padding: 24px 18px; } }
+
+.adm-status { display: flex; align-items: center; gap: 14px; font-size: 13px; flex-wrap: wrap; justify-content: flex-end; }
+.adm-status a { color: var(--white); text-decoration: none; font-weight: 600; }
+.adm-status a:hover { text-decoration: underline; }
+.adm-badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,.1); padding: 5px 10px; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adm-badge i { font-style: normal; font-size: 10px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; background: var(--blue); padding: 2px 6px; }
+.adm-badge-off i { background: rgba(255,255,255,.2); }
+.adm-status button { background: none; border: 1.5px solid rgba(255,255,255,.5); color: var(--white); font: inherit; font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; padding: 5px 10px; cursor: pointer; }
+.adm-status button:hover { border-color: var(--white); }
+@media (max-width: 600px) { .adm-status > a:first-child { display: none; } .adm-badge { max-width: 150px; } }

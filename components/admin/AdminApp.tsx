@@ -35,10 +35,38 @@ export default function AdminApp() {
           <a className="lockup" href="/">
             <span>ESADE SPORTS</span>
           </a>
-          <span className="eyebrow">Admin</span>
+          {convex ? <HeaderStatus /> : <span className="eyebrow">Admin</span>}
         </div>
       </header>
       {convex ? <Gate /> : <Panel title="Not configured">Convex is not configured for this deployment.</Panel>}
+    </div>
+  );
+}
+
+// Always says, in the header, whether you are signed in and as whom.
+function HeaderStatus() {
+  const { isAuthenticated } = useConvexAuth();
+  const session = authClient.useSession();
+  const me = useQuery(api.admin.me, isAuthenticated ? {} : "skip") as Me | undefined;
+  const email = me?.email ?? session.data?.user?.email;
+  return (
+    <div className="adm-status">
+      <a href="/">← Public site</a>
+      {me?.isAdmin && <a href="/#hub-overview">Hub</a>}
+      {email ? (
+        <>
+          <span className="adm-badge">
+            <i>{me?.isAdmin ? "Admin" : "Signed in"}</i> {email}
+          </span>
+          <button type="button" onClick={() => authClient.signOut()}>
+            Sign out
+          </button>
+        </>
+      ) : (
+        <span className="adm-badge adm-badge-off">
+          <i>Not signed in</i>
+        </span>
+      )}
     </div>
   );
 }
@@ -237,11 +265,11 @@ function Dashboard({ me }: { me: NonNullable<Me> }) {
     <main className="wrap adm-main">
       <div className="adm-top">
         <div>
-          <p className="eyebrow">Recruitment</p>
+          <p className="eyebrow">Signed in as {me.email}</p>
           <h1 className="display adm-title">Applications</h1>
         </div>
         <div className="adm-user">
-          <span>{me.email}</span>
+          <a className="btn btn-blue" href="/#hub-overview">Open the Hub</a>
           <SignOut />
         </div>
       </div>

@@ -102,18 +102,30 @@ export function initSite(backend) {
   } catch (e) {}
   function save() { try { localStorage.setItem("es-site", JSON.stringify({ v: 2, user: state.user, me: state.me, expenses: state.expenses, captains: state.captains, teamApplications: state.teamApplications, teamInfo: state.teamInfo, teamResults: state.teamResults, tasks: state.tasks, nextId: state.nextId })); } catch (e) {} }
   var HUB_ROLES = { captain: 1, board: 1, council: 1 };
+  // Real admin login (Better Auth, /admin). undefined = still checking, null = not an admin, else { email, name }.
+  // The Hub is only open to a signed-in admin; the role picker only previews what a captain, the Board or the Council sees.
+  var admin;
+  if (state.user && HUB_ROLES[state.user.role]) state.user = null; // a Hub role from before the real login existed
   function signedIn() { return !!state.user && state.user.role !== "guest"; }
-  function isHub() { return !!state.user && HUB_ROLES[state.user.role]; }
+  function isHub() { return !!admin && !!state.user && HUB_ROLES[state.user.role]; }
   function allAlumni() { return state.me && state.me.verified !== false ? [state.me].concat(ALUMNI) : ALUMNI; }
 
   // ================= Header account area =================
+  function adminBar() {
+    if (!admin) return "";
+    return '<a class="admin-badge" href="/admin" title="Signed in as ' + esc(admin.email) + ' · open the admin area"><i>Admin</i><span>' + esc(admin.name || admin.email.split("@")[0]) + '</span></a>' +
+      '<a href="#hub-overview">Hub</a><button type="button" class="signout" data-signout>Sign out</button>';
+  }
   function renderAcct() {
     var u = state.user, html;
+    if (admin) {
+      html = adminBar() + (u && u.role !== "guest" && !HUB_ROLES[u.role] ? '<a class="acct-chip" href="#signin" title="Switch access"><i>' + (u.active ? "Alumni · Member" : "Alumni") + "</i><span>Switch</span></a>" : "");
+      $("acct").innerHTML = html; return;
+    }
     if (!u) html = '<a href="#signin">Sign in</a><a class="btn btn-blue" href="#apply-associate">Join</a>';
     else {
       var lbl = u.role === "guest" ? "Guest" : u.role === "alumni" ? (u.active ? "Alumni · Member" : "Alumni") : u.role === "captain" ? "Captain" : u.role === "board" ? "Board" : "Student Council";
-      html = (isHub() ? '<a href="#hub-overview">Hub</a>' : "") +
-        (u.role !== "guest" ? '<a href="' + (state.me ? "#alumni-me" : "#my-profile") + '">' + (state.me ? "My profile" : "Create profile") + "</a>" : "") +
+      html = (u.role !== "guest" ? '<a href="' + (state.me ? "#alumni-me" : "#my-profile") + '">' + (state.me ? "My profile" : "Create profile") + "</a>" : "") +
         '<a class="acct-chip" href="#signin" title="Switch access"><i>' + lbl + "</i><span>Switch</span></a>";
     }
     $("acct").innerHTML = html;
@@ -130,21 +142,24 @@ export function initSite(backend) {
       '<label class="radio"><input type="radio" name="act" id="act-yes" value="yes"><span><b>Currently in</b> an Esade sports team or association</span></label>' +
       '<label class="radio"><input type="radio" name="act" id="act-no" value="no" checked><span><b>Not currently in</b> a team or association</span></label></div>' +
       '<button class="btn btn-blue" data-go="alumni">Continue as alumni</button></div>' +
-      '<div class="acc"><p class="eyebrow">Members only</p><strong>Esade Sports Hub</strong><p>Department tracking, budgets and expenses.</p><div class="opts">' +
-      '<label class="field" for="hub-role">Your role<select id="hub-role"><option value="captain">Team captain</option><option value="board">Board member</option><option value="council">Student Council (Eva Morta)</option></select></label>' +
-      '<label class="field" for="hub-team" id="hub-team-wrap">Your team<select id="hub-team">' + opts + "</select></label></div>" +
-      '<button class="btn btn-ghost-navy" data-go="hub">Open the Hub</button></div>' +
-      '</div><p class="hint">Prototype. Choosing an access here stands in for a real login with an Esade account. In the live site, the Hub is only reachable by accounts the Board has approved.</p></div></section>';
+      (admin ?
+        '<div class="acc"><p class="eyebrow">Signed in as admin</p><strong>Esade Sports Hub</strong><p>You are signed in as ' + esc(admin.email) + '. Pick which view of the Hub to open.</p><div class="opts">' +
+        '<label class="field" for="hub-role">View the Hub as<select id="hub-role"><option value="board">Board member</option><option value="captain">Team captain</option><option value="council">Student Council (Eva Morta)</option></select></label>' +
+        '<label class="field" for="hub-team" id="hub-team-wrap" hidden>Team<select id="hub-team">' + opts + "</select></label></div>" +
+        '<button class="btn btn-blue" data-go="hub">Open the Hub</button></div>'
+      : '<div class="acc"><p class="eyebrow">Admins only</p><strong>Esade Sports Hub</strong><p>Department tracking, budgets and expenses. You need to sign in with an approved admin account first.</p>' +
+        '<a class="btn btn-ghost-navy" href="/admin">' + (admin === undefined ? "Checking your login…" : "Admin sign in") + '</a></div>') +
+      '</div><p class="hint">Normal viewer and Alumni are simulated in this prototype. The Hub needs a real admin login.</p></div></section>';
   }
   function bindSignin() {
     var role = $("hub-role"), wrap = $("hub-team-wrap");
-    role.addEventListener("change", function () { wrap.hidden = role.value !== "captain"; });
+    if (role) role.addEventListener("change", function () { wrap.hidden = role.value !== "captain"; });
     page.querySelectorAll("[data-go]").forEach(function (b) {
       b.addEventListener("click", function () {
         var g = b.getAttribute("data-go");
         if (g === "guest") { state.user = { role: "guest" }; go("home"); }
         else if (g === "alumni") { state.user = { role: "alumni", active: $("act-yes").checked }; go(state.me ? "alumni" : "my-profile"); }
-        else { state.user = { role: role.value, team: role.value === "captain" ? $("hub-team").value : null }; go("hub-overview"); }
+        else if (admin) { state.user = { role: role.value, team: role.value === "captain" ? $("hub-team").value : null }; go("hub-overview"); }
         save(); renderAcct(); toast("Signed in.");
       });
     });
@@ -713,7 +728,7 @@ export function initSite(backend) {
     }).join("");
     var u = state.user, who = u.role === "captain" ? "Captain · " + tLabel(team(u.team)) : u.role === "board" ? "Board member" : "Eva Morta · Student Council";
     return '<div class="app"><aside class="rail"><div class="top"><a class="lock" href="#home" aria-label="Back to Esade Sports home">' + mono(38) + '<span>ESADE SPORTS<br>HUB</span></a><div class="history" aria-label="Page navigation"><button type="button" data-history="back" aria-label="Go back">←</button><button type="button" data-history="forward" aria-label="Go forward">→</button></div>' +
-      '<div class="who"><p class="eyebrow">Signed in as</p><strong>' + esc(who) + "</strong><small>" + (u.role === "council" ? "Read-only access" : u.role === "captain" ? "Your team only" : "Full access") + '</small><a class="back-site" href="#home">← Public site</a><a class="back-site" href="#home" data-viewer-switch>Switch to normal viewer</a>' + langSwitch() + '</div></div>' +
+      '<div class="who"><p class="eyebrow">Signed in as admin</p><strong>' + esc(admin.email) + "</strong><small>Viewing as " + esc(who) + " · " + (u.role === "council" ? "read-only" : u.role === "captain" ? "own team only" : "full access") + '</small><a class="back-site" href="#signin">Change view</a><a class="back-site" href="#home">← Public site</a><button type="button" data-signout>Sign out</button>' + langSwitch() + '</div></div>' +
       '<nav aria-label="Hub">' + nav + "</nav></aside>" +
       '<main class="main"><div class="banner"><b>Prototype</b><span>Example figures and tasks. In the live version, access comes from an approved Esade login and data from a shared database.</span></div>' + inner + "</main></div>";
   }
@@ -830,8 +845,8 @@ export function initSite(backend) {
     hub.querySelectorAll("[data-history]").forEach(function (b) { b.addEventListener("click", function () {
       if (b.getAttribute("data-history") === "back") history.back(); else history.forward();
     }); });
-    hub.querySelectorAll("[data-viewer-switch]").forEach(function (b) { b.addEventListener("click", function (e) {
-      e.preventDefault(); state.user = { role: "guest" }; save(); renderAcct(); go("home"); toast("Switched to normal viewer.");
+    hub.querySelectorAll("[data-signout]").forEach(function (b) { b.addEventListener("click", function () {
+      signOut();
     }); });
     hub.querySelectorAll("[data-act]").forEach(function (b) { b.addEventListener("click", function () {
       var id = +b.getAttribute("data-id"), a = b.getAttribute("data-act");
@@ -881,7 +896,9 @@ export function initSite(backend) {
     var h = location.hash.slice(1), html = null;
     document.querySelector(".head").classList.remove("open");
     if (h.indexOf("hub-") === 0) {
-      if (!isHub()) { location.replace("#signin"); return; }
+      if (admin === undefined) { page.innerHTML = '<section class="band"><div class="wrap"><p class="eyebrow">Hub</p><h1 class="display">Checking your login…</h1></div></section>'; show("page"); return; }
+      if (!admin) { location.replace("#signin"); return; }
+      if (!isHub()) { state.user = { role: "board", team: null }; save(); renderAcct(); }
       if (h === "hub-report" && !can("reports")) h = "hub-overview";
       if (h === "hub-captains" && !can("captains")) h = "hub-overview";
       if (h === "hub-team-editor" && !can("teamEdit")) h = "hub-overview";
@@ -962,7 +979,25 @@ export function initSite(backend) {
     window.location.href = "mailto:esadesports@alumni.esade.edu?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body);
     pf.hidden = true; $("p-done").hidden = false;
   });
+  function signOut() {
+    if (state.user && HUB_ROLES[state.user.role]) state.user = null;
+    save();
+    Promise.resolve(backend && backend.signOut ? backend.signOut() : null).catch(console.error);
+    setAdmin(null); go("home"); toast("Signed out.");
+  }
+  document.addEventListener("click", function (e) {
+    if (e.target.closest && e.target.closest("#acct [data-signout]")) signOut();
+  });
+  function setAdmin(a) {
+    if (a === admin || (a && admin && a.email === admin.email)) return;
+    admin = a;
+    if (!admin && state.user && HUB_ROLES[state.user.role]) { state.user = null; save(); }
+    renderAcct();
+    var h = location.hash.slice(1);
+    if (h === "signin" || h.indexOf("hub-") === 0) render();
+  }
   window.addEventListener("hashchange", function () { state.teamOpen = null; render(); });
   renderAcct(); render();
+  return { setAdmin: setAdmin };
 
 }
