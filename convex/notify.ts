@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
+import type { Doc } from "./_generated/dataModel";
 import { adminEmails } from "./auth";
 import { sportsOf } from "./roles";
 
@@ -24,19 +25,25 @@ export const recipients = internalQuery({
 
 export const setEmailStatus = internalMutation({
   args: { id: v.id("contactMessages"), emailStatus: v.string() },
-  handler: async (ctx, { id, emailStatus }) => ctx.db.patch(id, { emailStatus }),
+  handler: async (ctx, { id, emailStatus }): Promise<void> => {
+    await ctx.db.patch(id, { emailStatus });
+  },
 });
 
 // Sends the copy with Resend (https://resend.com). Needs RESEND_API_KEY and MAIL_FROM on Convex;
 // without them the message is still saved and shown in /admin, only the email is skipped.
 export const emailContactMessage = internalAction({
   args: { id: v.id("contactMessages") },
-  handler: async (ctx, { id }) => {
-    const data = await ctx.runQuery(internal.notify.recipients, { id });
-    if (!data) return;
+  // Explicit types: this action calls queries in its own file, which TypeScript can't infer on its own.
+  handler: async (ctx, { id }): Promise<null> => {
+    const data: { m: Doc<"contactMessages">; to: string[] } | null = await ctx.runQuery(internal.notify.recipients, { id });
+    if (!data) return null;
     const { m, to } = data;
     const key = process.env.RESEND_API_KEY, from = process.env.MAIL_FROM;
-    const status = async (s: string) => ctx.runMutation(internal.notify.setEmailStatus, { id, emailStatus: s });
+    const status = async (s: string): Promise<null> => {
+      await ctx.runMutation(internal.notify.setEmailStatus, { id, emailStatus: s });
+      return null;
+    };
     if (!key || !from) return status("skipped: email not set up (RESEND_API_KEY / MAIL_FROM)");
     if (to.length === 0) return status(m.sport ? `skipped: no captain for ${m.sport} yet` : "skipped: no admin emails");
 
