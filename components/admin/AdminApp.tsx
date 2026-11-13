@@ -56,11 +56,15 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
 
 function Gate() {
   const { isLoading, isAuthenticated } = useConvexAuth();
+  const session = authClient.useSession();
   const me = useQuery(api.admin.me, isAuthenticated ? {} : "skip") as Me | undefined;
+  const signedInEmail = session.data?.user?.email;
 
-  if (isLoading || (isAuthenticated && me === undefined)) {
+  if (isLoading || session.isPending || (isAuthenticated && me === undefined)) {
     return <Panel title="Loading">Checking your session…</Panel>;
   }
+  // Signed in with Better Auth, but Convex has not accepted the session (yet).
+  if (signedInEmail && (!isAuthenticated || !me)) return <Connecting email={signedInEmail} convexOk={isAuthenticated} />;
   if (!isAuthenticated || !me) return <AuthForm />;
   if (!me.isAdmin) {
     return (
@@ -71,6 +75,42 @@ function Gate() {
     );
   }
   return <Dashboard me={me} />;
+}
+
+// Shown between a successful sign-in and Convex accepting the session. After a few
+// seconds it checks the Convex token itself and says what is wrong.
+function Connecting({ email, convexOk }: { email: string; convexOk: boolean }) {
+  const [detail, setDetail] = useState("");
+  useEffect(() => {
+    const t = setTimeout(async () => {
+      if (convexOk) {
+        setDetail("Convex accepted your session but could not find your user. Sign out and sign in again.");
+        return;
+      }
+      try {
+        const res = (await authClient.$fetch("/convex/token", { method: "GET" })) as {
+          data?: { token?: string } | null;
+          error?: { status?: number; message?: string } | null;
+        };
+        if (res.error || !res.data?.token) {
+          setDetail(`Could not get a Convex token: ${res.error?.message || "no token"}${res.error?.status ? ` (HTTP ${res.error.status})` : ""}.`);
+        } else {
+          setDetail("A Convex token was issued, but Convex rejected it. The Convex functions or auth config on this deployment are probably out of date: redeploy so the build runs \"npx convex deploy\".");
+        }
+      } catch (e) {
+        setDetail(`Could not reach the sign-in service: ${e instanceof Error ? e.message : String(e)}.`);
+      }
+    }, 5000);
+    return () => clearTimeout(t);
+  }, [convexOk]);
+
+  return (
+    <Panel title="Signing in">
+      <p className="adm-p">Signed in as {email}. Connecting to the database…</p>
+      {detail && <p className="err">{detail}</p>}
+      <SignOut />
+    </Panel>
+  );
 }
 
 function SignOut() {
