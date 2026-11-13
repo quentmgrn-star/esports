@@ -296,7 +296,37 @@ const fmtDate = (t: number) =>
   new Date(t).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 const uniq = (xs: string[]) => [...new Set(xs.filter(Boolean))].sort((a, b) => a.localeCompare(b));
 
+// Top-level switch between the admin sections.
 function Dashboard({ me }: { me: NonNullable<Me> }) {
+  const [section, setSection] = useState<"applications" | "messages">("applications");
+  const messages = useQuery(api.admin.listContactMessages, {}) as ContactMessage[] | undefined;
+  const unread = (messages ?? []).filter((m) => m.status === "new").length;
+  return (
+    <main className="wrap adm-main">
+      <div className="adm-top">
+        <div>
+          <p className="eyebrow">Signed in as {me.email}</p>
+          <h1 className="display adm-title">{section === "applications" ? "Applications" : "Messages"}</h1>
+        </div>
+        <div className="adm-user">
+          <a className="btn btn-blue" href="/#hub-overview">Open the Hub</a>
+          <SignOut />
+        </div>
+      </div>
+      <nav className="adm-sections" aria-label="Admin sections">
+        <button type="button" aria-pressed={section === "applications"} onClick={() => setSection("applications")}>
+          Applications
+        </button>
+        <button type="button" aria-pressed={section === "messages"} onClick={() => setSection("messages")}>
+          Messages{unread > 0 && <span>{unread}</span>}
+        </button>
+      </nav>
+      {section === "applications" ? <Applications /> : <Messages messages={messages} />}
+    </main>
+  );
+}
+
+function Applications() {
   const apps = useQuery(api.admin.listAssociationApplications, {}) as Application[] | undefined;
   const [first, setFirst] = useState("");
   const [programme, setProgramme] = useState("");
@@ -325,18 +355,7 @@ function Dashboard({ me }: { me: NonNullable<Me> }) {
   const shown = filtered.filter((a) => inTab(a, tab));
 
   return (
-    <main className="wrap adm-main">
-      <div className="adm-top">
-        <div>
-          <p className="eyebrow">Signed in as {me.email}</p>
-          <h1 className="display adm-title">Applications</h1>
-        </div>
-        <div className="adm-user">
-          <a className="btn btn-blue" href="/#hub-overview">Open the Hub</a>
-          <SignOut />
-        </div>
-      </div>
-
+    <>
       <div className="adm-tabs" role="tablist" aria-label="Recruitment stage">
         {TABS.map(([id, label]) => (
           <button
@@ -440,7 +459,175 @@ function Dashboard({ me }: { me: NonNullable<Me> }) {
       </div>
 
       {open && <Detail app={open} onClose={() => setOpenId(null)} />}
-    </main>
+    </>
+  );
+}
+
+type ContactMessage = {
+  _id: string;
+  _creationTime: number;
+  topic: string;
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  sport?: string;
+  status: "new" | "read" | "answered";
+};
+const MSG_STATUS: Record<ContactMessage["status"], string> = { new: "New", read: "Read", answered: "Answered" };
+
+function Messages({ messages }: { messages: ContactMessage[] | undefined }) {
+  const setStatus = useMutation(api.admin.setContactStatus);
+  const [topic, setTopic] = useState("");
+  const [status, setStatusFilter] = useState("");
+  const [openId, setOpenId] = useState<string | null>(null);
+  const list = messages ?? [];
+  const topics = uniq(list.map((m) => m.topic));
+  const shown = list.filter((m) => (!topic || m.topic === topic) && (!status || m.status === status));
+  const open = list.find((m) => m._id === openId) ?? null;
+  const change = (id: string, st: ContactMessage["status"]) =>
+    setStatus({ id, status: st }).catch((e: unknown) => alert(`Could not update: ${e instanceof Error ? e.message : String(e)}`));
+
+  return (
+    <>
+      <div className="adm-filters">
+        <label className="field">
+          Topic
+          <select value={topic} onChange={(e) => setTopic(e.target.value)}>
+            <option value="">All topics</option>
+            {topics.map((t) => (
+              <option key={t}>{t}</option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          Status
+          <select value={status} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="">All</option>
+            <option value="new">New</option>
+            <option value="read">Read</option>
+            <option value="answered">Answered</option>
+          </select>
+        </label>
+      </div>
+      <p className="adm-count">
+        {messages === undefined ? "Loading…" : `${shown.length} shown · ${list.length} message${list.length === 1 ? "" : "s"} in total`}
+      </p>
+      <div className="adm-table-wrap">
+        <table className="adm-table">
+          <thead>
+            <tr>
+              <th>From</th>
+              <th>Topic</th>
+              <th>Subject</th>
+              <th>Received</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {shown.map((m) => (
+              <tr
+                key={m._id}
+                tabIndex={0}
+                className={m.status === "new" ? "adm-unread" : undefined}
+                onClick={() => {
+                  setOpenId(m._id);
+                  if (m.status === "new") change(m._id, "read");
+                }}
+                onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), setOpenId(m._id))}
+              >
+                <td>
+                  <strong>{m.name}</strong>
+                  <span className="adm-sub">{m.email}</span>
+                </td>
+                <td>
+                  {m.topic}
+                  {m.sport && <span className="adm-sub">{m.sport}</span>}
+                </td>
+                <td>{m.subject}</td>
+                <td>{fmtDate(m._creationTime)}</td>
+                <td>
+                  <span className={`adm-pill adm-pill-${m.status}`}>{MSG_STATUS[m.status]}</span>
+                </td>
+              </tr>
+            ))}
+            {messages !== undefined && shown.length === 0 && (
+              <tr className="adm-empty">
+                <td colSpan={5}>{list.length ? "No messages match these filters." : "No messages yet."}</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      {open && <MessageDetail m={open} onClose={() => setOpenId(null)} onStatus={(st) => change(open._id, st)} />}
+    </>
+  );
+}
+
+function MessageDetail({
+  m,
+  onClose,
+  onStatus,
+}: {
+  m: ContactMessage;
+  onClose: () => void;
+  onStatus: (s: ContactMessage["status"]) => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  const reply = `mailto:${m.email}?subject=${encodeURIComponent("Re: " + m.subject)}`;
+  return (
+    <div className="match-modal">
+      <div className="match-backdrop" onClick={onClose} />
+      <section className="match-dialog adm-dialog" role="dialog" aria-modal="true" aria-labelledby="msg-title">
+        <button className="match-close" type="button" onClick={onClose} aria-label="Close">
+          ×
+        </button>
+        <p className="eyebrow" style={{ color: "var(--blue)" }}>
+          {m.topic}
+          {m.sport ? ` · ${m.sport}` : ""}
+        </p>
+        <h2 id="msg-title">{m.subject}</h2>
+        <dl className="match-details">
+          <div>
+            <dt>From</dt>
+            <dd>{m.name}</dd>
+          </div>
+          <div>
+            <dt>Email</dt>
+            <dd>
+              <a href={`mailto:${m.email}`}>{m.email}</a>
+            </dd>
+          </div>
+          <div>
+            <dt>Received</dt>
+            <dd>{new Date(m._creationTime).toLocaleString("en-GB")}</dd>
+          </div>
+        </dl>
+        <h3 className="adm-h3">Message</h3>
+        <p className="adm-motivation">{m.message}</p>
+        <div className="adm-notes-actions" style={{ marginTop: 20, flexWrap: "wrap" }}>
+          <a className="btn btn-blue" href={reply} onClick={() => onStatus("answered")}>
+            Reply by email
+          </a>
+          {m.status !== "answered" ? (
+            <button className="btn btn-ghost-navy" type="button" onClick={() => onStatus("answered")}>
+              Mark as answered
+            </button>
+          ) : (
+            <button className="btn btn-ghost-navy" type="button" onClick={() => onStatus("read")}>
+              Mark as not answered
+            </button>
+          )}
+          <button className="btn btn-ghost-navy" type="button" onClick={() => onStatus("new")}>
+            Mark as unread
+          </button>
+        </div>
+      </section>
+    </div>
   );
 }
 

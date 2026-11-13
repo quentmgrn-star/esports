@@ -466,6 +466,48 @@ export function initSite(backend) {
       '<p class="err" id="as-err" hidden></p><div class="form-actions"><button class="btn btn-blue" type="submit">Submit application</button><span class="muted" style="font-size:13px">Your application will be reviewed by the Board and relevant department Heads.</span></div></form>' +
       '<div class="locked" id="as-done" hidden><p class="eyebrow" style="color:var(--blue)">Application received</p><h2>Thanks for applying to Esade Sports</h2><p id="as-done-p">Your ranked preferences and application materials are ready for review.</p><a class="btn btn-ghost-navy" href="#home">Back to home</a></div></div></section>';
   }
+  // ================= Contact form (footer "Contact") =================
+  var CONTACT_TOPICS = ["Question", "Suggestion", "Feedback or complaint", "Try-outs", "Coaching", "Partnership or business", "Alumni", "Other"];
+  function contactView() {
+    return '<section class="band"><div class="wrap"><p class="eyebrow">Contact</p><h1 class="display">Get in<br>touch.</h1><p>A question, a suggestion or an idea? Send us a message and the right person at Esade Sports will get back to you by email.</p></div></section>' +
+      '<section class="al"><div class="wrap body"><form class="pform" id="contact-form" novalidate>' +
+      '<div class="fsec"><h2>Your message</h2><div class="fgrid">' +
+      '<label class="field" for="ct-topic">What is your message about?<select id="ct-topic" required><option value="">Choose a topic</option>' + CONTACT_TOPICS.map(function (t) { return '<option value="' + t + '">' + t + "</option>"; }).join("") + "</select></label>" +
+      '<label class="field" for="ct-sport">Sport (optional)<select id="ct-sport"><option value="">Not about a specific sport</option>' + SPORTS.map(function (sp) { return '<option value="' + esc(sp) + '">' + esc(sp) + "</option>"; }).join("") + "</select></label>" +
+      fieldI("ct-subject", "Subject", "", 'required maxlength="150"', true) +
+      '<label class="field full" for="ct-message">Message<textarea id="ct-message" rows="7" maxlength="2000" required placeholder="Write your message here"></textarea><small class="muted" id="ct-count">0 / 2000</small></label>' +
+      "</div></div>" +
+      '<div class="fsec"><h2>Your details</h2><div class="fgrid">' + fieldI("ct-name", "Name", "", 'required maxlength="100" autocomplete="name"') + fieldI("ct-email", "Email", "", 'type="email" required maxlength="200" autocomplete="email"') + "</div>" +
+      '<div class="hp" aria-hidden="true"><label for="ct-website">Website<input id="ct-website" tabindex="-1" autocomplete="off"></label></div></div>' +
+      '<div class="fsec"><label class="consent" for="ct-consent"><input type="checkbox" id="ct-consent" required><span>I have read the <a href="#privacy">privacy policy</a> and agree that Esade Sports uses my details to answer this message.</span></label></div>' +
+      '<p class="err" id="ct-err" hidden></p><div class="form-actions"><button class="btn btn-blue" type="submit">Send message</button><span class="muted" style="font-size:13px">We usually reply within a few days.</span></div></form>' +
+      '<div class="locked" id="ct-done" hidden><p class="eyebrow" style="color:var(--blue)">Message sent</p><h2>Thanks for your message</h2><p>We have received it and will reply by email.</p><a class="btn btn-ghost-navy" href="#home">Back to home</a></div></div></section>';
+  }
+  function bindContact() {
+    var f = $("contact-form"); if (!f) return;
+    var msg = $("ct-message"), count = $("ct-count");
+    msg.addEventListener("input", function () { count.textContent = msg.value.length + " / 2000"; });
+    f.addEventListener("submit", function (e) {
+      e.preventDefault(); var err = $("ct-err");
+      function fail(t) { err.textContent = t; err.hidden = false; }
+      var email = $("ct-email").value.trim();
+      if (!$("ct-topic").value || !$("ct-subject").value.trim() || !msg.value.trim() || !$("ct-name").value.trim() || !email) return fail("Please fill in every required field.");
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail("Please enter a valid email address.");
+      if (!$("ct-consent").checked) return fail("Please accept the privacy policy.");
+      err.hidden = true;
+      function done() { f.hidden = true; $("ct-done").hidden = false; window.scrollTo(0, 0); }
+      if (!backend || !backend.submitContactMessage) { done(); return; }
+      var btn = f.querySelector('button[type="submit"]'); btn.disabled = true; btn.textContent = "Sending…";
+      backend.submitContactMessage({
+        topic: $("ct-topic").value, sport: $("ct-sport").value || undefined, subject: $("ct-subject").value.trim(), message: msg.value.trim(),
+        name: $("ct-name").value.trim(), email: email, consent: true, website: $("ct-website").value || undefined
+      }).then(done, function (x) {
+        console.error(x); btn.disabled = false; btn.textContent = "Send message";
+        var m = x && x.data ? String(x.data) : "";
+        fail(m || "Your message could not be sent. Please check your connection and try again.");
+      });
+    });
+  }
   var YEARS = ["1st year", "2nd year", "3rd year", "4th year", "5th year", "Master's"];
   function deptName(id) { var n = ""; DEPTS.forEach(function (d) { if (d.id === id) n = d.name; }); return n; }
   function bindAssociateApply() {
@@ -922,6 +964,7 @@ export function initSite(backend) {
     else if (h === "apply" || h.indexOf("apply-") === 0) html = applyView(h);
     else if (h === "my-profile") html = formView();
     else if (h === "privacy") html = privacyView();
+    else if (h === "contact") html = contactView();
     else if (h === "alumni-verify") html = verifyView();
     else if (h.indexOf("alumni-") === 0) {
       var id = h.slice(7), a = null;
@@ -936,6 +979,7 @@ export function initSite(backend) {
       if (h === "my-profile") bindForm();
       if (h === "alumni-verify") bindVerify();
       if (h === "apply-associate") bindAssociateApply();
+      if (h === "contact") bindContact();
       if (h === "apply" || h.indexOf("apply-") === 0) bindApply();
       page.querySelectorAll("[data-copy]").forEach(function (b) { b.addEventListener("click", function () {
         var v = b.getAttribute("data-copy");

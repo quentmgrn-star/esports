@@ -52,3 +52,13 @@
 .adm-notes textarea { width: 100%; box-sizing: border-box; font: 14px/1.5 var(--font); padding: 10px 12px; border: 1.5px solid var(--line); resize: vertical; }
 .adm-notes-actions { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
 @media (max-width: 600px) { .adm-tab { flex: 1 1 auto; padding: 10px 8px; } }
+
+.adm-sections { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 2px solid var(--navy); }
+.adm-sections button { background: none; border: 0; padding: 12px 18px; font: 800 13px var(--font); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); cursor: pointer; margin-bottom: -2px; border-bottom: 4px solid transparent; }
+.adm-sections button[aria-pressed="true"] { color: var(--navy); border-bottom-color: var(--blue); }
+.adm-sections button span { margin-left: 8px; background: var(--blue); color: var(--white); font-size: 11px; padding: 2px 7px; letter-spacing: 0; }
+.adm-unread td { font-weight: 700; }
+.adm-pill { display: inline-block; font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; padding: 3px 8px; }
+.adm-pill-new { background: var(--blue); color: var(--white); }
+.adm-pill-read { background: var(--mist); color: var(--navy); }
+.adm-pill-answered { background: var(--ok-bg); color: var(--ok); }

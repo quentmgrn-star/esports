@@ -77,3 +77,50 @@ export const submitAssociationApplication = mutation({
     return ctx.db.insert("associationApplications", { ...a, stage: "applied", stageChangedAt: Date.now() });
   },
 });
+
+export const CONTACT_TOPICS = [
+  "Question",
+  "Suggestion",
+  "Feedback or complaint",
+  "Try-outs",
+  "Coaching",
+  "Partnership or business",
+  "Alumni",
+  "Other",
+];
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Footer contact form. "website" is a hidden honeypot field: real visitors leave it empty.
+export const submitContactMessage = mutation({
+  args: {
+    topic: v.string(),
+    name: v.string(),
+    email: v.string(),
+    subject: v.string(),
+    message: v.string(),
+    sport: v.optional(v.string()),
+    consent: v.boolean(),
+    website: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    if (args.website) return null; // bot: pretend it worked, store nothing
+    const name = args.name.trim().slice(0, 100);
+    const email = args.email.trim().toLowerCase().slice(0, 200);
+    const subject = args.subject.trim().slice(0, 150);
+    const message = args.message.trim().slice(0, 2000);
+    const sport = args.sport?.trim().slice(0, 60) || undefined;
+    if (!CONTACT_TOPICS.includes(args.topic)) throw new ConvexError("Choose what your message is about.");
+    if (!name || !subject || !message) throw new ConvexError("Please fill in every required field.");
+    if (!EMAIL_RE.test(email)) throw new ConvexError("Please enter a valid email address.");
+    if (!args.consent) throw new ConvexError("Please accept the privacy policy.");
+    // Simple rate limit: at most 3 messages per email address in 10 minutes.
+    const since = Date.now() - 10 * 60 * 1000;
+    const recent = await ctx.db
+      .query("contactMessages")
+      .withIndex("by_email", (q) => q.eq("email", email))
+      .filter((q) => q.gt(q.field("_creationTime"), since))
+      .collect();
+    if (recent.length >= 3) throw new ConvexError("You have sent several messages in a short time. Please wait a few minutes.");
+    return ctx.db.insert("contactMessages", { topic: args.topic, name, email, subject, message, sport, status: "new" });
+  },
+});

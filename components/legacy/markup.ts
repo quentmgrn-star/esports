@@ -334,7 +334,7 @@ export const SITE_MARKUP = `
       <a href="${SOCIAL.tiktok}" target="_blank" rel="noopener noreferrer">TikTok</a>
       <a href="${SOCIAL.linkedin}" target="_blank" rel="noopener noreferrer">LinkedIn</a>
       <a href="#partners">Partner with us!</a>
-      <a href="mailto:esadesports@alumni.esade.edu">Contact</a>
+      <a href="#contact">Contact</a>
       <a href="#privacy">Privacy</a>
       <a class="foot-members" href="#signin">Members</a>
     </nav>

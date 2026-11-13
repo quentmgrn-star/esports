@@ -731,3 +731,5 @@ a { color: inherit; }
 .slide-arrow.next { right: 8%; }
 @media (max-width: 600px) { .slide-arrow { width: 36px; height: 36px; font-size: 16px; } .slide-arrow.prev { left: 7%; } .slide-arrow.next { right: 7%; } }
 .members-board { margin-top: 40px; }
+.hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+#ct-count { justify-self: end; font-size: 12px; }

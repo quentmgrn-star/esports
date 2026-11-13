@@ -126,4 +126,15 @@ export default defineSchema({
     interest: v.string(),
     message: v.optional(v.string()),
   }),
+
+  // Footer "Contact" form. Public insert only (forms.submitContactMessage); read and status changes are admin-only.
+  contactMessages: defineTable({
+    topic: v.string(), // one of CONTACT_TOPICS in convex/forms.ts
+    name: v.string(),
+    email: v.string(),
+    subject: v.string(),
+    message: v.string(),
+    sport: v.optional(v.string()),
+    status: v.union(v.literal("new"), v.literal("read"), v.literal("answered")),
+  }).index("by_email", ["email"]),
 });

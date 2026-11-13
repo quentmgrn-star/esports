@@ -56,3 +56,24 @@ export const setApplicationNotes = mutation({
     await ctx.db.patch(id, { notes: notes.trim().slice(0, 5000) || undefined });
   },
 });
+
+// Contact form messages, newest first. Admins only.
+export const listContactMessages = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+    return ctx.db.query("contactMessages").order("desc").collect();
+  },
+});
+
+export const setContactStatus = mutation({
+  args: {
+    id: v.id("contactMessages"),
+    status: v.union(v.literal("new"), v.literal("read"), v.literal("answered")),
+  },
+  handler: async (ctx, { id, status }) => {
+    await requireAdmin(ctx);
+    if (!(await ctx.db.get(id))) throw new ConvexError("Message not found.");
+    await ctx.db.patch(id, { status });
+  },
+});
