@@ -101,12 +101,12 @@ export function initSite(backend) {
     if (s && s.v === 2) { state.user = s.user; state.me = s.me; state.expenses = s.expenses; state.captains = s.captains || null; state.teamApplications = s.teamApplications || {}; state.teamInfo = s.teamInfo || {}; state.teamResults = s.teamResults || {}; state.tasks = s.tasks || {}; state.nextId = s.nextId || 100; }
   } catch (e) {}
   function save() { try { localStorage.setItem("es-site", JSON.stringify({ v: 2, user: state.user, me: state.me, expenses: state.expenses, captains: state.captains, teamApplications: state.teamApplications, teamInfo: state.teamInfo, teamResults: state.teamResults, tasks: state.tasks, nextId: state.nextId })); } catch (e) {} }
-  var HUB_ROLES = { captain: 1, board: 1, council: 1 };
+  var HUB_ROLES = { captain: 1, board: 1, associate: 1, council: 1 };
   // Real admin login (Better Auth, /admin). undefined = still checking, null = not an admin, else { email, name }.
   // The Hub is only open to a signed-in admin; the role picker only previews what a captain, the Board or the Council sees.
   var admin;
-  if (state.user && HUB_ROLES[state.user.role]) state.user = null; // a Hub role from before the real login existed
-  function signedIn() { return !!state.user && state.user.role !== "guest"; }
+  if (state.user && (HUB_ROLES[state.user.role] || state.user.role === "guest")) state.user = null; // roles from before the real login existed
+  function signedIn() { return !!state.user && state.user.role === "alumni"; }
   function isHub() { return !!admin && !!state.user && HUB_ROLES[state.user.role]; }
   function allAlumni() { return state.me && state.me.verified !== false ? [state.me].concat(ALUMNI) : ALUMNI; }
 
@@ -119,50 +119,58 @@ export function initSite(backend) {
   function renderAcct() {
     var u = state.user, html;
     if (admin) {
-      html = adminBar() + (u && u.role !== "guest" && !HUB_ROLES[u.role] ? '<a class="acct-chip" href="#signin" title="Switch access"><i>' + (u.active ? "Alumni · Member" : "Alumni") + "</i><span>Switch</span></a>" : "");
+      html = adminBar() + (u && u.role === "alumni" ? '<a class="acct-chip" href="#alumni-signin" title="Switch access"><i>' + (u.active ? "Alumni · Member" : "Alumni") + "</i><span>Switch</span></a>" : "");
       $("acct").innerHTML = html; return;
     }
-    if (!u) html = '<a href="#signin">Sign in</a><a class="btn btn-blue" href="#apply-associate">Join</a>';
-    else {
-      var lbl = u.role === "guest" ? "Guest" : u.role === "alumni" ? (u.active ? "Alumni · Member" : "Alumni") : u.role === "captain" ? "Captain" : u.role === "board" ? "Board" : "Student Council";
-      html = (u.role !== "guest" ? '<a href="' + (state.me ? "#alumni-me" : "#my-profile") + '">' + (state.me ? "My profile" : "Create profile") + "</a>" : "") +
-        '<a class="acct-chip" href="#signin" title="Switch access"><i>' + lbl + "</i><span>Switch</span></a>";
-    }
+    if (!u || u.role !== "alumni") html = '<a class="btn btn-blue" href="#apply-associate">Join</a>';
+    else html = '<a href="' + (state.me ? "#alumni-me" : "#my-profile") + '">' + (state.me ? "My profile" : "Create profile") + "</a>" +
+        '<a class="acct-chip" href="#alumni-signin" title="Alumni access"><i>' + (u.active ? "Alumni · Member" : "Alumni") + "</i><span>Switch</span></a>";
     $("acct").innerHTML = html;
   }
 
-  // ================= Sign in =================
+  // ================= Members (low-key, linked from the footer) =================
+  // Public browsing never needs a login. This page is only for the people who run Esade Sports.
   function signinView() {
     var opts = TEAMS.map(function (t) { return '<option value="' + t.id + '">' + esc(tLabel(t)) + "</option>"; }).join("");
-    return '<section class="band"><div class="wrap"><p class="eyebrow">Access</p><h1 class="display">How are you<br>visiting?</h1><p>Pick how you want to browse. Guests see teams, fixtures and results. Esade alumni and students also get the Alumni corner. Captains, the Board and the Student Council get the internal Hub.</p></div></section>' +
+    return '<section class="band"><div class="wrap"><p class="eyebrow">Members</p><h1 class="display">Members<br>area.</h1><p>For captains, Board members, associates and the Student Council: requests, decisions and follow-up in one place. Visitors don\u2019t need an account, everything public is open.</p></div></section>' +
       '<section class="signin"><div class="wrap"><div class="access">' +
-      '<div class="acc"><p class="eyebrow">Open to everyone</p><strong>Normal viewer</strong><p>Browse Esade Sports without a private role.</p><ul><li>Teams, rosters and fixtures</li><li>Results and news</li><li>Events and try-outs</li></ul><button class="btn btn-ghost-navy" data-go="guest">Continue as normal viewer</button></div>' +
-      '<div class="acc"><p class="eyebrow">Esade login</p><strong>Alumni</strong><p>Everything guests see, plus the Alumni corner: your profile and contact details of alumni from your sport.</p>' +
-      '<div class="opts" role="radiogroup" aria-label="Are you in a sports team or association today?">' +
-      '<label class="radio"><input type="radio" name="act" id="act-yes" value="yes"><span><b>Currently in</b> an Esade sports team or association</span></label>' +
-      '<label class="radio"><input type="radio" name="act" id="act-no" value="no" checked><span><b>Not currently in</b> a team or association</span></label></div>' +
-      '<button class="btn btn-blue" data-go="alumni">Continue as alumni</button></div>' +
       (admin ?
-        '<div class="acc"><p class="eyebrow">Signed in as admin</p><strong>Esade Sports Hub</strong><p>You are signed in as ' + esc(admin.email) + '. Pick which view of the Hub to open.</p><div class="opts">' +
-        '<label class="field" for="hub-role">View the Hub as<select id="hub-role"><option value="board">Board member</option><option value="captain">Team captain</option><option value="council">Student Council (Eva Morta)</option></select></label>' +
+        '<div class="acc"><p class="eyebrow">Signed in</p><strong>Esade Sports Hub</strong><p>You are signed in as ' + esc(admin.email) + '. Pick which view of the Hub to open.</p><div class="opts">' +
+        '<label class="field" for="hub-role">View the Hub as<select id="hub-role"><option value="board">Board member</option><option value="captain">Team captain</option><option value="associate">Associate (department member)</option><option value="council">Student Council (Eva Morta)</option></select></label>' +
         '<label class="field" for="hub-team" id="hub-team-wrap" hidden>Team<select id="hub-team">' + opts + "</select></label></div>" +
         '<button class="btn btn-blue" data-go="hub">Open the Hub</button></div>'
-      : '<div class="acc"><p class="eyebrow">Admins only</p><strong>Esade Sports Hub</strong><p>Department tracking, budgets and expenses. You need to sign in with an approved admin account first.</p>' +
-        '<a class="btn btn-ghost-navy" href="/admin">' + (admin === undefined ? "Checking your login…" : "Admin sign in") + '</a></div>') +
-      '</div><p class="hint">Normal viewer and Alumni are simulated in this prototype. The Hub needs a real admin login.</p></div></section>';
+      : '<div class="acc"><p class="eyebrow">Captains · Board · Associates</p><strong>Sign in to the Hub</strong><p>Expenses and budgets, team updates, try-out applications, department tasks and reports for the Student Council.</p>' +
+        '<a class="btn btn-blue" href="/admin">' + (admin === undefined ? "Checking your login\u2026" : "Sign in") + '</a></div>') +
+      '</div><p class="hint">Only accounts approved by the Board can sign in.</p></div></section>';
   }
   function bindSignin() {
     var role = $("hub-role"), wrap = $("hub-team-wrap");
     if (role) role.addEventListener("change", function () { wrap.hidden = role.value !== "captain"; });
     page.querySelectorAll("[data-go]").forEach(function (b) {
       b.addEventListener("click", function () {
-        var g = b.getAttribute("data-go");
-        if (g === "guest") { state.user = { role: "guest" }; go("home"); }
-        else if (g === "alumni") { state.user = { role: "alumni", active: $("act-yes").checked }; go(state.me ? "alumni" : "my-profile"); }
-        else if (admin) { state.user = { role: role.value, team: role.value === "captain" ? $("hub-team").value : null }; go("hub-overview"); }
-        save(); renderAcct(); toast("Signed in.");
+        if (!admin) return;
+        state.user = { role: role.value, team: role.value === "captain" ? $("hub-team").value : null };
+        save(); renderAcct(); go("hub-overview");
       });
     });
+  }
+  // Alumni access lives in the Alumni corner (simulated Esade login in this prototype).
+  function alumniSigninView() {
+    return '<section class="band"><div class="wrap"><p class="eyebrow">Alumni corner</p><h1 class="display">Alumni<br>sign in.</h1><p>Esade alumni and students get a profile and the contact details of alumni from their sport.</p></div></section>' +
+      '<section class="signin"><div class="wrap"><div class="access">' +
+      '<div class="acc"><p class="eyebrow">Esade login</p><strong>Alumni</strong>' +
+      '<div class="opts" role="radiogroup" aria-label="Are you in a sports team or association today?">' +
+      '<label class="radio"><input type="radio" name="act" id="act-yes" value="yes"><span><b>Currently in</b> an Esade sports team or association</span></label>' +
+      '<label class="radio"><input type="radio" name="act" id="act-no" value="no" checked><span><b>Not currently in</b> a team or association</span></label></div>' +
+      '<button class="btn btn-blue" id="alumni-go">Continue as alumni</button>' +
+      (state.user && state.user.role === "alumni" ? '<button class="btn btn-ghost-navy" id="alumni-out">Sign out</button>' : "") + '</div>' +
+      '</div><p class="hint">Prototype: this stands in for a real login with an Esade account.</p></div></section>';
+  }
+  function bindAlumniSignin() {
+    $("alumni-go").addEventListener("click", function () {
+      state.user = { role: "alumni", active: $("act-yes").checked }; save(); renderAcct(); toast("Signed in."); go(state.me ? "alumni" : "my-profile");
+    });
+    if ($("alumni-out")) $("alumni-out").addEventListener("click", function () { state.user = null; save(); renderAcct(); toast("Signed out."); go("alumni"); });
   }
 
   // ================= Team page =================
@@ -526,7 +534,7 @@ export function initSite(backend) {
   }
   function alumniView() {
     var years = []; allAlumni().forEach(function (a) { if (years.indexOf(a.grad) < 0) years.push(a.grad); }); years.sort(function (a, b) { return b - a; });
-    var cta = state.me ? '<div class="ctas"><a class="btn btn-solid-white" href="#alumni-me">My profile</a><a class="btn btn-ghost-white" href="#my-profile">Edit profile</a></div>' : '<div class="ctas"><a class="btn btn-solid-white" href="#my-profile">Create your profile</a><a class="btn btn-ghost-white" href="#signin">Sign in</a></div>';
+    var cta = state.me ? '<div class="ctas"><a class="btn btn-solid-white" href="#alumni-me">My profile</a><a class="btn btn-ghost-white" href="#my-profile">Edit profile</a></div>' : '<div class="ctas"><a class="btn btn-solid-white" href="#my-profile">Create your profile</a><a class="btn btn-ghost-white" href="#alumni-signin">Sign in</a></div>';
     return alumniBand(cta) + '<section class="al"><div class="wrap body">' +
       '<div class="filters"><label class="field" for="al-q">Search<input id="al-q" type="search" placeholder="Name, headline, programme, sport or role" value="' + esc(state.al.q) + '"></label>' +
       '<label class="field" for="al-year">Graduation year<select id="al-year"><option value="">All years</option>' + years.map(function (y) { return '<option' + (String(y) === state.al.year ? " selected" : "") + ">" + y + "</option>"; }).join("") + "</select></label></div>" +
@@ -581,7 +589,7 @@ export function initSite(backend) {
     return '<div class="intern-row" data-row="' + i + '">' + fieldI("ix-co-" + i, "Company", x[0], 'data-k="0"') + fieldI("ix-role-" + i, "Role", x[1], 'data-k="1"') + fieldI("ix-yr-" + i, "Year", x[2], 'data-k="2" inputmode="numeric"') + '<button type="button" class="rm" data-rm="' + i + '">Remove</button></div>';
   }
   function formView() {
-    if (!signedIn()) return alumniBand() + '<section class="al"><div class="wrap body"><div class="locked"><h2>Sign in first</h2><p>Only Esade alumni and students can create a profile.</p><a class="btn btn-blue" href="#signin">Sign in</a></div></div></section>';
+    if (!signedIn()) return alumniBand() + '<section class="al"><div class="wrap body"><div class="locked"><h2>Sign in first</h2><p>Only Esade alumni and students can create a profile.</p><a class="btn btn-blue" href="#alumni-signin">Sign in</a></div></div></section>';
     var m = state.me || { first: "", last: "", nationality: "", programme: "BBA", grad: "", exUni: "", exCity: "", inCo: "", inRole: "", assos: "Esade Sports", sports: [], linkedin: "", interns: [], phone: "", esade: "", perso: "", photo: null };
     draftPhoto = m.photo || null;
     return '<section class="band"><div class="wrap"><p class="eyebrow">Alumni corner</p><h1 class="display">' + (state.me ? "Edit your<br>profile." : "Create your<br>profile.") + "</h1><p>Your profile lets other Esade alumni and students who played sport find you. Fields marked optional can stay empty.</p></div></section>" +
@@ -699,7 +707,7 @@ export function initSite(backend) {
   DEPTS.forEach(function (d) { d.tasks.forEach(function (t, i) { if (!state.tasks[d.id + i]) state.tasks[d.id + i] = t[1]; }); });
   var TASK_STATUS = { todo: "To do", doing: "In progress", done: "Done" };
   var METRICS = [["Applications", "Number and diversity of applications"], ["Captains", "Captain satisfaction, surveyed each semester"], ["Events", "Sports-business events and attendance"], ["Income", "Sponsorship and partnership income"], ["Social", "Social media growth, for each team"], ["Reporting", "On-time, complete budget reports"], ["Industry", "Opportunities on the Industry Platform"]];
-  var CAN = { captain: { submit: 1, all: 0, validate: 0, tasks: 0, reports: 0, captains: 0, teamEdit: 1, applications: 1 }, board: { submit: 1, all: 1, validate: 1, tasks: 1, reports: 1, captains: 1, teamEdit: 1, applications: 1 }, council: { submit: 0, all: 1, validate: 0, tasks: 0, reports: 1, captains: 0, teamEdit: 0, applications: 0 } };
+  var CAN = { captain: { submit: 1, all: 0, validate: 0, tasks: 0, reports: 0, captains: 0, teamEdit: 1, applications: 1 }, board: { submit: 1, all: 1, validate: 1, tasks: 1, reports: 1, captains: 1, teamEdit: 1, applications: 1 }, associate: { submit: 1, all: 1, validate: 0, tasks: 1, reports: 0, captains: 0, teamEdit: 0, applications: 0 }, council: { submit: 0, all: 1, validate: 0, tasks: 0, reports: 1, captains: 0, teamEdit: 0, applications: 0 } };
   function can(k) { return !!CAN[state.user.role][k]; }
   function visTeams() { return can("all") ? TEAMS : TEAMS.filter(function (t) { return t.id === state.user.team; }); }
   function totals(id) { var o = { paid: 0, pending: 0 }; state.expenses.forEach(function (e) { if (e.team !== id) return; if (e.status === "paid") o.paid += e.amount; else if (e.status !== "rejected") o.pending += e.amount; }); return o; }
@@ -726,9 +734,9 @@ export function initSite(backend) {
     var nav = HUBV.filter(function (v) { return (v[0] !== "hub-report" || can("reports")) && (v[0] !== "hub-captains" || can("captains")) && (v[0] !== "hub-team-editor" || can("teamEdit")) && (v[0] !== "hub-applications" || can("applications")); }).map(function (v) {
       return '<a href="#' + v[0] + '"' + (v[0] === view ? ' aria-current="page"' : "") + ">" + (v[0] === "hub-teams" && !can("all") ? "My team" : v[1]) + (v[0] === "hub-expenses" && pending ? '<span class="count num">' + pending + "</span>" : "") + (v[0] === "hub-applications" && visibleSportsApplications().length ? '<span class="count num">' + visibleSportsApplications().length + "</span>" : "") + "</a>";
     }).join("");
-    var u = state.user, who = u.role === "captain" ? "Captain · " + tLabel(team(u.team)) : u.role === "board" ? "Board member" : "Eva Morta · Student Council";
+    var u = state.user, who = u.role === "captain" ? "Captain · " + tLabel(team(u.team)) : u.role === "board" ? "Board member" : u.role === "associate" ? "Associate" : "Eva Morta · Student Council";
     return '<div class="app"><aside class="rail"><div class="top"><a class="lock" href="#home" aria-label="Back to Esade Sports home">' + mono(38) + '<span>ESADE SPORTS<br>HUB</span></a><div class="history" aria-label="Page navigation"><button type="button" data-history="back" aria-label="Go back">←</button><button type="button" data-history="forward" aria-label="Go forward">→</button></div>' +
-      '<div class="who"><p class="eyebrow">Signed in as admin</p><strong>' + esc(admin.email) + "</strong><small>Viewing as " + esc(who) + " · " + (u.role === "council" ? "read-only" : u.role === "captain" ? "own team only" : "full access") + '</small><a class="back-site" href="#signin">Change view</a><a class="back-site" href="#home">← Public site</a><button type="button" data-signout>Sign out</button>' + langSwitch() + '</div></div>' +
+      '<div class="who"><p class="eyebrow">Signed in as admin</p><strong>' + esc(admin.email) + "</strong><small>Viewing as " + esc(who) + " · " + (u.role === "council" ? "read-only" : u.role === "captain" ? "own team only" : u.role === "associate" ? "department member" : "full access") + '</small><a class="back-site" href="#signin">Change view</a><a class="back-site" href="#home">← Public site</a><button type="button" data-signout>Sign out</button>' + langSwitch() + '</div></div>' +
       '<nav aria-label="Hub">' + nav + "</nav></aside>" +
       '<main class="main"><div class="banner"><b>Prototype</b><span>Example figures and tasks. In the live version, access comes from an approved Esade login and data from a shared database.</span></div>' + inner + "</main></div>";
   }
@@ -860,7 +868,7 @@ export function initSite(backend) {
     hub.querySelectorAll("[data-task]").forEach(function (s) { s.addEventListener("change", function () { state.tasks[s.getAttribute("data-task")] = s.value; save(); toast("Task updated."); }); });
     var f = $("req"); if (f) f.addEventListener("submit", function (ev) {
       ev.preventDefault(); var amt = Math.round(+$("r-amt").value), item = $("r-item").value.trim(); if (!item || !(amt > 0)) return;
-      state.expenses.push({ id: state.nextId++, team: $("r-team") ? $("r-team").value : state.user.team, item: item, cat: $("r-cat").value, amount: amt, by: state.user.role === "captain" ? "Captain" : "Board", date: "2026-11-12", status: "requested" });
+      state.expenses.push({ id: state.nextId++, team: $("r-team") ? $("r-team").value : state.user.team, item: item, cat: $("r-cat").value, amount: amt, by: state.user.role === "captain" ? "Captain" : state.user.role === "associate" ? "Associate" : "Board", date: "2026-11-12", status: "requested" });
       state.hubFilter = "all"; save(); render(); toast("Request sent to Finance.");
     });
     hub.querySelectorAll("[data-captain-deactivate]").forEach(function (b) { b.addEventListener("click", function () {
@@ -907,6 +915,7 @@ export function initSite(backend) {
       hub.innerHTML = hubShell(h, inner); show("hub"); bindHub(); return;
     }
     if (h === "signin") html = signinView();
+    else if (h === "alumni-signin") html = alumniSigninView();
     else if (h.indexOf("team-") === 0 && parseTeam(h)) { var pt = parseTeam(h); html = teamView(pt.t, pt.tab); }
     else if (h === "alumni") html = alumniView();
     else if (h === "apply-associate") html = applyAssociateView();
@@ -922,6 +931,7 @@ export function initSite(backend) {
     if (html !== null) {
       page.innerHTML = html; show("page");
       if (h === "signin") bindSignin();
+      if (h === "alumni-signin") bindAlumniSignin();
       if (h === "alumni") bindAlumni();
       if (h === "my-profile") bindForm();
       if (h === "alumni-verify") bindVerify();

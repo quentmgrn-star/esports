@@ -268,6 +268,7 @@ export const SITE_MARKUP = `
       <a href="#partners">Partner with us!</a>
       <a href="mailto:esadesports@alumni.esade.edu">Contact</a>
       <a href="#privacy">Privacy</a>
+      <a class="foot-members" href="#signin">Members</a>
     </nav>
     <small><a class="foot-email" href="mailto:esadesports@alumni.esade.edu">esadesports@alumni.esade.edu</a><br>© Esade Sports 2026</small>
   </div>
