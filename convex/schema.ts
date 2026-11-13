@@ -285,4 +285,28 @@ export default defineSchema({
     updatedBy: v.optional(v.string()),
     updatedAt: v.optional(v.number()),
   }).index("by_team", ["team"]),
+
+  // Team roster (captain's team sheet). Sensitive personal data: only the team's captain(s),
+  // admins, the President and the Vice-presidents can read or change it (convex/rosters.ts). Never public.
+  rosters: defineTable({
+    team: v.string(),
+    players: v.array(
+      v.object({
+        first: v.string(),
+        last: v.string(),
+        shirt: v.optional(v.string()), // XS..XXL
+        number: v.optional(v.string()),
+        idDoc: v.optional(v.string()), // DNI / NIE / passport
+        nationality: v.optional(v.string()),
+        birth: v.optional(v.string()), // YYYY-MM-DD
+        email: v.optional(v.string()),
+        phone: v.optional(v.string()), // with country prefix
+        program: v.optional(v.string()), // BBA, BAIB, GEL, Masters...
+        year: v.optional(v.string()),
+        notes: v.optional(v.string()), // allergies, other notes
+      }),
+    ),
+    updatedBy: v.string(),
+    updatedAt: v.number(),
+  }).index("by_team", ["team"]),
 });

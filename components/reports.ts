@@ -16,6 +16,10 @@ export type ReportModel = {
   rows: { date: string; team: string; dept: string; item: string; cat: string; amount: number; status: string; by: string; decidedBy: string; reason: string; link: string }[];
   history: { at: string; team: string; item: string; action: string; by: string; reason: string }[];
   checkups: { at: string; scope: string; status: string; note: string; by: string }[];
+  audience?: string; // "Associate report · Finance · Basketball Women", "Board report · every sport and department"
+  trend?: { label: string; requested: number; approved: number; paid: number }[]; // per month, season to date
+  cats?: { cat: string; approved: number; waiting: number; rejected: number }[];
+  sizes?: { bucket: string; count: number }[]; // histogram of expense amounts
 };
 
 const NAVY = "000B3D";
@@ -75,7 +79,7 @@ export async function exportXlsx(m: ReportModel) {
   s.getCell("A1").font = { bold: true, italic: true, size: 11, color: { argb: "FF" + BLUE } };
   s.getCell("A2").value = m.title.toUpperCase();
   s.getCell("A2").font = { bold: true, italic: true, size: 20, color: { argb: "FF" + NAVY } };
-  s.getCell("A3").value = `${m.scope} · ${m.period}`;
+  s.getCell("A3").value = `${m.audience || m.scope} · ${m.period}`;
   s.getCell("A3").font = { size: 11, color: { argb: "FF" + SOFT } };
   s.getCell("A4").value = `Generated ${m.generated} from the Hub. Updates every time a request is decided.` + (m.example ? " Contains example rows." : "");
   s.getCell("A4").font = { size: 9, italic: true, color: { argb: "FF" + SOFT } };
@@ -118,6 +122,36 @@ export async function exportXlsx(m: ReportModel) {
     { header: "Rejected", key: "rejected", width: 12, money: true },
   ], m.depts, r + 1);
 
+  // Charts: data tables on the left, native Excel charts on the right (added after writing, see addCharts).
+  const ch = wb.addWorksheet("Charts", { views: [{ showGridLines: false }] });
+  ch.getCell("A1").value = (m.audience || m.title).toUpperCase();
+  ch.getCell("A1").font = { bold: true, italic: true, size: 14, color: { argb: "FF" + NAVY } };
+  ch.getCell("A2").value = "Charts update with the tables beside them. Season to date, for this report's scope.";
+  ch.getCell("A2").font = { size: 9, italic: true, color: { argb: "FF" + SOFT } };
+  const charts: XlChart[] = [];
+  const COLORS = [NAVY, BLUE, LILAC, "B42318"];
+  const q = (col: string, r1: number, r2?: number) => `'Charts'!$${col}$${r1}${r2 ? `:$${col}$${r2}` : ""}`;
+  let row = 4;
+  const block = (title: string, kind: XlChart["kind"], money: boolean, cols: { header: string; key: string; width: number; money?: boolean }[], data: Record<string, unknown>[]) => {
+    if (!data.length) return;
+    ch.getCell(row, 1).value = title;
+    ch.getCell(row, 1).font = { bold: true, size: 11, color: { argb: "FF" + NAVY } };
+    const head1 = row + 1, first = row + 2, last = row + 1 + data.length;
+    table(ch, cols, data, head1);
+    const letters = "ABCDEFG";
+    charts.push({
+      title, kind, money, catRef: q("A", first, last), cats: data.map((d) => String(d[cols[0].key])),
+      series: cols.slice(1).map((c, i) => ({ name: c.header, nameRef: q(letters[i + 1], head1), ref: q(letters[i + 1], first, last), values: data.map((d) => Number(d[c.key]) || 0), color: COLORS[i % COLORS.length] })),
+      at: [6, row - 1, 15, row + Math.max(17, data.length + 3)],
+    });
+    row += Math.max(19, data.length + 5);
+  };
+  block("Expense trend by month", "line", true, [{ header: "Month", key: "label", width: 14 }, { header: "Requested", key: "requested", width: 13, money: true }, { header: "Validated", key: "approved", width: 13, money: true }, { header: "Paid", key: "paid", width: 13, money: true }], m.trend ?? []);
+  block("Budget vs spent, by team", "bar", true, [{ header: "Team", key: "team", width: 26 }, { header: "Budget", key: "budget", width: 13, money: true }, { header: "Validated", key: "approved", width: 13, money: true }, { header: "Waiting", key: "waiting", width: 13, money: true }], m.teams);
+  block("Expenses by category", "col", true, [{ header: "Category", key: "cat", width: 16 }, { header: "Validated", key: "approved", width: 13, money: true }, { header: "Waiting", key: "waiting", width: 13, money: true }, { header: "Rejected", key: "rejected", width: 13, money: true }], m.cats ?? []);
+  block("By department (budget line)", "col", true, [{ header: "Department", key: "dept", width: 18 }, { header: "Validated", key: "approved", width: 13, money: true }, { header: "Waiting", key: "waiting", width: 13, money: true }, { header: "Rejected", key: "rejected", width: 13, money: true }], m.depts);
+  block("How big are the expenses? (number of requests)", "col", false, [{ header: "Amount", key: "bucket", width: 16 }, { header: "Requests", key: "count", width: 12 }], m.sizes ?? []);
+
   // Ledger: one line per expense, filterable.
   const l = wb.addWorksheet("Ledger", { views: [{ state: "frozen", ySplit: 1 }] });
   const end = table(l, [
@@ -154,8 +188,15 @@ export async function exportXlsx(m: ReportModel) {
     { header: "By", key: "by", width: 30 },
   ], m.checkups, 1);
 
-  const buf = await wb.xlsx.writeBuffer();
-  download(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), m.file + ".xlsx");
+  const buf = (await wb.xlsx.writeBuffer()) as ArrayBuffer;
+  let blob: Blob;
+  try {
+    blob = charts.length ? await addCharts(buf, "Charts", charts) : new Blob([buf]);
+  } catch (e) {
+    console.error(e); // keep the tables even if the charts could not be added
+    blob = new Blob([buf]);
+  }
+  download(new Blob([blob], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), m.file + ".xlsx");
 }
 
 const eur = (n: number) => new Intl.NumberFormat("en-IE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
@@ -192,7 +233,7 @@ export async function exportPptx(m: ReportModel) {
   cover.addShape(p.ShapeType.parallelogram, { x: 0.5, y: 2.2, w: 6.8, h: 0.5, fill: { color: BLUE }, line: { color: BLUE } });
   cover.addText("ESADE SPORTS", { x: 0.75, y: 2.2, w: 6.4, h: 0.5, fontFace: F, fontSize: 16, bold: true, italic: true, color: "FFFFFF" });
   cover.addText(m.title.toUpperCase(), { x: 0.5, y: 2.9, w: 12, h: 1.2, fontFace: F, fontSize: 48, bold: true, italic: true, color: "FFFFFF" });
-  cover.addText(`${m.scope}\n${m.period}`, { x: 0.5, y: 4.2, w: 12, h: 1, fontFace: F, fontSize: 18, color: "B9BEDA" });
+  cover.addText(`${m.audience || m.scope}\n${m.period}`, { x: 0.5, y: 4.2, w: 12, h: 1, fontFace: F, fontSize: 18, color: "B9BEDA" });
   cover.addText(`Generated ${m.generated} from the Esade Sports Hub${m.example ? " · contains example data" : ""}`, { x: 0.5, y: 6.6, w: 12, h: 0.4, fontFace: F, fontSize: 11, color: "B9BEDA" });
 
   // 2. Key figures
@@ -237,6 +278,46 @@ export async function exportPptx(m: ReportModel) {
       valAxisLabelFontFace: F, valAxisLabelFontSize: 10, valAxisLabelFormatCode: '#,##0 "€"', catAxisOrientation: "minMax",
       valGridLine: { color: "E5E7EF", size: 0.5 },
     });
+  }
+
+  // 3b. Trend, category comparison and histogram (native, editable PowerPoint charts)
+  const chartOpts = (money: boolean) => ({
+    x: 0.5, y: 1.6, w: 12.3, h: 5.2, showLegend: true, legendPos: "b" as const, legendFontFace: F, legendFontSize: 11,
+    catAxisLabelFontFace: F, catAxisLabelFontSize: 11, valAxisLabelFontFace: F, valAxisLabelFontSize: 10,
+    valAxisLabelFormatCode: money ? '#,##0 "€"' : "0", valGridLine: { color: "E5E7EF", size: 0.5 },
+  });
+  if (m.trend?.some((t) => t.requested)) {
+    const sl = p.addSlide({ masterName: "ES" });
+    heading(sl, "Trend", "Expenses month by month");
+    sl.addChart(p.ChartType.line, [
+      { name: "Requested", labels: m.trend.map((t) => t.label), values: m.trend.map((t) => t.requested) },
+      { name: "Validated", labels: m.trend.map((t) => t.label), values: m.trend.map((t) => t.approved) },
+      { name: "Paid", labels: m.trend.map((t) => t.label), values: m.trend.map((t) => t.paid) },
+    ], { ...chartOpts(true), chartColors: [LILAC, BLUE, NAVY], lineSize: 3, lineDataSymbol: "circle", lineDataSymbolSize: 7 });
+  }
+  if (m.teams.length) {
+    const sl = p.addSlide({ masterName: "ES" });
+    heading(sl, "Budget", "Budget vs spent");
+    sl.addChart(p.ChartType.bar, [
+      { name: "Budget", labels: m.teams.map((t) => t.team), values: m.teams.map((t) => t.budget) },
+      { name: "Validated", labels: m.teams.map((t) => t.team), values: m.teams.map((t) => t.approved) },
+      { name: "Waiting", labels: m.teams.map((t) => t.team), values: m.teams.map((t) => t.waiting) },
+    ], { ...chartOpts(true), barDir: "col", barGrouping: "clustered", chartColors: ["D6D8E3", NAVY, LILAC] });
+  }
+  if (m.cats?.length) {
+    const sl = p.addSlide({ masterName: "ES" });
+    heading(sl, "Compare", "Expenses by category");
+    sl.addChart(p.ChartType.bar, [
+      { name: "Validated", labels: m.cats.map((c) => c.cat), values: m.cats.map((c) => c.approved) },
+      { name: "Waiting", labels: m.cats.map((c) => c.cat), values: m.cats.map((c) => c.waiting) },
+      { name: "Rejected", labels: m.cats.map((c) => c.cat), values: m.cats.map((c) => c.rejected) },
+    ], { ...chartOpts(true), barDir: "col", barGrouping: "clustered", chartColors: [NAVY, LILAC, "B42318"] });
+  }
+  if (m.sizes?.some((x) => x.count)) {
+    const sl = p.addSlide({ masterName: "ES" });
+    heading(sl, "Histogram", "How big are the expenses?");
+    sl.addChart(p.ChartType.bar, [{ name: "Number of requests", labels: m.sizes.map((x) => x.bucket), values: m.sizes.map((x) => x.count) }],
+      { ...chartOpts(false), barDir: "col", barGapWidthPct: 20, chartColors: [BLUE], showLegend: false, showValue: true, dataLabelFontFace: F, dataLabelFontSize: 12, dataLabelColor: NAVY });
   }
 
   // 4. Budget table + departments
@@ -297,4 +378,88 @@ export async function exportPptx(m: ReportModel) {
 
   const blob = (await p.write({ outputType: "blob" })) as Blob;
   download(blob, m.file + ".pptx");
+}
+
+// ---- Native Excel charts ------------------------------------------------------------------------
+// exceljs writes no charts, so the workbook is post-processed: chart parts (DrawingML) are added to the
+// "Charts" sheet, pointing at the data tables on that sheet. They open as real, editable Excel charts.
+type XlSeries = { name: string; nameRef: string; ref: string; values: number[]; color: string };
+type XlChart = { title: string; kind: "col" | "bar" | "line"; catRef: string; cats: string[]; series: XlSeries[]; money: boolean; at: [number, number, number, number] };
+
+const xe = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+function chartXml(c: XlChart) {
+  const strCache = (vals: string[]) => `<c:strCache><c:ptCount val="${vals.length}"/>${vals.map((v, i) => `<c:pt idx="${i}"><c:v>${xe(v)}</c:v></c:pt>`).join("")}</c:strCache>`;
+  const numCache = (vals: number[]) => `<c:numCache><c:formatCode>General</c:formatCode><c:ptCount val="${vals.length}"/>${vals.map((v, i) => `<c:pt idx="${i}"><c:v>${v}</c:v></c:pt>`).join("")}</c:numCache>`;
+  const line = c.kind === "line";
+  const ser = c.series.map((s, i) => {
+    const sp = line
+      ? `<c:spPr><a:ln w="28575" cap="rnd"><a:solidFill><a:srgbClr val="${s.color}"/></a:solidFill><a:round/></a:ln></c:spPr><c:marker><c:symbol val="circle"/><c:size val="6"/><c:spPr><a:solidFill><a:srgbClr val="${s.color}"/></a:solidFill><a:ln><a:noFill/></a:ln></c:spPr></c:marker>`
+      : `<c:spPr><a:solidFill><a:srgbClr val="${s.color}"/></a:solidFill></c:spPr><c:invertIfNegative val="0"/>`;
+    return `<c:ser><c:idx val="${i}"/><c:order val="${i}"/><c:tx><c:strRef><c:f>${s.nameRef}</c:f>${strCache([s.name])}</c:strRef></c:tx>${sp}` +
+      `<c:cat><c:strRef><c:f>${c.catRef}</c:f>${strCache(c.cats)}</c:strRef></c:cat><c:val><c:numRef><c:f>${s.ref}</c:f>${numCache(s.values)}</c:numRef></c:val>${line ? '<c:smooth val="0"/>' : ""}</c:ser>`;
+  }).join("");
+  const plot = line
+    ? `<c:lineChart><c:grouping val="standard"/><c:varyColors val="0"/>${ser}<c:marker val="1"/><c:axId val="111"/><c:axId val="222"/></c:lineChart>`
+    : `<c:barChart><c:barDir val="${c.kind === "bar" ? "bar" : "col"}"/><c:grouping val="clustered"/><c:varyColors val="0"/>${ser}<c:gapWidth val="${c.series.length === 1 ? 40 : 80}"/><c:axId val="111"/><c:axId val="222"/></c:barChart>`;
+  const txt = (sz: number, color: string) => `<c:txPr><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="${sz}"><a:solidFill><a:srgbClr val="${color}"/></a:solidFill><a:latin typeface="Arial"/></a:defRPr></a:pPr><a:endParaRPr lang="en-US"/></a:p></c:txPr>`;
+  const fmt = c.money ? "#,##0 &quot;€&quot;" : "0";
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><c:roundedCorners val="0"/><c:chart>` +
+    `<c:title><c:tx><c:rich><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="1300" b="1"/></a:pPr><a:r><a:rPr lang="en-US" sz="1300" b="1"><a:solidFill><a:srgbClr val="000B3D"/></a:solidFill><a:latin typeface="Arial"/></a:rPr><a:t>${xe(c.title)}</a:t></a:r></a:p></c:rich></c:tx><c:overlay val="0"/></c:title><c:autoTitleDeleted val="0"/>` +
+    `<c:plotArea><c:layout/>${plot}` +
+    `<c:catAx><c:axId val="111"/><c:scaling><c:orientation val="${c.kind === "bar" ? "maxMin" : "minMax"}"/></c:scaling><c:delete val="0"/><c:axPos val="${c.kind === "bar" ? "l" : "b"}"/><c:numFmt formatCode="General" sourceLinked="0"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:spPr><a:ln w="9525"><a:solidFill><a:srgbClr val="D6D8E3"/></a:solidFill></a:ln></c:spPr>${txt(900, "4A5070")}<c:crossAx val="222"/><c:crosses val="autoZero"/><c:auto val="1"/><c:lblAlgn val="ctr"/><c:lblOffset val="100"/><c:noMultiLvlLbl val="0"/></c:catAx>` +
+    `<c:valAx><c:axId val="222"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="${c.kind === "bar" ? "b" : "l"}"/><c:majorGridlines><c:spPr><a:ln w="6350"><a:solidFill><a:srgbClr val="E5E7EF"/></a:solidFill></a:ln></c:spPr></c:majorGridlines><c:numFmt formatCode="${fmt}" sourceLinked="0"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:spPr><a:ln><a:noFill/></a:ln></c:spPr>${txt(900, "4A5070")}<c:crossAx val="111"/><c:crosses val="${c.kind === "bar" ? "max" : "autoZero"}"/><c:crossBetween val="between"/></c:valAx>` +
+    `</c:plotArea><c:legend><c:legendPos val="b"/><c:overlay val="0"/>${txt(900, "000B3D")}</c:legend><c:plotVisOnly val="1"/><c:dispBlanksAs val="gap"/></c:chart>` +
+    `<c:spPr><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill><a:ln><a:noFill/></a:ln></c:spPr></c:chartSpace>`;
+}
+
+async function addCharts(buf: ArrayBuffer, sheetName: string, charts: XlChart[]): Promise<Blob> {
+  const JSZip = (await import("jszip")).default;
+  const zip = await JSZip.loadAsync(buf);
+  const wb = await zip.file("xl/workbook.xml")!.async("string");
+  const rid = new RegExp(`<sheet[^>]*name="${sheetName}"[^>]*r:id="([^"]+)"`).exec(wb)?.[1];
+  const wbRels = await zip.file("xl/_rels/workbook.xml.rels")!.async("string");
+  const target = rid && new RegExp(`<Relationship[^>]*Id="${rid}"[^>]*Target="([^"]+)"`).exec(wbRels)?.[1];
+  const alt = rid && new RegExp(`<Relationship[^>]*Target="([^"]+)"[^>]*Id="${rid}"`).exec(wbRels)?.[1];
+  const sheetPath = "xl/" + String(target || alt || "").replace(/^\/?xl\//, "");
+  const sheetFile = zip.file(sheetPath);
+  if (!sheetFile) return new Blob([buf]);
+  const sheetBase = sheetPath.split("/").pop()!;
+  const relsPath = `xl/worksheets/_rels/${sheetBase}.rels`;
+
+  // drawing + charts
+  const anchors = charts.map((c, i) => {
+    const [c1, r1, c2, r2] = c.at;
+    return `<xdr:twoCellAnchor editAs="oneCell"><xdr:from><xdr:col>${c1}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>${r1}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from><xdr:to><xdr:col>${c2}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>${r2}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to>` +
+      `<xdr:graphicFrame macro=""><xdr:nvGraphicFramePr><xdr:cNvPr id="${i + 2}" name="Chart ${i + 1}"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr><xdr:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></xdr:xfrm>` +
+      `<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/chart"><c:chart xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:id="rId${i + 1}"/></a:graphicData></a:graphic></xdr:graphicFrame><xdr:clientData/></xdr:twoCellAnchor>`;
+  }).join("");
+  zip.file("xl/drawings/drawing1.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">${anchors}</xdr:wsDr>`);
+  zip.file("xl/drawings/_rels/drawing1.xml.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${charts.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart" Target="../charts/chart${i + 1}.xml"/>`).join("")}</Relationships>`);
+  charts.forEach((c, i) => zip.file(`xl/charts/chart${i + 1}.xml`, chartXml(c)));
+
+  // sheet -> drawing
+  const relId = "rIdEsDrawing1";
+  const relXml = `<Relationship Id="${relId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing1.xml"/>`;
+  const existing = zip.file(relsPath);
+  if (existing) zip.file(relsPath, (await existing.async("string")).replace("</Relationships>", relXml + "</Relationships>"));
+  else zip.file(relsPath, `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${relXml}</Relationships>`);
+  let sx = await sheetFile.async("string");
+  if (!/xmlns:r=/.test(sx.slice(0, 600))) sx = sx.replace("<worksheet ", '<worksheet xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" ');
+  const tag = `<drawing r:id="${relId}"/>`;
+  const before = ["<legacyDrawing", "<legacyDrawingHF", "<picture", "<oleObjects", "<controls", "<webPublishItems", "<tableParts", "<extLst", "</worksheet>"].map((t) => sx.indexOf(t)).filter((i) => i >= 0);
+  const at = Math.min(...before);
+  sx = sx.slice(0, at) + tag + sx.slice(at);
+  zip.file(sheetPath, sx);
+
+  // content types
+  let ct = await zip.file("[Content_Types].xml")!.async("string");
+  const over = `<Override PartName="/xl/drawings/drawing1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>` +
+    charts.map((_, i) => `<Override PartName="/xl/charts/chart${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/>`).join("");
+  ct = ct.replace("</Types>", over + "</Types>");
+  zip.file("[Content_Types].xml", ct);
+  return zip.generateAsync({ type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
 }

@@ -891,3 +891,14 @@ a { color: inherit; }
 #hub .field-l textarea { font: inherit; font-weight: 400; padding: 8px 10px; border: 1.5px solid var(--line); resize: vertical; }
 #hub .ck-form { grid-template-columns: 1fr; }
 #hub .ck-form .ck-status label, #hub .ck-form .ck-status legend { text-transform: none; letter-spacing: 0; white-space: nowrap; font-size: 13px; }
+#hub .roster-t { min-width: 1500px; font-size: 13px; }
+#hub .roster-t td { padding: 4px 4px; }
+#hub .roster-t input, #hub .roster-t select { width: 100%; min-width: 70px; font: inherit; font-size: 13px; padding: 5px 6px; border: 1px solid var(--line); background: var(--white); }
+#hub .roster-t input.n { min-width: 44px; width: 52px; }
+#hub .roster-t input[type=email] { min-width: 190px; }
+#hub .roster-t th { white-space: nowrap; }
+#hub .roster-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+#hub dl.facts { margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+#hub dl.facts div { background: var(--mist); padding: 10px 12px; }
+#hub dl.facts dt { font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+#hub dl.facts dd { margin: 4px 0 0; font-size: 14px; overflow-wrap: anywhere; }

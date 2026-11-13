@@ -196,12 +196,12 @@ export function initSite(backend, tools) {
   });
 
   // ================= State =================
-  var state = { user: null, me: null, expenses: null, captains: null, teamApplications: {}, teamInfo: {}, teamResults: {}, tasks: {}, checkups: [], deckNotes: {}, nextId: 100, al: { q: "", sport: "All", year: "" }, hubFilter: "all", appFilter: "all", teamOpen: null };
+  var state = { user: null, me: null, expenses: null, captains: null, teamApplications: {}, teamInfo: {}, teamResults: {}, tasks: {}, checkups: [], rosters: {}, deckNotes: {}, nextId: 100, al: { q: "", sport: "All", year: "" }, hubFilter: "all", appFilter: "all", teamOpen: null };
   try {
     var s = JSON.parse(localStorage.getItem("es-site") || "null");
-    if (s && s.v === 2) { state.user = s.user && s.user.role === "alumni" ? null : s.user; state.expenses = s.expenses; state.captains = s.captains || null; state.teamApplications = s.teamApplications || {}; state.teamInfo = s.teamInfo || {}; state.teamResults = s.teamResults || {}; state.tasks = s.tasks || {}; state.newTasks = s.newTasks || []; state.checkups = s.checkups || []; state.deckNotes = s.deckNotes || {}; state.ideas = s.ideas || null; state.nextId = s.nextId || 100; }
+    if (s && s.v === 2) { state.user = s.user && s.user.role === "alumni" ? null : s.user; state.expenses = s.expenses; state.captains = s.captains || null; state.teamApplications = s.teamApplications || {}; state.teamInfo = s.teamInfo || {}; state.teamResults = s.teamResults || {}; state.tasks = s.tasks || {}; state.newTasks = s.newTasks || []; state.checkups = s.checkups || []; state.rosters = s.rosters || {}; state.deckNotes = s.deckNotes || {}; state.ideas = s.ideas || null; state.nextId = s.nextId || 100; }
   } catch (e) {}
-  function save() { try { localStorage.setItem("es-site", JSON.stringify({ v: 2, user: state.user, expenses: state.expenses, captains: state.captains, teamApplications: state.teamApplications, teamInfo: state.teamInfo, teamResults: state.teamResults, tasks: state.tasks, newTasks: state.newTasks, checkups: state.checkups, ideas: state.ideas, deckNotes: state.deckNotes, nextId: state.nextId })); } catch (e) {} }
+  function save() { try { localStorage.setItem("es-site", JSON.stringify({ v: 2, user: state.user, expenses: state.expenses, captains: state.captains, teamApplications: state.teamApplications, teamInfo: state.teamInfo, teamResults: state.teamResults, tasks: state.tasks, newTasks: state.newTasks, checkups: state.checkups, rosters: state.rosters, ideas: state.ideas, deckNotes: state.deckNotes, nextId: state.nextId })); } catch (e) {} }
   // Hub views (same rules as convex/roles.ts; permissions table in README.md):
   //   admin / exec (president, VPs): everything · viewer (Student Council, Eva Morta): everything, read-only
   //   head: their department for every team · associate: their department, their teams · captain: their team(s)
@@ -1189,6 +1189,73 @@ export function initSite(backend, tools) {
       '<div class="grid-2"><section class="panel"><div class="panel-head"><h2>Requests waiting for Finance</h2>' + (hv().role === "captain" && can("submit") ? '<a class="btn sm solid" href="#hub-expenses" data-make-req>Make a request</a>' : '<a class="btn sm" href="#hub-expenses">All expenses</a>') + '</div>' + expTable(reqs, true) + "</section>" +
       deptPanel() + "</div>";
   }
+  // ---- Team information and roster (captain's team sheet) --------------------------------------
+  // The roster holds personal data: only the team's captain and the President / VPs / admins see it (checked in Convex).
+  var ROSTER = {}, ROSTER_ALL = null;
+  var SHIRTS = ["XS", "S", "M", "L", "XL", "XXL"], PROGRAMS = ["BBA", "BAIB", "GEL", "Double degree", "Masters", "Other"], PYEARS = ["1", "2", "3", "4", "5", "Masters"];
+  var PL_FIELDS = [["first", "First name", "text"], ["last", "Last name", "text"], ["shirt", "Shirt", "shirt"], ["number", "No.", "num"], ["idDoc", "DNI / NIE", "text"], ["nationality", "Nationality", "text"], ["birth", "Birth date", "date"], ["email", "Email", "email"], ["phone", "Phone (+prefix)", "tel"], ["program", "Program", "program"], ["year", "Year", "year"], ["notes", "Allergies / notes", "text"]];
+  function canRoster(id) { var u = hv(); return !hRO() && (u.role === "admin" || u.role === "exec" || (u.role === "captain" && (u.teams || []).indexOf(id) > -1)); }
+  function rosterOf(id) {
+    if (state.rosterDraft && state.rosterDraft[id]) return state.rosterDraft[id];
+    if (live()) {
+      if (ROSTER[id] === undefined && backend.getRoster) {
+        ROSTER[id] = null;
+        Promise.resolve(backend.getRoster(id)).then(function (r) { ROSTER[id] = r || { players: [] }; hubRefresh(); }, function (x) { console.error(x); ROSTER[id] = { players: [] }; });
+      }
+      return ROSTER[id] ? ROSTER[id].players : null;
+    }
+    return ((state.rosters || {})[id] || { players: [] }).players;
+  }
+  function sizeSummary(players) {
+    var n = {}; players.forEach(function (p) { if (p.shirt) n[p.shirt] = (n[p.shirt] || 0) + 1; });
+    return SHIRTS.filter(function (s) { return n[s]; }).map(function (s) { return n[s] + " " + s; }).join(" · ");
+  }
+  function plInput(f, val, i) {
+    var name = 'data-f="' + f[0] + '" aria-label="' + esc(f[1]) + " " + (i + 1) + '"', v = esc(val || "");
+    function sel(opts) { return "<select " + name + '><option value=""></option>' + opts.map(function (o) { return '<option' + (o === val ? " selected" : "") + ">" + o + "</option>"; }).join("") + "</select>"; }
+    if (f[2] === "shirt") return sel(SHIRTS);
+    if (f[2] === "program") return sel(PROGRAMS);
+    if (f[2] === "year") return sel(PYEARS);
+    return "<input " + name + ' type="' + (f[2] === "num" ? "text" : f[2]) + '" value="' + v + '"' + (f[2] === "num" ? ' inputmode="numeric" maxlength="3" class="n"' : "") + ">";
+  }
+  function teamInfoPanel(id) {
+    var i = teamInfoFor(id), rows = [["About", i.about], ["Training facility", [i.venue, i.venueAddress].filter(Boolean).join(", ")], ["League", i.league], ["League page", i.leagueUrl], ["Team contact", i.contact]].filter(function (r) { return r[1]; });
+    return '<section class="panel"><div class="panel-head"><h2>Team information</h2>' + (can("teamEdit") ? '<a class="btn sm" href="#hub-team-editor">Edit</a>' : "") + "</div>" +
+      (rows.length ? '<dl class="facts">' + rows.map(function (r) { return "<div><dt>" + r[0] + "</dt><dd>" + esc(r[1]) + "</dd></div>"; }).join("") + "</dl>" : '<p class="empty">Not filled in yet. ' + (can("teamEdit") ? 'Use <a href="#hub-team-editor">Team editor</a> to add the facility, league and contacts.' : "") + "</p>") + "</section>";
+  }
+  function rosterPanel(id) {
+    if (!canRoster(id)) return "";
+    var pl = rosterOf(id);
+    if (pl === null) return '<section class="panel"><div class="panel-head"><h2>Team roster</h2></div><p class="empty">Loading…</p></section>';
+    var rows = pl.length ? pl : [{}];
+    return '<section class="panel roster"><div class="panel-head"><h2>Team roster <span class="muted" style="font-weight:600">· ' + pl.length + " player" + (pl.length === 1 ? "" : "s") + "</span></h2>" +
+      '<span class="pill">Private: captain and Board only</span></div>' +
+      (sizeSummary(pl) ? '<p class="muted" style="margin:0;font-size:13px">Shirt sizes: <b>' + esc(sizeSummary(pl)) + "</b></p>" : "") +
+      '<div class="table-wrap"><table class="roster-t" data-roster="' + id + '"><thead><tr>' + PL_FIELDS.map(function (f) { return "<th>" + f[1] + "</th>"; }).join("") + "<th></th></tr></thead><tbody>" +
+      rows.map(function (p, i) { return '<tr data-pl="' + i + '">' + PL_FIELDS.map(function (f) { return "<td>" + plInput(f, p[f[0]], i) + "</td>"; }).join("") + '<td><button type="button" class="btn sm ghost" data-pl-del="' + i + '" aria-label="Remove player ' + (i + 1) + '">✕</button></td></tr>'; }).join("") +
+      '</tbody></table></div><div class="roster-actions"><button type="button" class="btn sm" data-pl-add="' + id + '">+ Add player</button><button type="button" class="btn sm solid" data-pl-save="' + id + '">Save roster</button>' +
+      (live() && ROSTER[id] && ROSTER[id].updatedBy ? '<small class="muted">Last saved by ' + esc(ROSTER[id].updatedBy) + " · " + esc(fmtWhen(ROSTER[id].updatedAt)) + "</small>" : "") + "</div></section>";
+  }
+  function readRoster(id) {
+    var out = [];
+    hub.querySelectorAll('table[data-roster="' + id + '"] tbody tr').forEach(function (tr) {
+      var p = {}; tr.querySelectorAll("[data-f]").forEach(function (el) { var v = el.value.trim(); if (v) p[el.getAttribute("data-f")] = v; });
+      out.push(p);
+    });
+    return out;
+  }
+  // Board overview: every team's roster size and shirt sizes (President, VPs, admins).
+  function rostersOverview() {
+    var u = hv(); if (hRO() || !(u.role === "admin" || u.role === "exec")) return "";
+    var all = {};
+    if (live()) {
+      if (ROSTER_ALL === null && backend.listRosters) { ROSTER_ALL = []; Promise.resolve(backend.listRosters()).then(function (rows) { ROSTER_ALL = rows || []; (rows || []).forEach(function (r) { if (ROSTER[r.team] === undefined) ROSTER[r.team] = r; }); hubRefresh(); }, console.error); }
+      (ROSTER_ALL || []).forEach(function (r) { all[r.team] = r.players; });
+    } else Object.keys(state.rosters || {}).forEach(function (k) { all[k] = state.rosters[k].players; });
+    return '<section class="panel"><div class="panel-head"><h2>Rosters, every team</h2><span class="pill">Board only</span></div><div class="table-wrap"><table><thead><tr><th>Team</th><th>Captain</th><th class="r">Players</th><th>Shirt sizes</th></tr></thead><tbody>' +
+      TEAMS.map(function (t) { var pl = all[t.id] || []; return '<tr class="click" data-hteam="' + t.id + '" tabindex="0"><td class="tname">' + esc(tLabel(t)) + "</td><td>" + esc(captainName(captainForTeam(t.id))) + '</td><td class="r num">' + (pl.length || '<span class="muted">—</span>') + "</td><td>" + (esc(sizeSummary(pl)) || '<span class="muted">Not filled in</span>') + "</td></tr>"; }).join("") +
+      '</tbody></table></div><p class="muted" style="margin:0;font-size:12px">Select a team to open its information and full roster.</p></section>';
+  }
   function hubTeams() {
     var ts = visTeams();
     if (!can("money")) // teams without the money columns (Finance only)
@@ -1202,13 +1269,13 @@ export function initSite(backend, tools) {
         '<div class="people">' + [["Captain", captainName(captainForTeam(open)), "Runs the team"], ["Finance associate", assocFor("fin", open), "Budget and payments"], ["Media associate", assocFor("med", open), "Social media and coverage"], ["Operations associate", assocFor("ops", open), "Bookings, kit, travel"]].map(function (p) { return '<div class="person"><p class="eyebrow">' + p[0] + "</p><strong>" + esc(p[1]) + "</strong><small>" + p[2] + "</small></div>"; }).join("") + "</div>" +
         '<p class="muted" style="margin:0">Budget ' + EUR.format(t.budget) + " · paid " + EUR.format(o.paid) + " · waiting " + EUR.format(o.pending) + " · left " + EUR.format(Math.max(0, t.budget - o.paid - o.pending)) + "</p>" +
         splitPanel(t) +
-        expTable(visExp().filter(function (e) { return e.team === open; }), false) + "</section>";
+        expTable(visExp().filter(function (e) { return e.team === open; }), false) + "</section>" + teamInfoPanel(open) + rosterPanel(open);
     }
     return '<div class="ph-head"><div><p class="eyebrow">Teams</p><h1 class="display">' + (can("all") ? "Every team." : "My team.") + "</h1><p>Each official team has a season budget agreed with its captain, and three dedicated associates.</p></div></div>" +
       '<section class="panel"><div class="table-wrap"><table><thead><tr><th>Team</th><th>Budget</th><th class="r">Agreed</th><th class="r">Paid</th><th>Used (paid + waiting)</th></tr></thead><tbody>' +
       ts.map(function (t) { var o = totals(t.id), p = Math.min(100, o.paid / t.budget * 100), q = Math.min(100 - p, o.pending / t.budget * 100);
         return '<tr class="click" data-hteam="' + t.id + '" tabindex="0"><td class="tname">' + esc(tLabel(t)) + "</td><td>" + pill(BUDGET_STATUS, t.status) + '</td><td class="r num">' + EUR.format(t.budget) + '</td><td class="r num">' + EUR.format(o.paid) + '</td><td style="width:22%"><div class="bar"><i style="width:' + p + '%"></i><i class="pend" style="left:' + p + "%;width:" + q + '%"></i></div></td></tr>'; }).join("") +
-      "</tbody></table></div>" + (can("all") ? '<p class="muted" style="margin:0;font-size:12px">Select a team to see its associates and expenses.</p>' : "") + "</section>" + detail;
+      "</tbody></table></div>" + (can("all") ? '<p class="muted" style="margin:0;font-size:12px">Select a team to see its associates and expenses.</p>' : "") + "</section>" + rostersOverview() + detail;
   }
   // ---- Expenses ledger -------------------------------------------------------------------------
   // Signed in with Convex: rows come from the database (only what this account may see, kept live).
@@ -1231,7 +1298,7 @@ export function initSite(backend, tools) {
       LIVE.unExp = backend.watchExpenses(function (rows) { if (rows === undefined) return; LIVE.exp = (rows || []).map(fromServer); hubRefresh(); });
       LIVE.unIdeas = backend.watchIdeas(function (rows) { if (rows === undefined) return; LIVE.ideas = rows || []; hubRefresh(); });
     } else if (!on && LIVE.unExp) {
-      LIVE.unExp(); LIVE.unIdeas(); LIVE.unExp = LIVE.unIdeas = null; LIVE.exp = LIVE.ideas = null; LIVE.checks = {};
+      LIVE.unExp(); LIVE.unIdeas(); LIVE.unExp = LIVE.unIdeas = null; LIVE.exp = LIVE.ideas = null; LIVE.checks = {}; ROSTER = {}; ROSTER_ALL = null;
     }
   }
   function allExp() { return live() ? LIVE.exp || [] : state.expenses; }
@@ -1374,7 +1441,19 @@ export function initSite(backend, tools) {
       { label: "Waiting", value: EUR.format(sum(list, ["requested"])), note: "to decide today" }
     ];
     var scope = viewLabel(hv()).replace("Eva Morta · ", "");
+    // Charts: monthly trend over the season, expense categories, and a histogram of expense sizes (the whole scope, season to date).
+    var trend = [], d0 = new Date(2026, 8, 1), nowD = new Date(), last = r ? new Date(Math.min(r.end - 1, Date.now() + 31 * 86400000)) : nowD;
+    for (var md = new Date(d0); md <= last || trend.length < 3; md.setMonth(md.getMonth() + 1)) {
+      var mk = md.getFullYear() + "-" + pad2(md.getMonth() + 1), es = list.filter(function (e) { return e.date.slice(0, 7) === mk; });
+      trend.push({ label: MONTHS[md.getMonth()] + " " + String(md.getFullYear()).slice(2), requested: es.reduce(function (n, e) { return n + e.amount; }, 0), approved: sum(es, ["validated", "paid"]), paid: sum(es, ["paid"]) });
+      if (trend.length > 12) break;
+    }
+    var cats = {}; list.forEach(function (e) { var c = cats[e.cat] = cats[e.cat] || { cat: e.cat, approved: 0, waiting: 0, rejected: 0 }; if (e.status === "requested") c.waiting += e.amount; else if (e.status === "rejected") c.rejected += e.amount; else c.approved += e.amount; });
+    var B = [[0, 100, "Under €100"], [100, 250, "€100–249"], [250, 500, "€250–499"], [500, 1000, "€500–999"], [1000, 1e12, "€1,000+"]];
+    var sizes = B.map(function (b) { return { bucket: b[2], count: list.filter(function (e) { return e.amount >= b[0] && e.amount < b[1]; }).length }; });
+    var u0 = hv(), audience = u0.role === "associate" ? "Associate report · " + deptName(u0.dept) + " · " + teamsText(u0.teams) : u0.role === "head" ? "Head of " + deptName(u0.dept) + " report · every sport" : u0.role === "captain" ? "Team report · " + teamsText(u0.teams) : "Board report · every sport and department";
     return {
+      audience: audience, trend: trend, cats: Object.keys(cats).sort().map(function (k) { return cats[k]; }), sizes: sizes,
       file: ("esade-sports-" + title + "-" + (r ? r.key : "season-2026-27")).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/-+$/, ""),
       title: title, scope: scope, period: r ? r.label : "Season 2026–27, to date", generated: fmtDay(now),
       example: rows.some(function (e) { return e.example || !live(); }), kpis: kpis, teams: teams, depts: depts,
@@ -1616,6 +1695,16 @@ export function initSite(backend, tools) {
     hub.querySelectorAll("[data-ck-off]").forEach(function (b) { b.addEventListener("click", function () { var d = +b.getAttribute("data-ck-off"); state.ck.off = d ? (state.ck.off || 0) + d : 0; render(); }); });
     hub.querySelectorAll("[data-make-req]").forEach(function (b) { b.addEventListener("click", function () { state.focusReq = true; }); });
     if (state.focusReq && $("r-item")) { state.focusReq = false; var rf = $("req"); if (rf) rf.scrollIntoView({ block: "start" }); $("r-item").focus(); }
+    hub.querySelectorAll("[data-pl-add]").forEach(function (b) { b.addEventListener("click", function () { var id = b.getAttribute("data-pl-add"); state.rosterDraft = state.rosterDraft || {}; state.rosterDraft[id] = readRoster(id).concat([{}]); render(); var rows = hub.querySelectorAll('table[data-roster="' + id + '"] tbody tr'); var last = rows[rows.length - 1]; if (last) last.querySelector("input").focus(); }); });
+    hub.querySelectorAll("[data-pl-del]").forEach(function (b) { b.addEventListener("click", function () { var t = b.closest("table"), id = t.getAttribute("data-roster"), i = +b.getAttribute("data-pl-del"), rows = readRoster(id); rows.splice(i, 1); state.rosterDraft = state.rosterDraft || {}; state.rosterDraft[id] = rows; render(); }); });
+    hub.querySelectorAll("[data-pl-save]").forEach(function (b) { b.addEventListener("click", function () {
+      var id = b.getAttribute("data-pl-save"), rows = readRoster(id).filter(function (p) { return p.first || p.last; });
+      if (rows.some(function (p) { return p.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email); })) { toast("Check the email addresses."); return; }
+      function done() { if (state.rosterDraft) delete state.rosterDraft[id]; render(); toast("Roster saved."); }
+      if (!live()) { state.rosters[id] = { players: rows }; save(); done(); return; }
+      b.disabled = true;
+      Promise.resolve(backend.saveRoster({ team: id, players: rows })).then(function () { ROSTER[id] = undefined; ROSTER_ALL = null; done(); }, function (x) { b.disabled = false; toast(errText(x)); });
+    }); });
     var dn = $("deck-notes"); if (dn) dn.addEventListener("input", function () { var p = ckPeriod(); state.deckNotes = state.deckNotes || {}; state.deckNotes[p.kind + "|" + p.key] = dn.value; save(); });
     var ckt = $("ck-team"); if (ckt) ckt.addEventListener("change", function () { state.ck.team = ckt.value; });
     var ckf = $("ck-form"); if (ckf) ckf.addEventListener("submit", function (ev) {

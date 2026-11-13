@@ -97,6 +97,10 @@ export default function EsadeSite() {
         push();
         return w.onUpdate(push);
       },
+      // Team rosters (personal data): the team's captain and the President / VPs / admins only, checked in Convex.
+      getRoster: (team: string) => client.query(api.rosters.get, { team }),
+      listRosters: () => client.query(api.rosters.listAll, {}),
+      saveRoster: (a: Record<string, unknown>) => client.mutation(api.rosters.save, a as never),
       suggestIdea: (a: Record<string, unknown>) => client.mutation(api.ideas.suggest, a as never),
       updateIdea: (a: Record<string, unknown>) => client.mutation(api.ideas.update, a as never),
       // Uploads the CV (and optional video) to Convex storage, then stores the application.
