@@ -1275,23 +1275,18 @@ html.kb-active, html.kb-active * { cursor: grabbing !important; user-select: non
 }
 @media (max-width: 480px) { #hub .stat { padding: 16px 14px 16px 18px; } #hub .stat .v { font-size: 24px; } }
 
-/* Live activity of a team (Hub captain pages) */
+/* Latest activity of a team (Hub captain pages) */
 #hub .act-panel { margin-bottom: 14px; }
 #hub .act-panel > summary { display: flex; align-items: center; gap: 10px; cursor: pointer; list-style: none; flex-wrap: wrap; }
 #hub .act-panel > summary::-webkit-details-marker { display: none; }
 #hub .act-panel > summary::after { content: "▾"; margin-left: auto; color: var(--ink-soft); }
 #hub .act-panel:not([open]) > summary::after { content: "▸"; }
-#hub .act-panel > summary .count { font-size: 11px; font-weight: 700; background: var(--blue); color: var(--white); padding: 2px 7px; }
 #hub .act-panel h2 { display: flex; align-items: center; gap: 8px; }
-#hub .live-dot { width: 8px; height: 8px; border-radius: 50%; background: #1f9d55; box-shadow: 0 0 0 0 rgba(31, 157, 85, .5); animation: livePulse 2s infinite; flex: none; }
-@keyframes livePulse { 0% { box-shadow: 0 0 0 0 rgba(31, 157, 85, .5); } 70% { box-shadow: 0 0 0 7px rgba(31, 157, 85, 0); } 100% { box-shadow: 0 0 0 0 rgba(31, 157, 85, 0); } }
-@media (prefers-reduced-motion: reduce) { #hub .live-dot { animation: none; } }
 #hub .act-help { margin: 0; font-size: 13px; }
 #hub .act-filter { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; }
 #hub .act-filter select { max-width: 220px; }
 #hub .act-list { list-style: none; margin: 0; padding: 0; max-height: 420px; overflow-y: auto; }
 #hub .act-list li { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 12px; padding: 9px 8px; border-bottom: 1px solid var(--line); }
-#hub .act-list li.fresh { background: rgba(3, 8, 160, .06); box-shadow: inset 3px 0 0 var(--blue); }
 #hub .act-area { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-soft); padding-top: 2px; }
 #hub .act-what { overflow-wrap: anywhere; font-size: 14px; }
 #hub .act-what small { display: block; font-size: 12px; margin-top: 2px; }

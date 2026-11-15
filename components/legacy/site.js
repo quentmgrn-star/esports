@@ -2354,14 +2354,14 @@ export function initSite(backend, tools) {
     var un = backend.watch("goals", function (d) { if (d === undefined || LIVE.goalsTerm !== term) return; LIVE.goals = d; setTimeout(hubRefresh, 0); }, { term: term });
     if (LIVE.goalsTerm === term) LIVE.unGoals = un; else un();
   }
-  // Live activity of one team (captain pages): every change made on the team, newest first, kept live by Convex.
+  // Latest activity of one team (captain pages): the most recent changes made on the team, newest first.
   // Admins, President / VPs and the view-only account see any team; a captain only their own (checked in Convex).
-  var ACT_AREAS = [["all", "Everything"], ["expenses", "Expenses"], ["ideas", "Ideas & logistics"], ["roster", "Roster"], ["tournament", "Tournament"], ["handover", "Handover"], ["results", "Results"], ["signups", "Sign-ups"], ["budget", "Budget"], ["team", "Team editor"]];
+  var ACT_AREAS = [["all", "All activity"], ["expenses", "Expenses"], ["ideas", "Ideas & logistics"], ["roster", "Roster"], ["tournament", "Tournament"], ["handover", "Handover"], ["results", "Results"], ["signups", "Sign-ups"], ["budget", "Budget"], ["team", "Team editor"]];
   function watchActivity(id) {
     if (!backend || !backend.watch || !(admin || captain)) return;
     if (LIVE.unAct && LIVE.actTeam === id) return;
     if (LIVE.unAct) LIVE.unAct();
-    LIVE.actTeam = id; LIVE.act = undefined; LIVE.unAct = function () {};
+    LIVE.actTeam = id; LIVE.act = undefined; state.actArea = "all"; state.actMore = false; LIVE.unAct = function () {};
     var un = backend.watch("activity", function (d) { if (d === undefined || LIVE.actTeam !== id) return; LIVE.act = d || []; setTimeout(hubRefresh, 0); }, { team: id });
     if (LIVE.actTeam === id) LIVE.unAct = un; else un();
   }
@@ -2375,17 +2375,15 @@ export function initSite(backend, tools) {
     if (!live() || !backend.watch) return "";
     watchActivity(id);
     var rows = LIVE.actTeam === id ? LIVE.act : undefined, area = state.actArea || "all", all = rows || [];
-    var list = area === "all" ? all : all.filter(function (r) { return r.area === area; }), shown = state.actMore ? list : list.slice(0, 8);
+    var list = area === "all" ? all : all.filter(function (r) { return r.area === area; }), shown = state.actMore ? list : list.slice(0, 25);
     var label = {}; ACT_AREAS.forEach(function (x) { label[x[0]] = x[1]; });
-    var fresh = all.filter(function (r) { return Date.now() - r.at < 10 * 60000; }).length;
-    return '<details class="panel act-panel" id="act-panel"' + (state.actClosed ? "" : " open") + '><summary><h2><span class="live-dot" aria-hidden="true"></span>Live activity · ' + esc(tLabel(team(id))) + "</h2>" +
-      (fresh ? '<span class="count num" title="Changes in the last 10 minutes">' + fresh + " new</span>" : "") + "</summary>" +
-      '<p class="muted act-help">What the captain and the team’s associates do on this team, as it happens: no need to refresh.</p>' +
+    return '<details class="panel act-panel" id="act-panel"' + (state.actClosed ? "" : " open") + '><summary><h2>Latest activity · ' + esc(tLabel(team(id))) + "</h2></summary>" +
+      '<p class="muted act-help">The latest changes on this team by the captain and the team’s associates, newest first.</p>' +
       '<label class="act-filter" for="act-area">Show<select id="act-area">' + ACT_AREAS.map(function (x) { return '<option value="' + x[0] + '"' + (x[0] === area ? " selected" : "") + ">" + x[1] + "</option>"; }).join("") + "</select></label>" +
-      (rows === undefined ? '<p class="empty">Loading…</p>' : !list.length ? '<p class="empty">Nothing yet' + (area === "all" ? " for this team. Changes will appear here live." : " in this area.") + "</p>" :
+      (rows === undefined ? '<p class="empty">Loading…</p>' : !list.length ? '<p class="empty">Nothing yet' + (area === "all" ? " for this team." : " in this area.") + "</p>" :
         '<ul class="act-list">' + shown.map(function (r) {
-          return '<li' + (Date.now() - r.at < 10 * 60000 ? ' class="fresh"' : "") + '><span class="act-area">' + esc(label[r.area] || r.area) + '</span><span class="act-what">' + esc(r.what) + '<small class="muted">' + esc(r.mine ? "You" : r.by) + ' · <time data-at="' + r.at + '" title="' + esc(new Date(r.at).toLocaleString("en-GB")) + '">' + esc(ago(r.at)) + "</time></small></span></li>";
-        }).join("") + "</ul>" + (list.length > 8 ? '<button type="button" class="btn sm ghost" data-act-more>' + (state.actMore ? "Show less" : "Show all " + list.length) + "</button>" : "")) +
+          return '<li><span class="act-area">' + esc(label[r.area] || r.area) + '</span><span class="act-what">' + esc(r.what) + '<small class="muted">' + esc(r.mine ? "You" : r.by) + ' · <time data-at="' + r.at + '" title="' + esc(new Date(r.at).toLocaleString("en-GB")) + '">' + esc(ago(r.at)) + "</time></small></span></li>";
+        }).join("") + "</ul>" + (list.length > 25 ? '<button type="button" class="btn sm ghost" data-act-more>' + (state.actMore ? "Show less" : "Show more (" + list.length + ")") + "</button>" : "")) +
       "</details>";
   }
   setInterval(function () { document.querySelectorAll("#act-panel time[data-at]").forEach(function (t) { t.textContent = ago(+t.getAttribute("data-at")); }); }, 30000);
