@@ -95,6 +95,7 @@ export function initI18n() {
     "Outlook (Esade / Microsoft 365)": ["Outlook (Esade / Microsoft 365)", "Outlook (Esade / Microsoft 365)"],
     "Outlook.com (personal)": ["Outlook.com (personal)", "Outlook.com (personal)"],
     "Other app (.ics file)": ["Una altra app (fitxer .ics)", "Otra app (archivo .ics)"],
+    "On iPhone, if nothing happens, open this page in Safari (not inside Instagram or WhatsApp).": ["A l'iPhone, si no passa res, obre aquesta pàgina a Safari (no dins d'Instagram o WhatsApp).", "En iPhone, si no pasa nada, abre esta página en Safari (no dentro de Instagram o WhatsApp)."],
     "Mon": ["Dl", "Lu"],
     "Tue": ["Dt", "Ma"],
     "Wed": ["Dc", "Mi"],

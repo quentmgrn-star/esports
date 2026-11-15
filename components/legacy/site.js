@@ -131,8 +131,14 @@ export function initSite(backend, tools) {
       ["/api/ics?id=" + enc(ev.id) + "&s=" + S + "&e=" + E + "&t=" + enc(ev.title) + "&l=" + enc(ev.place || "") + "&d=" + enc(details), "Other app (.ics file)", false]
     ];
     return '<details class="cal-add"><summary class="btn btn-ghost-navy">Add to my calendar</summary><div class="cal-menu">' +
-      links.map(function (l) { return '<a href="' + esc(l[0]) + '"' + (l[2] ? ' target="_blank" rel="noopener noreferrer"' : "") + ">" + l[1] + "</a>"; }).join("") + "</div></details>";
+      links.map(function (l) { return '<a href="' + esc(l[0]) + '"' + (l[2] ? ' target="_blank" rel="noopener noreferrer"' : "") + ">" + l[1] + "</a>"; }).join("") +
+      '<p class="cal-hint">On iPhone, if nothing happens, open this page in Safari (not inside Instagram or WhatsApp).</p></div></details>';
   }
+  // Opening the menu scrolls it into view, so the last option is never hidden at the bottom of a phone screen.
+  document.addEventListener("toggle", function (e) {
+    var d = e.target;
+    if (d.classList && d.classList.contains("cal-add") && d.open) { var m = d.querySelector(".cal-menu"); if (m && m.scrollIntoView) m.scrollIntoView({ block: "nearest", behavior: "smooth" }); }
+  }, true);
   function openMatch(id) {
     var g = gameById(id), modal = $("match-modal");
     if (!g || !modal) return;

@@ -1,6 +1,7 @@
 // "Add to calendar" file (.ics) for a game or event. Served from our own site with the
 // text/calendar type, so iPhone/Mac Safari shows "Add to Calendar", Outlook desktop opens it
-// and Android hands it to the calendar app. Times arrive in UTC (…Z), so no time-zone guessing.
+// and Android hands it to the calendar app. "inline" matters: with "attachment" iPhone Safari shows a blank page.
+// Times arrive in UTC (…Z), so no time-zone guessing.
 export const runtime = "nodejs";
 
 const UTC = /^\d{8}T\d{6}Z$/;
@@ -33,7 +34,7 @@ export async function GET(req: Request) {
   return new Response(lines.map(fold).join("\r\n") + "\r\n", {
     headers: {
       "Content-Type": "text/calendar; charset=utf-8",
-      "Content-Disposition": `attachment; filename="esade-sports-${id}.ics"`,
+      "Content-Disposition": `inline; filename="esade-sports-${id}.ics"`,
       "Cache-Control": "public, max-age=3600",
     },
   });

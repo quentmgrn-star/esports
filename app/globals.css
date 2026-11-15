@@ -794,6 +794,7 @@ a { color: inherit; }
 .cal-menu { display: grid; margin-top: 8px; min-width: 260px; border: 1px solid var(--line, #d6dbe4); background: var(--white, #fff); box-shadow: 0 8px 24px rgba(0, 20, 60, .12); }
 .cal-menu a { padding: 12px 14px; font: 600 14px/1.3 var(--font); color: var(--navy); text-decoration: none; border-top: 1px solid var(--line, #d6dbe4); }
 .cal-menu a:first-child { border-top: 0; }
+.cal-hint { margin: 0; padding: 10px 14px; border-top: 1px solid var(--line, #d6dbe4); font-size: 12px; line-height: 1.4; color: var(--ink-soft, #5a6178); }
 .cal-menu a:hover, .cal-menu a:focus-visible { background: var(--info-bg); }
 @media (max-width: 760px) { .ev-body .cal-add { margin-left: 0; display: block; } .cal-menu { min-width: 0; } }
 @media (max-width: 760px) {
