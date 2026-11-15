@@ -1702,7 +1702,7 @@ function Requests({ me, rows }: { me: NonNullable<Me>; rows: MemberRow[] | undef
   const add = useMutation(api.org.addMember);
   const [tab, setTab] = useState<"requested" | "approved" | "closed">("requested");
   const [error, setError] = useState("");
-  const roles: MemberRow["role"][] = me.isAdmin ? ["board", "associate", "captain"] : ["associate", "captain"];
+  const roles: MemberRow["role"][] = me.isAdmin ? ["board", "associate", "captain", "viewer"] : ["associate", "captain"];
   const depts = me.isAdmin || me.exec ? DEPARTMENT_LIST : me.heads;
   const [f, setF] = useState({ email: "", name: "", role: roles[0], position: "head" as Position, department: depts[0] ?? "", teams: [] as string[] });
   const needsDept = f.role === "associate" || (f.role === "board" && f.position === "head");

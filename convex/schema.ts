@@ -361,6 +361,23 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_team", ["team"]),
 
+  // Team handover: what a team's captain (and its departments) know, so the next team can start from it.
+  // One row per team and department. Visibility in convex/handover.ts (roles.canSee). No passwords stored.
+  handover: defineTable({
+    team: v.string(),
+    dept: v.string(), // one of DEPARTMENTS in convex/roles.ts
+    notes: v.optional(v.string()),
+    contacts: v.array(
+      v.object({ name: v.string(), role: v.optional(v.string()), email: v.optional(v.string()), phone: v.optional(v.string()), org: v.optional(v.string()) }),
+    ),
+    links: v.array(v.object({ label: v.string(), url: v.string() })),
+    files: v.array(
+      v.object({ id: v.id("_storage"), name: v.string(), type: v.string(), size: v.number(), by: v.string(), at: v.number() }),
+    ),
+    updatedBy: v.string(),
+    updatedAt: v.number(),
+  }).index("by_team", ["team"]),
+
   // Team roster (captain's team sheet). Sensitive personal data: only the team's captain(s),
   // admins, the President and the Vice-presidents can read or change it (convex/rosters.ts). Never public.
   rosters: defineTable({

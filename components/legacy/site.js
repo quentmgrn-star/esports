@@ -1214,7 +1214,7 @@ export function initSite(backend, tools) {
   }
   function pill(map, k) { return '<span class="pill ' + map[k][0] + '">' + map[k][1] + "</span>"; }
   function stat(k, v, s) { return '<div class="stat"><p class="eyebrow">' + k + '</p><span class="v num">' + v + "</span><small>" + s + "</small></div>"; }
-  var HUBV = [["hub-overview", "Overview"], ["hub-chat", "Chat"], ["hub-teams", "Teams"], ["hub-tournament", "Tournament"], ["hub-team-editor", "Team editor"], ["hub-applications", "Sports applications"], ["hub-assoc-apps", "Association applications"], ["hub-messages", "Messages"], ["hub-captains", "Captains"], ["hub-ideas", "Ideas & logistics"], ["hub-expenses", "Expenses ledger"], ["hub-partners", "Partnerships"], ["hub-departments", "Departments"], ["hub-goals", "Goals"], ["hub-history", "History"], ["hub-report", "Reports"]];
+  var HUBV = [["hub-overview", "Overview"], ["hub-chat", "Chat"], ["hub-teams", "Teams"], ["hub-tournament", "Tournament"], ["hub-handover", "Team handover"], ["hub-team-editor", "Team editor"], ["hub-applications", "Sports applications"], ["hub-assoc-apps", "Association applications"], ["hub-messages", "Messages"], ["hub-captains", "Captains"], ["hub-ideas", "Ideas & logistics"], ["hub-expenses", "Expenses ledger"], ["hub-partners", "Partnerships"], ["hub-departments", "Departments"], ["hub-goals", "Goals"], ["hub-history", "History"], ["hub-report", "Reports"]];
 
   function hubShell(view, inner) {
     var partnerBadge = ((LIVE.inbox || {}).inquiries || 0) + partnerDueCount(), taskBadge = hRO() ? 0 : newTaskCount();
@@ -2029,6 +2029,124 @@ export function initSite(backend, tools) {
         .then(function () { toast("Tournament details saved."); }, function (x) { bt.disabled = false; toast(errText(x)); });
     });
   }
+  // ---- Team handover ------------------------------------------------------------------------------
+  // What each team knows, per department (invoices, league, contacts, jerseys...), so the next captain and the
+  // newly recruited associates start from it. Who sees and edits which section is checked in convex/handover.ts.
+  var HO_HELP = {
+    "Finance": "Invoices and receipts, who you paid and how, deposits, and anything still owed.",
+    "Operations": "League (name, fees, registration dates), referees, venues and training slots, and who to call for what.",
+    "Media & Marketing": "Where the jerseys come from (supplier, sizes, design files), social media accounts and who holds them, photos and videos.",
+    "Partnerships": "Current and past sponsors, what was agreed with them, and who to contact.",
+    "IT": "Tools and accounts the team uses, and who holds the access. Never write passwords here."
+  };
+  function hoShown(t, s) {
+    var u = hv(), r = u.role, d = DEPT_ID[s.dept], mine = (u.teams || []).indexOf(t.team) > -1;
+    if (hFull()) return true;
+    if (r === "head") return d === u.dept;
+    if (r === "associate") return d === u.dept && mine;
+    return r === "captain" && mine;
+  }
+  function hoTeams() {
+    var d = LIVE.handover; if (!d) return [];
+    return d.teams.map(function (t) { return { team: t.team, sections: t.sections.filter(function (s) { return hoShown(t, s); }).sort(function (a, b) { return DEPARTMENT_ORDER.indexOf(a.dept) - DEPARTMENT_ORDER.indexOf(b.dept); }) }; }).filter(function (t) { return t.sections.length; });
+  }
+  function hoFilled(s) { return !!(s.notes || s.contacts.length || s.links.length || s.files.length); }
+  function hubHandover() {
+    var head = '<div class="ph-head"><div><h1 class="display">Team handover.</h1><p>Everything the next team needs to start the season: invoices, league details, who to contact, where the jerseys come from. Captains fill in their team; each department sees its own part for the teams it works with.</p></div></div>';
+    if (!live()) return head + '<section class="panel"><p class="empty">The handover notes show once you are signed in.</p></section>';
+    if (!LIVE.handover) return head + '<section class="panel"><p class="empty">Loading…</p></section>';
+    var ts = hoTeams();
+    if (!ts.length) return head + '<section class="panel"><p class="empty">No team linked to your account yet.</p></section>';
+    var open = ts.length === 1 ? ts[0].team : state.hoOpen, body = "";
+    if (ts.length > 1) {
+      var depts = [];
+      ts.forEach(function (t) { t.sections.forEach(function (s) { if (depts.indexOf(s.dept) < 0) depts.push(s.dept); }); });
+      depts = DEPARTMENT_ORDER.filter(function (d) { return depts.indexOf(d) > -1; });
+      body = '<section class="panel"><div class="panel-head"><h2>Every team</h2></div><div class="table-wrap"><table><thead><tr><th>Team</th>' + depts.map(function (d) { return "<th>" + esc(d) + "</th>"; }).join("") + "</tr></thead><tbody>" +
+        ts.map(function (t) { var tm = team(t.team);
+          return '<tr class="click" data-ho-open="' + t.team + '" tabindex="0"' + (open === t.team ? ' aria-current="true"' : "") + '><td class="tname">' + esc(tm ? tLabel(tm) : t.team) + "</td>" + depts.map(function (d) {
+            var s = t.sections.filter(function (x) { return x.dept === d; })[0];
+            return "<td>" + (!s ? '<span class="muted">—</span>' : hoFilled(s) ? '<span class="pill ok">Filled</span>' + (s.updatedAt ? ' <small class="muted">' + esc(fmtDay(s.updatedAt)) + "</small>" : "") : '<span class="pill warn">Empty</span>') + "</td>";
+          }).join("") + "</tr>"; }).join("") +
+        '</tbody></table></div><p class="muted" style="margin:0;font-size:12px">Select a team to open its handover notes.</p></section>';
+    }
+    if (open) ts.filter(function (t) { return t.team === open; }).forEach(function (t) {
+      var tm = team(t.team);
+      body += (ts.length > 1 ? '<h2 class="ho-team">' + esc(tm ? tLabel(tm) : t.team) + "</h2>" : "") + t.sections.map(function (s) { return hoSection(t.team, s); }).join("");
+    });
+    return head + body;
+  }
+  var DEPARTMENT_ORDER = ["Finance", "Operations", "Media & Marketing", "Partnerships", "IT"];
+  var HO_CK = [["name", "Name", 100], ["role", "Role", 100], ["org", "Organisation", 100], ["email", "Email", 200], ["phone", "Phone", 40]];
+  function hoCRow(c) {
+    return '<tr class="ho-c">' + HO_CK.map(function (k) { return '<td><input data-k="' + k[0] + '" maxlength="' + k[2] + '" value="' + esc(c[k[0]] || "") + '" placeholder="' + k[1] + '" aria-label="' + k[1] + '"' + (k[0] === "email" ? ' type="email"' : "") + "></td>"; }).join("") +
+      '<td><button type="button" class="rm" data-ho-rmrow aria-label="Remove contact">Remove</button></td></tr>';
+  }
+  function hoLRow(l) {
+    return '<tr class="ho-l"><td><input data-k="label" maxlength="100" value="' + esc(l.label || "") + '" placeholder="What it is (e.g. League page)" aria-label="Link name"></td><td><input data-k="url" maxlength="500" value="' + esc(l.url || "") + '" placeholder="https://…" aria-label="Link address"></td>' +
+      '<td><button type="button" class="rm" data-ho-rmrow aria-label="Remove link">Remove</button></td></tr>';
+  }
+  function hoSection(teamId, s) {
+    var ed = s.canEdit && !hRO(), k = teamId + "|" + s.dept;
+    var files = s.files.map(function (f) { return '<li><a href="' + esc(f.url || "#") + '" target="_blank" rel="noopener" title="Added by ' + esc(f.by) + " · " + esc(fmtWhen(f.at)) + '">' + esc(clip(f.name, 48)) + '</a> <small class="muted">' + tnSize(f.size) + " · " + esc(fmtDay(f.at)) + "</small>" + (ed ? ' <button type="button" class="rm" data-ho-rmfile="' + esc(f.id) + '" data-k="' + esc(k) + '" aria-label="Remove ' + esc(f.name) + '">Remove</button>' : "") + "</li>"; }).join("");
+    var filesBlock = '<div class="ho-block"><h3>Files</h3>' + (files ? '<ul class="tn-files">' + files + "</ul>" : '<p class="muted" style="margin:0 0 6px">No files yet.</p>') +
+      (ed ? '<label class="btn sm tn-add">+ Add files<input type="file" hidden multiple accept=".pdf,application/pdf,image/jpeg,image/png,image/webp,image/heic,.xlsx,.docx,.csv" data-ho-file data-k="' + esc(k) + '"></label> <small class="muted">PDF, image, Excel, Word or CSV, max 10 MB each</small>' : "") + "</div>";
+    var meta = s.updatedBy ? '<small class="muted">Last edited by ' + esc(s.updatedBy) + " · " + esc(fmtWhen(s.updatedAt)) + "</small>" : '<small class="muted">Nothing written yet</small>';
+    var top = '<section class="panel ho-panel"><div class="panel-head"><h2>' + esc(s.dept) + "</h2>" + meta + '</div><p class="muted ho-help">' + esc(HO_HELP[s.dept] || "") + "</p>";
+    if (!ed) {
+      return top + '<div class="ho-block"><h3>Notes</h3>' + (s.notes ? '<p class="ho-notes">' + esc(s.notes) + "</p>" : '<p class="muted" style="margin:0">No notes yet.</p>') + "</div>" +
+        '<div class="ho-block"><h3>Contacts</h3>' + (s.contacts.length ? '<div class="table-wrap"><table><thead><tr><th>Name</th><th>Role</th><th>Organisation</th><th>Email</th><th>Phone</th></tr></thead><tbody>' + s.contacts.map(function (c) {
+          return "<tr><td><b>" + esc(c.name) + "</b></td><td>" + esc(c.role || "") + "</td><td>" + esc(c.org || "") + "</td><td>" + (c.email ? '<a href="mailto:' + esc(c.email) + '">' + esc(c.email) + "</a>" : "") + "</td><td>" + (c.phone ? '<a href="tel:' + esc(c.phone) + '">' + esc(c.phone) + "</a>" : "") + "</td></tr>"; }).join("") + "</tbody></table></div>" : '<p class="muted" style="margin:0">No contacts yet.</p>') + "</div>" +
+        '<div class="ho-block"><h3>Links</h3>' + (s.links.length ? '<ul class="ho-links">' + s.links.map(function (l) { return '<li><a href="' + esc(l.url) + '" target="_blank" rel="noopener">' + esc(l.label) + "</a></li>"; }).join("") + "</ul>" : '<p class="muted" style="margin:0">No links yet.</p>') + "</div>" + filesBlock + "</section>";
+    }
+    return top + '<form class="ho-form" data-ho-form data-k="' + esc(k) + '">' +
+      '<div class="ho-block"><h3><label for="ho-n-' + esc(k).replace(/[^a-z0-9]/gi, "") + '">Notes</label></h3><textarea id="ho-n-' + esc(k).replace(/[^a-z0-9]/gi, "") + '" name="notes" rows="5" maxlength="8000" placeholder="' + esc(HO_HELP[s.dept] || "") + '">' + esc(s.notes) + "</textarea></div>" +
+      '<div class="ho-block"><h3>Contacts</h3><div class="table-wrap"><table class="ho-edit"><tbody data-ho-rows="c">' + (s.contacts.length ? s.contacts : [{}]).map(hoCRow).join("") + '</tbody></table></div><button type="button" class="btn sm" data-ho-add="c">+ Add contact</button></div>' +
+      '<div class="ho-block"><h3>Links</h3><div class="table-wrap"><table class="ho-edit"><tbody data-ho-rows="l">' + (s.links.length ? s.links : [{}]).map(hoLRow).join("") + '</tbody></table></div><button type="button" class="btn sm" data-ho-add="l">+ Add link</button></div>' +
+      '<div><button class="btn sm solid" type="submit">Save ' + esc(s.dept) + "</button></div></form>" + filesBlock + "</section>";
+  }
+  function hoKey(el) { var p = (el.getAttribute("data-k") || "").split("|"); return { team: p[0], dept: p.slice(1).join("|") }; }
+  function bindHandover() {
+    hub.querySelectorAll("[data-ho-open]").forEach(function (r) {
+      function op() { var id = r.getAttribute("data-ho-open"); state.hoOpen = state.hoOpen === id ? null : id; render(); }
+      r.addEventListener("click", op);
+      r.addEventListener("keydown", function (ev) { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); op(); } });
+    });
+    hub.querySelectorAll("[data-ho-form]").forEach(function (f) {
+      f.addEventListener("input", function () { f.classList.add("dirty"); });
+      f.addEventListener("click", function (ev) {
+        var t = ev.target;
+        if (t.closest("[data-ho-rmrow]")) { t.closest("tr").remove(); f.classList.add("dirty"); }
+        var add = t.closest("[data-ho-add]");
+        if (add) { var kind = add.getAttribute("data-ho-add"); f.querySelector('[data-ho-rows="' + kind + '"]').insertAdjacentHTML("beforeend", kind === "c" ? hoCRow({}) : hoLRow({})); f.classList.add("dirty"); }
+      });
+      f.addEventListener("submit", function (ev) {
+        ev.preventDefault();
+        var key = hoKey(f), bt = f.querySelector('button[type="submit"]'), val = function (tr, k) { return tr.querySelector('[data-k="' + k + '"]').value; };
+        var contacts = Array.prototype.map.call(f.querySelectorAll("tr.ho-c"), function (tr) { var c = {}; HO_CK.forEach(function (k) { c[k[0]] = val(tr, k[0]); }); return c; })
+          .filter(function (c) { return (c.name + c.email + c.phone + c.org + c.role).trim(); });
+        var links = Array.prototype.map.call(f.querySelectorAll("tr.ho-l"), function (tr) { return { label: val(tr, "label"), url: val(tr, "url") }; }).filter(function (l) { return l.url.trim(); });
+        bt.disabled = true;
+        Promise.resolve(backend.run("hoSave", { team: key.team, dept: key.dept, notes: f.elements.notes.value, contacts: contacts, links: links }))
+          .then(function () { f.classList.remove("dirty"); bt.disabled = false; toast(key.dept + " saved."); }, function (x) { bt.disabled = false; toast(errText(x)); });
+      });
+    });
+    hub.querySelectorAll("[data-ho-file]").forEach(function (inp) { inp.addEventListener("change", function () {
+      var files = Array.prototype.slice.call(inp.files || []), key = hoKey(inp);
+      inp.blur();
+      inp.value = "";
+      files.reduce(function (pr, f) { return pr.then(function () {
+        if (f.size > 10 * 1048576) { toast(f.name + ": too big (max 10 MB)."); return; }
+        toast("Uploading " + f.name + "…");
+        return Promise.resolve(backend.uploadFile(f)).then(function (sid) { return backend.run("hoAddFile", { team: key.team, dept: key.dept, storageId: sid, name: f.name }); })
+          .then(function (r) { toast(r && r.error ? f.name + ": " + r.error : f.name + " added."); }, function (x) { toast(errText(x)); });
+      }); }, Promise.resolve());
+    }); });
+    hub.querySelectorAll("[data-ho-rmfile]").forEach(function (b) { b.addEventListener("click", function () {
+      var key = hoKey(b); b.disabled = true;
+      Promise.resolve(backend.run("hoRemoveFile", { team: key.team, dept: key.dept, storageId: b.getAttribute("data-ho-rmfile") })).then(function () { toast("File removed."); }, function (x) { b.disabled = false; toast(errText(x)); });
+    }); });
+  }
   function hubTeams() {
     var ts = visTeams();
     if (!can("money")) // teams without the money columns (Finance only)
@@ -2062,7 +2180,7 @@ export function initSite(backend, tools) {
       file: r.fileUrl ? { name: r.fileName || "Attachment", data: r.fileUrl } : null, decidedBy: r.decidedBy, decidedByEmail: r.decidedByEmail, reason: r.reason, esade: r.esade, esadeAt: r.esadeAt, esadeNote: r.esadeNote,
       history: r.history || [], example: r.isExample, sv: { d: r.canDecide, p: r.canPay, r: r.canReconsider, e: r.canEsade } };
   }
-  function hubBusy() { var a = document.activeElement; return !!(a && hub.contains(a) && (a.tagName === "TEXTAREA" || (a.tagName === "INPUT" && a.type !== "button" && a.type !== "submit") || a.tagName === "SELECT")); }
+  function hubBusy() { var a = document.activeElement; if (hub.querySelector("form.dirty[data-ho-form]")) return true; return !!(a && hub.contains(a) && (a.tagName === "TEXTAREA" || (a.tagName === "INPUT" && a.type !== "button" && a.type !== "submit") || a.tagName === "SELECT")); }
   function hubRefresh() { if (location.hash.indexOf("#hub-") !== 0) { updateTitle(); return; } if (hubBusy()) { LIVE.dirty = true; bellPatch(); return; } LIVE.dirty = false; render(); }
   function startLive() {
     if (!backend || !backend.watchExpenses) return;
@@ -2076,7 +2194,7 @@ export function initSite(backend, tools) {
       // Shared Hub data: same for everyone with the right access (convex/tasks, budgets, results, org, partners, inbox).
       LIVE.subs = [];
       applyPeople(); applyBudgets();
-      if (backend.watch) [["tasks", "tasks"], ["budgets", "budgets"], ["results", "results"], ["people", "people"], ["partners", "partners"], ["inbox", "inbox"], ["tournament", "tournament"]].forEach(function (x) {
+      if (backend.watch) [["tasks", "tasks"], ["budgets", "budgets"], ["results", "results"], ["people", "people"], ["partners", "partners"], ["inbox", "inbox"], ["tournament", "tournament"], ["handover", "handover"]].forEach(function (x) {
         LIVE.subs.push(backend.watch(x[0], function (d) { if (d === undefined) return; LIVE[x[1]] = d; if (x[1] === "people") applyPeople(); if (x[1] === "budgets") applyBudgets(); hubRefresh(); }));
       });
       if (backend.watch && boardAccount()) [["messages", "messages"], ["assocApps", "assocApps"]].forEach(function (x) {
@@ -2088,7 +2206,7 @@ export function initSite(backend, tools) {
       if (LIVE.unChat) LIVE.unChat(); LIVE.unChat = null; LIVE.chatOpen = null; LIVE.chatMsgs = null;
       (LIVE.subs || []).forEach(function (u) { try { u(); } catch (e) {} }); LIVE.subs = [];
       if (LIVE.unGoals) LIVE.unGoals(); LIVE.unGoals = null;
-      ["tasks", "budgets", "results", "people", "partners", "inbox", "goals", "messages", "assocApps", "chats", "tournament"].forEach(function (k) { LIVE[k] = null; });
+      ["tasks", "budgets", "results", "people", "partners", "inbox", "goals", "messages", "assocApps", "chats", "tournament", "handover"].forEach(function (k) { LIVE[k] = null; });
       setTimeout(function () { applyPeople(); applyBudgets(); }, 0);
       LIVE.unExp(); LIVE.unIdeas(); if (LIVE.unNotifs) LIVE.unNotifs(); if (LIVE.unTupd) LIVE.unTupd(); if (LIVE.unLinks) LIVE.unLinks(); LIVE.unLinks = null; LIVE.links = null; LIVE.unTupd = null; LIVE.tupd = null; LIVE.unExp = LIVE.unIdeas = LIVE.unNotifs = null; LIVE.notifs = null; LIVE.exp = LIVE.ideas = null; LIVE.checks = {}; ROSTER = {}; ROSTER_ALL = null;
     }
@@ -2570,6 +2688,7 @@ export function initSite(backend, tools) {
   }
   function bindHub() {
     bindTournament();
+    bindHandover();
     var da = $("demo-as"); if (da) da.addEventListener("change", function () { setDemo(da.value); });
     hub.querySelectorAll("[data-demo]").forEach(function (b) { b.addEventListener("click", function () { setDemo(b.getAttribute("data-demo")); }); });
     hub.querySelectorAll("[data-history]").forEach(function (b) { b.addEventListener("click", function () {
@@ -2927,7 +3046,7 @@ export function initSite(backend, tools) {
       if ((h === "hub-messages" || h === "hub-assoc-apps") && !can("board")) h = "hub-overview";
       if (h === "hub-chat" && !can("chat")) h = "hub-overview";
       if (h === "hub-tournament" && !can("tournament")) h = "hub-overview";
-      var inner = h === "hub-tournament" ? hubTournament() : h === "hub-chat" ? hubChat() : h === "hub-messages" ? hubMessages() : h === "hub-assoc-apps" ? hubAssocApps() : h === "hub-partners" ? hubPartners() : h === "hub-goals" ? hubGoals() : h === "hub-teams" ? hubTeams() : h === "hub-team-editor" ? hubTeamEditor() : h === "hub-applications" ? hubApplications() : h === "hub-captains" ? hubCaptains() : h === "hub-expenses" ? hubExpenses() : h === "hub-departments" ? hubDepts() : h === "hub-report" || h === "hub-checkups" ? hubCheckups() : h === "hub-ideas" ? hubIdeas() : h === "hub-history" ? hubHistory() : hubOverview();
+      var inner = h === "hub-tournament" ? hubTournament() : h === "hub-handover" ? hubHandover() : h === "hub-chat" ? hubChat() : h === "hub-messages" ? hubMessages() : h === "hub-assoc-apps" ? hubAssocApps() : h === "hub-partners" ? hubPartners() : h === "hub-goals" ? hubGoals() : h === "hub-teams" ? hubTeams() : h === "hub-team-editor" ? hubTeamEditor() : h === "hub-applications" ? hubApplications() : h === "hub-captains" ? hubCaptains() : h === "hub-expenses" ? hubExpenses() : h === "hub-departments" ? hubDepts() : h === "hub-report" || h === "hub-checkups" ? hubCheckups() : h === "hub-ideas" ? hubIdeas() : h === "hub-history" ? hubHistory() : hubOverview();
       hub.innerHTML = hubShell(h, inner); show("hub"); bindHub(); bindBell(); updateTitle(); return;
     }
     if (h === "signin") html = signinView();
