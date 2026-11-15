@@ -341,6 +341,8 @@ export default defineSchema({
     at: v.number(),
   }).index("by_at", ["at"]),
   // Team activity feed (convex/activity.ts): what was done on a team, by whom and when. No personal data.
+  // "Email not sent" warnings someone marked as handled ("I wrote to them"). key = "<table>:<id>" (convex/admin.ts).
+  emailHandled: defineTable({ key: v.string(), by: v.string(), byEmail: v.string(), at: v.number() }).index("by_key", ["key"]),
   activity: defineTable({
     team: v.string(),
     area: v.string(),

@@ -139,6 +139,8 @@
 .adm-mailwarn strong { color: #8a4b00; }
 .adm-maillist { margin: 4px 0 0; padding-left: 18px; display: grid; gap: 6px; }
 .adm-maillist .adm-sub { display: block; word-break: break-word; }
+.adm-mailact { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.adm-mailact .btn { padding: 4px 10px; font-size: 12px; }
 .adm-mailfail { color: #b45309; font-weight: 600; word-break: break-word; }
 
 /* Phones: cards fit narrow screens, chat sized to the visible screen, roomier buttons */

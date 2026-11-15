@@ -753,36 +753,72 @@ function ConfirmEmail({ status }: { status?: string }) {
 }
 
 // Warning box at the top of /admin: confirmation emails that did not reach the person.
-function EmailProblems() {
-  const rows = useQuery(api.admin.emailProblems, {}) as
-    | { at: number; form: string; name: string; email: string; about: string; why: string }[]
-    | undefined;
+// Convex (admin.emailProblems) only returns the ones this account handles: its department, its team,
+// or all of them for admins, President, VPs and IT.
+type MailRow = { key: string; at: number; form: string; name: string; email: string; about: string; why: string; canRetry: boolean; handledBy?: string; handledAt?: number };
+function EmailProblems({ readOnly }: { readOnly: boolean }) {
+  const rows = useQuery(api.admin.emailProblems, {}) as MailRow[] | undefined;
+  const mark = useMutation(api.admin.markEmailHandled);
+  const resend = useMutation(api.admin.resendEmail);
   const [open, setOpen] = useState(false);
+  const [showDone, setShowDone] = useState(false);
+  const [note, setNote] = useState("");
   if (!rows?.length) return null;
-  return (
-    <section className="adm-mailwarn" role="alert">
-      <strong>
-        Email not sent to {rows.length} {rows.length === 1 ? "person" : "people"}
-      </strong>
-      <p className="adm-p">
-        These people filled in a form, and their form was saved, but they did not get their confirmation email. Write to them by hand
-        if needed. Most likely reason: the website can only email the Resend account owner until a sending domain is verified in
-        Resend.
-      </p>
-      <button type="button" className="btn btn-ghost-navy" onClick={() => setOpen(!open)}>
-        {open ? "Hide the list" : "Show who"}
-      </button>
-      {open && (
-        <ul className="adm-maillist">
-          {rows.map((r, i) => (
-            <li key={i}>
-              <strong>{r.name}</strong> · <a href={`mailto:${r.email}`}>{r.email}</a> · {r.form}
-              {r.about ? ` (${r.about})` : ""} · {new Date(r.at).toLocaleString("en-GB")}
-              <span className="adm-sub">{r.why}</span>
-            </li>
-          ))}
-        </ul>
+  const todo = rows.filter((r) => !r.handledBy);
+  const done = rows.filter((r) => r.handledBy);
+  const act = (p: Promise<unknown>, ok: string) =>
+    p.then(() => setNote(ok), (e) => setNote(e instanceof Error ? e.message.replace(/^.*ConvexError: /, "") : "Something went wrong."));
+  const item = (r: MailRow) => (
+    <li key={r.key}>
+      <strong>{r.name}</strong> · <a href={`mailto:${r.email}`}>{r.email}</a> · {r.form}
+      {r.about ? ` (${r.about})` : ""} · {new Date(r.at).toLocaleString("en-GB")}
+      <span className="adm-sub">{r.handledBy ? `Handled by ${r.handledBy} · ${new Date(r.handledAt!).toLocaleString("en-GB")}` : r.why}</span>
+      {!readOnly && (
+        <span className="adm-mailact">
+          {r.handledBy ? (
+            <button type="button" className="btn btn-ghost-navy" onClick={() => act(mark({ key: r.key, undo: true }), "Put back in the list.")}>
+              Undo
+            </button>
+          ) : (
+            <>
+              <button type="button" className="btn btn-ghost-navy" onClick={() => act(mark({ key: r.key }), "Marked as handled.")}>
+                I wrote to them
+              </button>
+              {r.canRetry && (
+                <button type="button" className="btn btn-ghost-navy" onClick={() => act(resend({ key: r.key }), "Sending again… it leaves the list if it goes through.")}>
+                  Resend email
+                </button>
+              )}
+            </>
+          )}
+        </span>
       )}
+    </li>
+  );
+  return (
+    <section className="adm-mailwarn" role={todo.length ? "alert" : undefined}>
+      <strong>
+        {todo.length ? `Email not sent to ${todo.length} ${todo.length === 1 ? "person" : "people"}` : "All email problems handled"}
+      </strong>
+      {todo.length > 0 && (
+        <p className="adm-p">
+          These people filled in a form, and their form was saved, but they did not get their confirmation email. Write to them by hand,
+          then click “I wrote to them” so the others know. “Resend email” only works once a sending domain is verified in Resend.
+        </p>
+      )}
+      {todo.length > 0 && (
+        <button type="button" className="btn btn-ghost-navy" onClick={() => setOpen(!open)}>
+          {open ? "Hide the list" : "Show who"}
+        </button>
+      )}{" "}
+      {done.length > 0 && (
+        <button type="button" className="btn btn-ghost-navy" onClick={() => setShowDone(!showDone)}>
+          {showDone ? "Hide handled" : `Handled (${done.length})`}
+        </button>
+      )}
+      {note && <p className="adm-sub" role="status">{note}</p>}
+      {open && todo.length > 0 && <ul className="adm-maillist">{todo.map(item)}</ul>}
+      {showDone && <ul className="adm-maillist">{done.map(item)}</ul>}
     </section>
   );
 }
@@ -793,7 +829,7 @@ function Dashboard({ me }: { me: NonNullable<Me> }) {
   const seesMessages = seesTryouts || d.includes("Partnerships");
   const seesApplications = me.full || me.heads.length > 0;
   const approves = me.board && !me.readOnly;
-  // Organisation (every member and email) and the "Email not sent" warning: admins, President and VPs only.
+  // Organisation (every member and email): admins, President and VPs only.
   const seesOrg = me.isAdmin || me.exec;
   const [section, setSection] = useState<Section>(seesApplications ? "applications" : seesMessages ? "messages" : seesOrg ? "organisation" : "chat");
   const messages = useQuery(api.admin.listContactMessages, seesMessages ? {} : "skip") as ContactMessage[] | undefined;
@@ -839,7 +875,7 @@ function Dashboard({ me }: { me: NonNullable<Me> }) {
             </button>
           ))}
       </nav>
-      {seesOrg && <EmailProblems />}
+      <EmailProblems readOnly={me.readOnly} />
       {me.readOnly && (
         <p className="adm-p adm-readonly">View-only access: you can see everything, but not change anything.</p>
       )}

@@ -334,7 +334,6 @@ export const SITE_MARKUP = `
     </a>
     <nav aria-label="Footer">
       <a href="${SOCIAL.instagram}" target="_blank" rel="noopener noreferrer">Instagram</a>
-      <a href="${SOCIAL.tiktok}" target="_blank" rel="noopener noreferrer">TikTok</a>
       <a href="${SOCIAL.linkedin}" target="_blank" rel="noopener noreferrer">LinkedIn</a>
       <a href="#partners">Partner with us!</a>
       <a href="#contact">Contact</a>

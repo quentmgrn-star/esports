@@ -241,35 +241,143 @@ export const deleteAlumniProfile = mutation({
   },
 });
 
-// ---------- Emails that did not go out (admins, President, VPs) ----------
+// ---------- Emails that did not go out ----------
 // Every public form sends a confirmation email (convex/mail.ts) and stores the result as `confirmEmail`.
-// This lists the ones that failed or were skipped, so a missing confirmation is never silent.
-export type EmailProblem = { at: number; form: string; name: string; email: string; about: string; why: string };
-const notSent = (s?: string) => !!s && s !== "sent";
+// This lists the ones that failed, so a missing confirmation is never silent. Each one is shown to the
+// people who handle that kind of form (rules in `who` below, all checked here on the server):
+//   partner enquiry ........ Partnerships          association application ... heads of the chosen departments
+//   try-out / coach ........ the team's captains + Operations for that team
+//   contact message ........ the sport's captains + Operations (and the topic's department)
+//   alumni profile ......... admins, President, VPs  Hub access request ....... the Board (heads: their department)
+// Admins, President, VPs and the IT department (head + associates) see every one.
+export type EmailProblem = {
+  key: string;
+  cat: "partner" | "association" | "tryout" | "contact" | "alumni" | "access" | "password";
+  at: number;
+  form: string;
+  name: string;
+  email: string;
+  about: string;
+  why: string;
+  canRetry: boolean;
+  handledBy?: string;
+  handledAt?: number;
+};
+type Problem = Omit<EmailProblem, "handledBy" | "handledAt"> & { who: (a: Access) => boolean };
+const notSent = (s?: string) => !!s && s !== "sent" && s !== "sending";
+const isIT = (a: Access) => a.heads.includes("IT") || a.assoc.some((d) => d.department === "IT");
+const seesAllMail = (a: Access) => a.isAdmin || a.exec || isIT(a);
+// Same as canSee, but the view-only account does not get these working lists.
+const sees = (a: Access, r: Resource) => canSee({ ...a, full: false }, r);
+const appKind = (x: Doc<"teamApplications">) => (x.kind === "coach" ? "coach" : x.track === "social" ? "social" : "tryout");
+
+async function allProblems(ctx: QueryCtx | MutationCtx): Promise<Problem[]> {
+  const out: Problem[] = [];
+  for (const x of await ctx.db.query("associationApplications").collect())
+    if (notSent(x.confirmEmail))
+      out.push({ key: `associationApplications:${x._id}`, cat: "association", canRetry: true, at: x._creationTime, form: "Association application", name: `${x.firstName} ${x.lastName}`, email: x.email, about: [x.pref1, x.pref2].filter(Boolean).join(", "), why: x.confirmEmail!,
+        who: (a) => a.heads.includes(x.pref1) || (!!x.pref2 && a.heads.includes(x.pref2)) });
+  for (const x of await ctx.db.query("teamApplications").collect())
+    if (notSent(x.confirmEmail)) {
+      const k = appKind(x);
+      out.push({ key: `teamApplications:${x._id}`, cat: "tryout", canRetry: true, at: x._creationTime, form: k === "coach" ? "Coach application" : k === "social" ? "Just for fun sign-up" : "Try-out sign-up", name: `${x.firstName} ${x.lastName}`, email: x.email, about: teamLabel(x.teamSlug), why: x.confirmEmail!,
+        who: (a) => sees(a, tryoutRes(x)) });
+    }
+  for (const x of await ctx.db.query("alumniProfiles").collect())
+    if (notSent(x.confirmEmail))
+      out.push({ key: `alumniProfiles:${x._id}`, cat: "alumni", canRetry: true, at: x._creationTime, form: "Alumni profile", name: `${x.first} ${x.last}`, email: x.email, about: "", why: x.confirmEmail!, who: () => false });
+  for (const x of await ctx.db.query("members").collect())
+    if (notSent(x.confirmEmail))
+      out.push({ key: `members:${x._id}`, cat: "access", canRetry: true, at: x._creationTime, form: "Hub access request", name: x.name, email: x.email, about: x.role === "captain" ? "Captain" : `${x.department ?? ""} associate`, why: x.confirmEmail!,
+        who: (a) => (x.role === "captain" || !x.department ? a.board : a.heads.includes(x.department)) });
+  for (const x of await ctx.db.query("partnerInquiries").collect())
+    if (notSent(x.confirmEmail))
+      out.push({ key: `partnerInquiries:${x._id}`, cat: "partner", canRetry: true, at: x._creationTime, form: "Partner enquiry", name: x.name, email: x.email, about: x.company, why: x.confirmEmail!,
+        who: (a) => sees(a, { dept: "Partnerships" }) });
+  for (const x of await ctx.db.query("contactMessages").collect()) {
+    const who = (a: Access) => sees(a, messageRes(x)) || (!!x.sport && sees(a, { sport: x.sport, dept: "Operations" }));
+    if (notSent(x.confirmEmail))
+      out.push({ key: `contactMessages:${x._id}`, cat: "contact", canRetry: true, at: x._creationTime, form: "Contact message", name: x.name, email: x.email, about: x.subject, why: x.confirmEmail!, who });
+    if (x.emailStatus?.startsWith("failed"))
+      out.push({ key: `contactCopy:${x._id}`, cat: "contact", canRetry: true, at: x._creationTime, form: "Contact message (copy to captains/admins)", name: x.name, email: x.email, about: x.subject, why: x.emailStatus, who });
+  }
+  for (const x of await ctx.db.query("passwordEvents").collect())
+    if (x.kind === "reset-email" && notSent(x.emailStatus))
+      out.push({ key: `passwordEvents:${x._id}`, cat: "password", canRetry: false, at: x.at, form: "Forgot password (reset link)", name: x.email, email: x.email, about: "", why: x.emailStatus!, who: () => false });
+  return out;
+}
+const canHandle = (a: Access, p: Problem) => seesAllMail(a) || p.who(a);
+
 export const emailProblems = query({
   args: {},
   handler: async (ctx): Promise<EmailProblem[]> => {
     const a = await getAccess(ctx);
-    if (!a || !(a.isAdmin || a.exec)) return [];
-    const out: EmailProblem[] = [];
-    for (const x of await ctx.db.query("associationApplications").collect())
-      if (notSent(x.confirmEmail)) out.push({ at: x._creationTime, form: "Association application", name: `${x.firstName} ${x.lastName}`, email: x.email, about: [x.pref1, x.pref2].filter(Boolean).join(", "), why: x.confirmEmail! });
-    for (const x of await ctx.db.query("teamApplications").collect())
-      if (notSent(x.confirmEmail))
-        out.push({ at: x._creationTime, form: x.kind === "coach" ? "Coach application" : x.track === "social" ? "Just for fun sign-up" : "Try-out sign-up", name: `${x.firstName} ${x.lastName}`, email: x.email, about: teamLabel(x.teamSlug), why: x.confirmEmail! });
-    for (const x of await ctx.db.query("alumniProfiles").collect())
-      if (notSent(x.confirmEmail)) out.push({ at: x._creationTime, form: "Alumni profile", name: `${x.first} ${x.last}`, email: x.email, about: "", why: x.confirmEmail! });
-    for (const x of await ctx.db.query("members").collect())
-      if (notSent(x.confirmEmail)) out.push({ at: x._creationTime, form: "Hub access request", name: x.name, email: x.email, about: x.role === "captain" ? "Captain" : `${x.department ?? ""} associate`, why: x.confirmEmail! });
-    for (const x of await ctx.db.query("partnerInquiries").collect())
-      if (notSent(x.confirmEmail)) out.push({ at: x._creationTime, form: "Partner enquiry", name: x.name, email: x.email, about: x.company, why: x.confirmEmail! });
-    for (const x of await ctx.db.query("contactMessages").collect()) {
-      if (notSent(x.confirmEmail)) out.push({ at: x._creationTime, form: "Contact message", name: x.name, email: x.email, about: x.subject, why: x.confirmEmail! });
-      if (x.emailStatus?.startsWith("failed")) out.push({ at: x._creationTime, form: "Contact message (copy to captains/admins)", name: x.name, email: x.email, about: x.subject, why: x.emailStatus });
+    if (!a) return [];
+    const done = new Map((await ctx.db.query("emailHandled").collect()).map((h) => [h.key, h]));
+    return (await allProblems(ctx))
+      .filter((p) => canHandle(a, p))
+      .sort((p, q) => q.at - p.at)
+      .slice(0, 100)
+      .map(({ who: _who, ...p }) => {
+        const h = done.get(p.key);
+        return h ? { ...p, handledBy: h.by, handledAt: h.at } : p;
+      });
+  },
+});
+
+async function problemFor(ctx: MutationCtx, key: string) {
+  const a = await requireAccess(ctx);
+  const p = (await allProblems(ctx)).find((x) => x.key === key);
+  if (!p) throw new ConvexError("This email is no longer in the list.");
+  if (a.readOnly || !canHandle(a, p)) throw deny(a);
+  return { a, p };
+}
+
+// "I wrote to them": hides the warning for everyone and records who did it. undo puts it back.
+export const markEmailHandled = mutation({
+  args: { key: v.string(), undo: v.optional(v.boolean()) },
+  handler: async (ctx, { key, undo }) => {
+    const { a } = await problemFor(ctx, key);
+    for (const h of await ctx.db.query("emailHandled").withIndex("by_key", (q) => q.eq("key", key)).collect()) await ctx.db.delete(h._id);
+    if (!undo) await ctx.db.insert("emailHandled", { key, by: a.name || a.email, byEmail: a.email, at: Date.now() });
+  },
+});
+
+// Try the email again (same text, in English). Only goes through once a sending domain is verified in Resend.
+export const resendEmail = mutation({
+  args: { key: v.string() },
+  handler: async (ctx, { key }) => {
+    const { p } = await problemFor(ctx, key);
+    if (!p.canRetry) throw new ConvexError("This email cannot be sent again from here.");
+    const [table, raw] = key.split(":");
+    const send = (args: { to: string; name?: string; kind: string; about?: string }) =>
+      ctx.scheduler.runAfter(0, internal.mail.confirm, { ...args, table, id: raw });
+    const first = (s: string) => s.split(" ")[0];
+    if (table === "contactCopy") {
+      const id = ctx.db.normalizeId("contactMessages", raw);
+      if (!id) throw new ConvexError("Message not found.");
+      await ctx.db.patch(id, { emailStatus: "sending" });
+      await ctx.scheduler.runAfter(0, internal.notify.emailContactMessage, { id });
+      return;
     }
-    for (const x of await ctx.db.query("passwordEvents").collect())
-      if (x.kind === "reset-email" && notSent(x.emailStatus) && x.emailStatus !== "sending")
-        out.push({ at: x.at, form: "Forgot password (reset link)", name: x.email, email: x.email, about: "", why: x.emailStatus! });
-    return out.sort((p, q) => q.at - p.at).slice(0, 100);
+    if (table === "teamApplications") {
+      const x = await ctx.db.get(ctx.db.normalizeId("teamApplications", raw)!);
+      if (x) { await ctx.db.patch(x._id, { confirmEmail: "sending" }); await send({ to: x.email, name: x.firstName, kind: appKind(x), about: teamLabel(x.teamSlug) }); }
+    } else if (table === "partnerInquiries") {
+      const x = await ctx.db.get(ctx.db.normalizeId("partnerInquiries", raw)!);
+      if (x) { await ctx.db.patch(x._id, { confirmEmail: "sending" }); await send({ to: x.email, name: first(x.name), kind: "partner", about: x.company }); }
+    } else if (table === "associationApplications") {
+      const x = await ctx.db.get(ctx.db.normalizeId("associationApplications", raw)!);
+      if (x) { await ctx.db.patch(x._id, { confirmEmail: "sending" }); await send({ to: x.email, name: x.firstName, kind: "association", about: [x.pref1, x.pref2].filter(Boolean).join(", ") }); }
+    } else if (table === "contactMessages") {
+      const x = await ctx.db.get(ctx.db.normalizeId("contactMessages", raw)!);
+      if (x) { await ctx.db.patch(x._id, { confirmEmail: "sending" }); await send({ to: x.email, name: first(x.name), kind: "contact", about: x.subject }); }
+    } else if (table === "alumniProfiles") {
+      const x = await ctx.db.get(ctx.db.normalizeId("alumniProfiles", raw)!);
+      if (x) { await ctx.db.patch(x._id, { confirmEmail: "sending" }); await send({ to: x.email, name: x.first, kind: "alumni" }); }
+    } else if (table === "members") {
+      const x = await ctx.db.get(ctx.db.normalizeId("members", raw)!);
+      if (x) { await ctx.db.patch(x._id, { confirmEmail: "sending" }); await send({ to: x.email, name: first(x.name), kind: "access", about: x.role === "captain" ? "captain" : `${x.department} associate` }); }
+    }
   },
 });

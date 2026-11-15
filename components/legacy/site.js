@@ -1578,6 +1578,7 @@ export function initSite(backend, tools) {
     var d = LIVE.partners;
     if (d === undefined) return head + '<section class="panel"><p class="empty">Loading…</p></section>';
     if (!d) return head + '<section class="panel"><p class="empty">The tracker is for the Partnerships department and the Board.</p></section>';
+    head += mailWarnPanel(["partner"]);
     var all = d.partners.filter(function (p) { return !p.team || teamOk(p.team); }), f = state.pFilter || "open", ft = state.pTeam || "all";
     var open = all.filter(function (p) { return openStage(p.stage); }), signed = all.filter(function (p) { return p.stage === "signed"; });
     var sum = function (arr) { return arr.reduce(function (n, p) { return n + (p.value || 0); }, 0); };
@@ -1632,7 +1633,7 @@ export function initSite(backend, tools) {
     var head = '<div class="ph-head"><div><h1 class="display">Messages.</h1><p>Everything sent through the contact form on the website. Click a message to read it in full and reply: the reply is emailed to the sender and the message moves to Sent.</p></div></div>';
     if (!live()) return head + '<section class="panel"><p class="empty">Messages show once you are signed in.</p></section>';
     if (LIVE.messages == null) return head + '<section class="panel"><p class="empty">Loading…</p></section>';
-    head += mailWarnPanel();
+    head += mailWarnPanel(["contact"]);
     var all = visMsgs(), f = state.mFilter || "all", rows = all.filter(function (m) { return f === "all" || m.status === f; });
     var cnt = function (k) { return all.filter(function (m) { return m.status === k; }).length; };
     var open = all.filter(function (m) { return m._id === state.msgOpen; })[0];
@@ -1674,17 +1675,37 @@ export function initSite(backend, tools) {
     return '<select class="stg-sel stg-' + st + '" data-app-stage="' + esc(a._id) + '" aria-label="Stage of ' + esc(name) + '">' + Object.keys(APP_STAGE).map(function (k) { return '<option value="' + k + '"' + (k === st ? " selected" : "") + ">" + APP_STAGE[k] + "</option>"; }).join("") + "</select>";
   }
   function stageChip(st) { return '<span class="stg-chip stg-' + st + '">' + esc(APP_STAGE[st] || st) + "</span>"; }
-  // Confirmation emails that did not reach the person (convex/admin.ts emailProblems; Board + admins).
+  // Confirmation emails that did not reach the person (convex/admin.ts emailProblems).
   function mailFailPill(x) { return x && x.confirmEmail && x.confirmEmail !== "sent" ? ' <span class="pill bad" title="' + esc(x.confirmEmail) + '">Email not sent</span>' : ""; }
-  function mailWarnPanel() {
-    var rows = LIVE.emailProblems || [];
-    if (!live() || !boardAccount() || !rows.length) return "";
+  // cats: only these kinds of forms (e.g. ["partner"] on the Partnerships tab); none = all (Overview).
+  // Convex already returns only the ones this account handles (its department / team; admins, President, VPs and IT: all).
+  function mailWarnPanel(cats) {
+    var all = (LIVE.emailProblems || []).filter(function (r) { return !cats || cats.indexOf(r.cat) > -1; });
+    if (!live() || !all.length) return "";
+    var rows = all.filter(function (r) { return !r.handledBy; }), done = all.filter(function (r) { return r.handledBy; }), ro = hRO();
+    var doneList = done.length ? '<details style="margin-top:10px"><summary><small class="muted">Handled (' + done.length + ")</small></summary><ul style=\"margin:6px 0 0;padding-left:18px\">" + done.slice(0, 20).map(function (r) {
+      return "<li><small><strong>" + esc(r.name) + "</strong> · " + esc(r.form) + " · handled by " + esc(r.handledBy) + " · " + esc(fmtDay(r.handledAt)) + (ro ? "" : ' <button type="button" class="btn sm ghost" data-mail-undo="' + esc(r.key) + '">Undo</button>') + "</small></li>";
+    }).join("") + "</ul></details>" : "";
+    if (!rows.length) return '<section class="panel">' + '<p class="muted" style="margin:0">Every email problem here has been handled.</p>' + doneList + "</section>";
     return '<section class="panel" role="alert"><div class="panel-head"><h2>Email not sent to ' + rows.length + (rows.length === 1 ? " person" : " people") + '</h2><span class="pill bad">Check</span></div>' +
-      '<p class="muted" style="margin:0 0 10px">These forms were saved, but the person did not get their confirmation email. Write to them by hand if needed. Most likely reason: the website can only email the Resend account owner until a sending domain is verified in Resend.</p>' +
+      '<p class="muted" style="margin:0 0 10px">These forms were saved, but the person did not get their confirmation email. Write to them by hand, then click \u201cI wrote to them\u201d so the others know. \u201cResend\u201d only works once a sending domain is verified in Resend.</p>' +
       '<div class="table-wrap"><table><tbody>' + rows.slice(0, 8).map(function (r) {
-        return "<tr><td><strong>" + esc(r.name) + '</strong><br><small><a href="mailto:' + esc(r.email) + '">' + esc(r.email) + "</a></small></td><td>" + esc(r.form) + (r.about ? '<br><small class="muted">' + esc(r.about) + "</small>" : "") + '</td><td class="num muted">' + esc(fmtDay(r.at)) + '</td><td><small class="muted">' + esc(clip(r.why, 90)) + "</small></td></tr>";
-      }).join("") + "</tbody></table></div>" + (rows.length > 8 ? '<p class="muted" style="margin:10px 0 0">The full list is at the top of <a href="/admin">/admin</a>.</p>' : "") + "</section>";
+        return "<tr><td><strong>" + esc(r.name) + '</strong><br><small><a href="mailto:' + esc(r.email) + '">' + esc(r.email) + "</a></small></td><td>" + esc(r.form) + (r.about ? '<br><small class="muted">' + esc(r.about) + "</small>" : "") + '</td><td class="num muted">' + esc(fmtDay(r.at)) + '</td><td><small class="muted">' + esc(clip(r.why, 90)) + "</small></td>" +
+          (ro ? "" : '<td class="r" style="white-space:nowrap"><button type="button" class="btn sm" data-mail-done="' + esc(r.key) + '">I wrote to them</button>' + (r.canRetry ? ' <button type="button" class="btn sm ghost" data-mail-retry="' + esc(r.key) + '">Resend</button>' : "") + "</td>") + "</tr>";
+      }).join("") + "</tbody></table></div>" + (rows.length > 8 ? '<p class="muted" style="margin:10px 0 0">The full list is at the top of <a href="/admin">/admin</a>.</p>' : "") + doneList + "</section>";
   }
+  // Buttons of the panel above (one listener for the whole Hub; replaced if the site is set up again).
+  if (window.__esMailClick) document.removeEventListener("click", window.__esMailClick);
+  window.__esMailClick = function (e) {
+    var b = e.target && e.target.closest && e.target.closest("[data-mail-done],[data-mail-retry],[data-mail-undo]");
+    if (!b || !backend) return;
+    var key = b.getAttribute("data-mail-done") || b.getAttribute("data-mail-retry") || b.getAttribute("data-mail-undo");
+    var retry = b.hasAttribute("data-mail-retry"), undo = b.hasAttribute("data-mail-undo");
+    b.disabled = true;
+    Promise.resolve(retry ? backend.run("mailResend", { key: key }) : backend.run("mailHandled", undo ? { key: key, undo: true } : { key: key }))
+      .then(function () { toast(retry ? "Sending again. It leaves the list if it goes through." : undo ? "Put back in the list." : "Marked as handled."); }, function (x) { b.disabled = false; toast(errText(x)); });
+  };
+  document.addEventListener("click", window.__esMailClick);
   function appCard(a) {
     var st = a.stage || "applied", name = a.firstName + " " + a.lastName, ro = hRO();
     var links = ['<a href="mailto:' + esc(a.email) + '">Email</a>'];
@@ -1708,7 +1729,7 @@ export function initSite(backend, tools) {
     var head = '<div class="ph-head"><div><h1 class="display">Association applications.</h1><p>Students applying to join a department. Heads see the applicants who chose their department; the President, VPs and admins see everyone. Notes stay in <a href="/admin">Requests &amp; applications</a>.</p></div></div>';
     if (!live()) return head + '<section class="panel"><p class="empty">Applications show once you are signed in.</p></section>';
     if (LIVE.assocApps == null) return head + '<section class="panel"><p class="empty">Loading…</p></section>';
-    head += mailWarnPanel();
+    head += mailWarnPanel(["association"]);
     var all = visApps(), f = state.aFilter || "all", board = state.aView !== "table";
     var inTab = function (a, t) { var st = a.stage || "applied"; return t === "all" || (t === "decision" ? ["offer", "accepted", "declined", "rejected"].indexOf(st) > -1 : st === t); };
     var rows = all.filter(function (a) { return inTab(a, f); });
@@ -2356,10 +2377,10 @@ export function initSite(backend, tools) {
       // Shared Hub data: same for everyone with the right access (convex/tasks, budgets, results, org, partners, inbox).
       LIVE.subs = [];
       applyPeople(); applyBudgets();
-      if (backend.watch) [["tasks", "tasks"], ["budgets", "budgets"], ["results", "results"], ["people", "people"], ["partners", "partners"], ["inbox", "inbox"], ["tournament", "tournament"], ["handover", "handover"], ["tryouts", "tryouts"]].forEach(function (x) {
+      if (backend.watch) [["tasks", "tasks"], ["budgets", "budgets"], ["results", "results"], ["people", "people"], ["partners", "partners"], ["inbox", "inbox"], ["tournament", "tournament"], ["handover", "handover"], ["tryouts", "tryouts"], ["emailProblems", "emailProblems"]].forEach(function (x) {
         LIVE.subs.push(backend.watch(x[0], function (d) { if (d === undefined) return; LIVE[x[1]] = d; if (x[1] === "handover") hoPatchFiles(); if (x[1] === "people") applyPeople(); if (x[1] === "budgets") applyBudgets(); hubRefresh(); }));
       });
-      if (backend.watch && boardAccount()) [["messages", "messages"], ["assocApps", "assocApps"], ["emailProblems", "emailProblems"]].forEach(function (x) {
+      if (backend.watch && boardAccount()) [["messages", "messages"], ["assocApps", "assocApps"]].forEach(function (x) {
         LIVE.subs.push(backend.watch(x[0], function (d) { if (d === undefined) return; LIVE[x[1]] = d || []; hubRefresh(); }));
       });
       if (backend.watch && chatAccount()) LIVE.subs.push(backend.watch("chats", function (d) { if (d === undefined) return; LIVE.chats = d; if (chatPatch()) bellPatch(); else hubRefresh(); }));
@@ -2369,7 +2390,7 @@ export function initSite(backend, tools) {
       (LIVE.subs || []).forEach(function (u) { try { u(); } catch (e) {} }); LIVE.subs = [];
       if (LIVE.unGoals) LIVE.unGoals(); LIVE.unGoals = null;
       if (LIVE.unAct) LIVE.unAct(); LIVE.unAct = null; LIVE.act = null; LIVE.actTeam = null;
-      ["tasks", "budgets", "results", "people", "partners", "inbox", "goals", "messages", "assocApps", "chats", "tournament", "handover", "tryouts"].forEach(function (k) { LIVE[k] = null; });
+      ["tasks", "budgets", "results", "people", "partners", "inbox", "goals", "messages", "assocApps", "chats", "tournament", "handover", "tryouts", "emailProblems"].forEach(function (k) { LIVE[k] = null; });
       setTimeout(function () { applyPeople(); applyBudgets(); }, 0);
       LIVE.unExp(); LIVE.unIdeas(); if (LIVE.unNotifs) LIVE.unNotifs(); if (LIVE.unTupd) LIVE.unTupd(); if (LIVE.unLinks) LIVE.unLinks(); LIVE.unLinks = null; LIVE.links = null; LIVE.unTupd = null; LIVE.tupd = null; LIVE.unExp = LIVE.unIdeas = LIVE.unNotifs = null; LIVE.notifs = null; LIVE.exp = LIVE.ideas = null; LIVE.checks = {}; ROSTER = {}; ROSTER_ALL = null;
     }
@@ -2833,6 +2854,7 @@ export function initSite(backend, tools) {
   function hubTryoutsLive() {
     var head = '<div class="ph-head"><div><h1 class="display">Try-outs inbox.</h1><p>Try-out, "just for fun" and coach sign-ups from the website. Each captain sees their own team; Operations sees the teams it covers. Click a sign-up to see everything and add notes.</p></div></div>';
     if (LIVE.tryouts == null) return head + '<section class="panel"><p class="empty">Loading…</p></section>';
+    head += mailWarnPanel(["tryout"]);
     var all = visTryouts(), f = state.tFilter || "all", tf = state.tTeam || "";
     var teams = visTeams().filter(function (t) { return all.some(function (a) { return a.teamSlug === t.id; }); });
     if (tf && !teams.some(function (t) { return t.id === tf; })) tf = "";

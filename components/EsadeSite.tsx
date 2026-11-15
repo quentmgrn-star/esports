@@ -58,6 +58,8 @@ const RUN: Record<string, FunctionReference<"mutation">> = {
   hoAddFile: api.handover.addFile,
   hoRemoveFile: api.handover.removeFile,
   setTryStatus: api.admin.setTeamApplicationStatus,
+  mailHandled: api.admin.markEmailHandled,
+  mailResend: api.admin.resendEmail,
   setTryNotes: api.admin.setTeamApplicationNotes,
 };
 
