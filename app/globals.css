@@ -1162,3 +1162,26 @@ html.kb-active, html.kb-active * { cursor: grabbing !important; user-select: non
 #hub .bell-menu li span { flex: 1; }
 #hub .bell-menu .empty { margin: 0; padding: 6px 16px 16px; color: var(--ink-soft); font-size: 14px; }
 @media (max-width: 860px) { #hub .bell-menu { left: auto; right: 0; } }
+
+/* Tournament tab (Hub) */
+#hub .tn-deadline { font-size: 14px; color: var(--ink); }
+#hub .tn-deadline.late { color: var(--bad); }
+#hub .tn-seg { display: inline-flex; border: 1.5px solid var(--line); }
+#hub .tn-seg button { border: 0; background: var(--white); padding: 6px 10px; font-size: 12px; font-weight: 600; cursor: pointer; color: var(--ink-soft); white-space: nowrap; }
+#hub .tn-seg button + button { border-left: 1.5px solid var(--line); }
+#hub .tn-seg button.ok[aria-pressed="true"] { background: var(--ok); color: #fff; }
+#hub .tn-seg button.bad[aria-pressed="true"] { background: var(--bad); color: #fff; }
+#hub .tn-seg button.warn[aria-pressed="true"] { background: var(--warn-bg); color: var(--warn); }
+#hub .tn-seg button:disabled { opacity: .6; cursor: wait; }
+#hub .tn-table td { vertical-align: top; }
+#hub .tn-table tr.tn-yes td:first-child { box-shadow: inset 4px 0 0 var(--ok); }
+#hub .tn-table tr.tn-no td:first-child { box-shadow: inset 4px 0 0 var(--bad); }
+#hub .tn-table tr.tn-none td:first-child { box-shadow: inset 4px 0 0 var(--warn); }
+#hub .tn-id { width: 150px; padding: 6px 8px; font-size: 13px; }
+#hub .tn-files { list-style: none; margin: 0 0 6px; padding: 0; display: grid; gap: 4px; font-size: 13px; }
+#hub .tn-files .rm { font-size: 11px; padding: 1px 6px; }
+#hub .tn-add { cursor: pointer; }
+#hub .tn-n.ok { color: var(--ok); } #hub .tn-n.warn { color: var(--warn); font-weight: 700; } #hub .tn-n.bad { color: var(--bad); font-weight: 700; }
+#hub .tn-event { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; align-items: end; }
+#hub .tn-event label { display: grid; gap: 4px; font-size: 12px; font-weight: 600; }
+@media (max-width: 760px) { #hub .tn-seg button { padding: 6px 7px; } #hub .tn-id { width: 120px; } }

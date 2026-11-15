@@ -336,6 +336,31 @@ export default defineSchema({
   }).index("by_at", ["at"]),
   notifSeen: defineTable({ email: v.string(), at: v.number() }).index("by_email", ["email"]),
 
+  // Next tournament (e.g. Unijess, 29 Jan 2027): one row, edited by admins / President / VPs.
+  tournaments: defineTable({
+    name: v.string(),
+    date: v.string(), // YYYY-MM-DD
+    place: v.optional(v.string()),
+    deadline: v.optional(v.string()), // YYYY-MM-DD, last day for captains to answer
+    updatedBy: v.string(),
+    updatedAt: v.number(),
+  }),
+  // Each roster player's answer for the tournament, kept by the team's captain. Personal data (ID numbers,
+  // documents): captain of the team, admins, Board and the read-only viewer only (convex/tournament.ts). Never public.
+  tournamentPlayers: defineTable({
+    team: v.string(),
+    key: v.string(), // "first last" in lower case, matches the roster
+    name: v.string(),
+    status: v.optional(v.union(v.literal("yes"), v.literal("no"))), // missing = not answered
+    idNumber: v.optional(v.string()), // ID / passport for the tournament (defaults to the roster's DNI / NIE)
+    files: v.array(
+      v.object({ id: v.id("_storage"), name: v.string(), type: v.string(), size: v.number(), by: v.string(), at: v.number() }),
+    ),
+    history: v.array(v.object({ at: v.number(), by: v.string(), what: v.string() })), // last 30 changes
+    updatedBy: v.string(),
+    updatedAt: v.number(),
+  }).index("by_team", ["team"]),
+
   // Team roster (captain's team sheet). Sensitive personal data: only the team's captain(s),
   // admins, the President and the Vice-presidents can read or change it (convex/rosters.ts). Never public.
   rosters: defineTable({

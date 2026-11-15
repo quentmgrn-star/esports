@@ -1105,6 +1105,7 @@ export function initSite(backend, tools) {
     if (k === "partners") return hDept("par");
     if (k === "goals") return r !== "captain";
     if (k === "board") return r === "admin" || r === "exec" || r === "head"; // website messages + association applications
+    if (k === "tournament") return r !== "associate"; // captains (own team), Board, admins, view-only (Eva Morta)
     if (k === "chat") return r === "admin" || r === "exec" || r === "head" || r === "associate"; // the association's chat (no captains, no view-only)
     return false;
   }
@@ -1213,13 +1214,13 @@ export function initSite(backend, tools) {
   }
   function pill(map, k) { return '<span class="pill ' + map[k][0] + '">' + map[k][1] + "</span>"; }
   function stat(k, v, s) { return '<div class="stat"><p class="eyebrow">' + k + '</p><span class="v num">' + v + "</span><small>" + s + "</small></div>"; }
-  var HUBV = [["hub-overview", "Overview"], ["hub-chat", "Chat"], ["hub-teams", "Teams"], ["hub-team-editor", "Team editor"], ["hub-applications", "Sports applications"], ["hub-assoc-apps", "Association applications"], ["hub-messages", "Messages"], ["hub-captains", "Captains"], ["hub-ideas", "Ideas & logistics"], ["hub-expenses", "Expenses ledger"], ["hub-partners", "Partnerships"], ["hub-departments", "Departments"], ["hub-goals", "Goals"], ["hub-history", "History"], ["hub-report", "Reports"]];
+  var HUBV = [["hub-overview", "Overview"], ["hub-chat", "Chat"], ["hub-teams", "Teams"], ["hub-tournament", "Tournament"], ["hub-team-editor", "Team editor"], ["hub-applications", "Sports applications"], ["hub-assoc-apps", "Association applications"], ["hub-messages", "Messages"], ["hub-captains", "Captains"], ["hub-ideas", "Ideas & logistics"], ["hub-expenses", "Expenses ledger"], ["hub-partners", "Partnerships"], ["hub-departments", "Departments"], ["hub-goals", "Goals"], ["hub-history", "History"], ["hub-report", "Reports"]];
 
   function hubShell(view, inner) {
     var partnerBadge = ((LIVE.inbox || {}).inquiries || 0) + partnerDueCount(), taskBadge = hRO() ? 0 : newTaskCount();
     var pending = visExp().filter(canDecideE).length, newIdeas = can("ideas") ? visIdeas().filter(function (i) { return (i.status === "new" && canRunIdea(i)) || canApproveIdea(i) || canCommIdea(i); }).length : 0;
-    var nav = HUBV.filter(function (v) { return (v[0] !== "hub-expenses" || can("expenses")) && (v[0] !== "hub-departments" || can("depts")) && (v[0] !== "hub-report" || can("reports")) && (v[0] !== "hub-captains" || can("captains")) && (v[0] !== "hub-team-editor" || can("teamEdit")) && (v[0] !== "hub-applications" || can("applications")) && (v[0] !== "hub-ideas" || can("ideas")) && (v[0] !== "hub-partners" || can("partners")) && (v[0] !== "hub-goals" || can("goals")) && ((v[0] !== "hub-messages" && v[0] !== "hub-assoc-apps") || can("board")) && (v[0] !== "hub-chat" || can("chat")); }).map(function (v) {
-      return '<a href="#' + v[0] + '"' + (v[0] === view ? ' aria-current="page"' : "") + ">" + (v[0] === "hub-teams" && !can("all") ? "My team" : v[1]) + (v[0] === "hub-expenses" && pending ? '<span class="count num">' + pending + "</span>" : "") + (v[0] === "hub-overview" && unreadCount() ? '<span class="count num" title="New notifications">' + unreadCount() + "</span>" : "") + (v[0] === "hub-ideas" && newIdeas ? '<span class="count num">' + newIdeas + "</span>" : "") + (v[0] === "hub-applications" && tryoutCount() ? '<span class="count num">' + tryoutCount() + "</span>" : "") + (v[0] === "hub-chat" && chatUnread() ? '<span class="count num" title="Unread chat messages">' + chatUnread() + "</span>" : "") + (v[0] === "hub-messages" && newMsgCount() ? '<span class="count num" title="New messages">' + newMsgCount() + "</span>" : "") + (v[0] === "hub-assoc-apps" && newAppCount() ? '<span class="count num" title="New applications">' + newAppCount() + "</span>" : "") + (v[0] === "hub-partners" && partnerBadge ? '<span class="count num" title="New partner inquiries and follow-ups due this week">' + partnerBadge + "</span>" : "") + (v[0] === "hub-departments" && taskBadge ? '<span class="count num" title="New tasks assigned to you">' + taskBadge + "</span>" : "") + "</a>";
+    var nav = HUBV.filter(function (v) { return (v[0] !== "hub-expenses" || can("expenses")) && (v[0] !== "hub-departments" || can("depts")) && (v[0] !== "hub-report" || can("reports")) && (v[0] !== "hub-captains" || can("captains")) && (v[0] !== "hub-team-editor" || can("teamEdit")) && (v[0] !== "hub-applications" || can("applications")) && (v[0] !== "hub-ideas" || can("ideas")) && (v[0] !== "hub-partners" || can("partners")) && (v[0] !== "hub-goals" || can("goals")) && ((v[0] !== "hub-messages" && v[0] !== "hub-assoc-apps") || can("board")) && (v[0] !== "hub-chat" || can("chat")) && (v[0] !== "hub-tournament" || can("tournament")); }).map(function (v) {
+      return '<a href="#' + v[0] + '"' + (v[0] === view ? ' aria-current="page"' : "") + ">" + (v[0] === "hub-teams" && !can("all") ? "My team" : v[1]) + (v[0] === "hub-expenses" && pending ? '<span class="count num">' + pending + "</span>" : "") + (v[0] === "hub-overview" && unreadCount() ? '<span class="count num" title="New notifications">' + unreadCount() + "</span>" : "") + (v[0] === "hub-ideas" && newIdeas ? '<span class="count num">' + newIdeas + "</span>" : "") + (v[0] === "hub-applications" && tryoutCount() ? '<span class="count num">' + tryoutCount() + "</span>" : "") + (v[0] === "hub-chat" && chatUnread() ? '<span class="count num" title="Unread chat messages">' + chatUnread() + "</span>" : "") + (v[0] === "hub-messages" && newMsgCount() ? '<span class="count num" title="New messages">' + newMsgCount() + "</span>" : "") + (v[0] === "hub-assoc-apps" && newAppCount() ? '<span class="count num" title="New applications">' + newAppCount() + "</span>" : "") + (v[0] === "hub-partners" && partnerBadge ? '<span class="count num" title="New partner inquiries and follow-ups due this week">' + partnerBadge + "</span>" : "") + (v[0] === "hub-departments" && taskBadge ? '<span class="count num" title="New tasks assigned to you">' + taskBadge + "</span>" : "") + (v[0] === "hub-tournament" && tnBadge() ? '<span class="count num" title="Players without an answer">' + tnBadge() + "</span>" : "") + "</a>";
     }).join("");
     var u = state.user, me = admin || captain, multi = !!admin || allowedViews().length > 1;
     return '<div class="app"><aside class="rail"><div class="top"><a class="lock" href="#home" aria-label="Back to Esade Sports home">' + mono(38) + '<span>ESADE SPORTS<br>HUB</span></a><div class="history" aria-label="Page navigation"><button type="button" data-history="back" aria-label="Go back">' + ico("left") + '</button><button type="button" data-history="forward" aria-label="Go forward">' + ico("right") + '</button>' + (live() ? bellHtml() : "") + '</div>' +
@@ -1899,6 +1900,135 @@ export function initSite(backend, tools) {
       '<label>Note (optional)<input name="note" maxlength="300" value="' + esc(t.budgetNote || "") + '" placeholder="e.g. includes league fee"></label>' +
       '<div><button class="btn solid" type="submit">Save budget</button></div>' + (t.budgetBy ? '<p class="muted" style="grid-column:1/-1;margin:0;font-size:12px">Last set by ' + esc(t.budgetBy) + "</p>" : "") + "</form>";
   }
+
+  // ---- Tournament (next Unijess tournament) ------------------------------------------------------
+  // Captains mark each roster player Attending / Not attending and add the ID or passport number and documents.
+  // The Board, admins and the view-only account (Eva Morta) see every team, read-only. Checked in convex/tournament.ts.
+  var TN_ST = { yes: ["ok", "Attending"], no: ["bad", "Not attending"], none: ["warn", "Not answered"] };
+  function tnLongDate(d) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d || ""); return m ? new Date(+m[1], +m[2] - 1, +m[3]).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : ""; }
+  function tnDaysTo(d) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d || ""); if (!m) return null; var t = new Date(); t.setHours(0, 0, 0, 0); return Math.round((new Date(+m[1], +m[2] - 1, +m[3]) - t) / 864e5); }
+  function tnMine() { return hv().role === "captain"; }
+  // Teams this view shows: a captain only their own, everyone else every team the server returned.
+  function tnTeams() {
+    var d = LIVE.tournament; if (!d) return [];
+    var u = hv();
+    return d.teams.filter(function (t) { return tnMine() ? (u.teams || []).indexOf(t.team) > -1 : true; });
+  }
+  function tnEditable(t) { var r = hv().role; return t.canEdit && !hRO() && (r === "captain" || r === "admin" || r === "exec"); }
+  function tnId(p) { return p.idNumber || p.rosterId || ""; }
+  function tnCount(pl) {
+    var c = { yes: 0, no: 0, none: 0, noId: 0, noDoc: 0 };
+    pl.forEach(function (p) { c[p.status || "none"]++; if (p.status === "yes") { if (!tnId(p)) c.noId++; if (!p.files.length) c.noDoc++; } });
+    return c;
+  }
+  function tnBadge() { if (!live() || !tnMine() || !LIVE.tournament) return 0; var n = 0; tnTeams().forEach(function (t) { n += tnCount(t.players).none; }); return n; }
+  function tnSize(b) { return b > 1048576 ? (b / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(b / 1024)) + " KB"; }
+  function hubTournament() {
+    var d = LIVE.tournament;
+    var head = function (ev) {
+      var days = ev ? tnDaysTo(ev.date) : null, dl = ev ? tnDaysTo(ev.deadline) : null;
+      return '<div class="ph-head"><div><h1 class="display">Tournament.</h1><p>' + (ev ? "<b>" + esc(ev.name) + "</b> · " + esc(tnLongDate(ev.date)) + (ev.place ? " · " + esc(ev.place) : "") + (days != null && days >= 0 ? " · in " + days + (days === 1 ? " day" : " days") : "") : "") + "</p>" +
+        (ev && ev.deadline ? '<p class="tn-deadline' + (dl != null && dl < 0 ? " late" : "") + '">Captains answer by <b>' + esc(tnLongDate(ev.deadline)) + "</b>" + (dl != null ? dl < 0 ? " · deadline passed" : dl === 0 ? " · today" : " · " + dl + (dl === 1 ? " day left" : " days left") : "") + "</p>" : "") +
+        "<p>" + (tnMine() ? "Mark who comes, and add each attending player's ID or passport number and documents. Eva Morta and the Board see your answers to organise the tournament." : "Who is confirmed for the tournament, team by team. Captains fill it in for their own team.") + "</p></div></div>";
+    };
+    if (!live()) return head(null) + '<section class="panel"><p class="empty">The tournament list shows once you are signed in.</p></section>';
+    if (!d) return head(null) + '<section class="panel"><p class="empty">Loading…</p></section>';
+    var ts = tnTeams(), all = [];
+    ts.forEach(function (t) { t.players.forEach(function (p) { all.push(p); }); });
+    var c = tnCount(all);
+    var stats = '<div class="grid-4">' + stat("Attending", String(c.yes), "confirmed players") + stat("Not attending", String(c.no), "said no") + stat("Not answered", String(c.none), "still to confirm") + stat("ID missing", String(c.noId), "attending, no ID / passport") + "</div>";
+    var body = "";
+    if (tnMine()) {
+      body = ts.length ? ts.map(function (t) { return tnTeamPanel(t); }).join("") : '<section class="panel"><p class="empty">No team linked to your account yet.</p></section>';
+    } else {
+      var open = state.tnOpen;
+      body = '<section class="panel"><div class="panel-head"><h2>Every team</h2><button type="button" class="btn sm solid" data-tn-csv' + (c.yes ? "" : " disabled") + '>Download confirmed players (CSV)</button></div><div class="table-wrap"><table><thead><tr><th>Team</th><th class="r">Attending</th><th class="r">Not attending</th><th class="r">Not answered</th><th class="r">ID missing</th><th class="r">No documents</th><th class="r">Roster</th></tr></thead><tbody>' +
+        ts.map(function (t) { var k = tnCount(t.players), tm = team(t.team);
+          return '<tr class="click" data-tn-open="' + t.team + '" tabindex="0"' + (open === t.team ? ' aria-current="true"' : "") + '><td class="tname">' + esc(tm ? tLabel(tm) : t.team) + '</td><td class="r num"><b class="tn-n ok">' + k.yes + '</b></td><td class="r num">' + k.no + '</td><td class="r num">' + (k.none ? '<span class="tn-n warn">' + k.none + "</span>" : "0") + '</td><td class="r num">' + (k.noId ? '<span class="tn-n bad">' + k.noId + "</span>" : "0") + '</td><td class="r num">' + k.noDoc + '</td><td class="r num muted">' + t.players.length + "</td></tr>"; }).join("") +
+        '</tbody></table></div><p class="muted" style="margin:0;font-size:12px">Select a team to see its players. A team with an empty roster has not added its players yet.</p></section>' +
+        (open ? ts.filter(function (t) { return t.team === open; }).map(function (t) { return tnTeamPanel(t); }).join("") : "") + tnConfirmed(ts);
+    }
+    return head(d.event) + stats + body + (d.canEditEvent && !hRO() && (hv().role === "admin" || hv().role === "exec") ? tnEventForm(d.event) : "");
+  }
+  function tnTeamPanel(t) {
+    var tm = team(t.team), ed = tnEditable(t), k = tnCount(t.players);
+    var rows = t.players.map(function (p) {
+      var st = p.status || "none", idv = tnId(p);
+      var seg = ed ? '<div class="tn-seg" role="group" aria-label="Attendance">' + ["yes", "no", "none"].map(function (x) { return '<button type="button" class="' + TN_ST[x][0] + '" data-tn-st="' + x + '" data-team="' + t.team + '" data-key="' + esc(p.key) + '" aria-pressed="' + (st === x) + '">' + TN_ST[x][1] + "</button>"; }).join("") + "</div>" : '<span class="pill ' + TN_ST[st][0] + '">' + TN_ST[st][1] + "</span>";
+      var idCell = ed ? '<input class="tn-id" type="text" maxlength="30" autocomplete="off" data-team="' + t.team + '" data-key="' + esc(p.key) + '" value="' + esc(p.idNumber || "") + '" placeholder="' + esc(p.rosterId ? p.rosterId + " (roster)" : "ID / passport no.") + '" aria-label="ID or passport number">' : idv ? esc(idv) : '<span class="muted">—</span>';
+      var files = p.files.map(function (f) { return '<li><a href="' + esc(f.url || "#") + '" target="_blank" rel="noopener" title="Added by ' + esc(f.by) + " · " + esc(fmtWhen(f.at)) + '">' + esc(clip(f.name, 34)) + '</a> <small class="muted">' + tnSize(f.size) + "</small>" + (ed ? ' <button type="button" class="rm" data-tn-rm="' + esc(f.id) + '" data-team="' + t.team + '" data-key="' + esc(p.key) + '" aria-label="Remove ' + esc(f.name) + '">Remove</button>' : "") + "</li>"; }).join("");
+      var hist = (p.history || []).slice().reverse().map(function (h) { return fmtWhen(h.at) + " · " + h.by + ": " + h.what; }).join("\n");
+      return '<tr class="tn-' + st + '"><td><b>' + esc(p.first + " " + p.last) + "</b>" + (p.number ? ' <span class="muted">#' + esc(p.number) + "</span>" : "") +
+        (p.updatedBy ? '<br><small class="muted" title="' + esc(hist) + '">Changed by ' + esc(p.updatedBy) + " · " + esc(fmtWhen(p.updatedAt)) + "</small>" : "") + "</td><td>" + seg + "</td><td>" + idCell + "</td><td>" +
+        (files ? '<ul class="tn-files">' + files + "</ul>" : ed ? "" : '<span class="muted">None</span>') +
+        (ed ? '<label class="btn sm tn-add">+ Add document<input type="file" hidden multiple accept=".pdf,application/pdf,image/jpeg,image/png,image/webp,image/heic" data-tn-file data-team="' + t.team + '" data-key="' + esc(p.key) + '"></label>' : "") + "</td></tr>";
+    }).join("");
+    return '<section class="panel tn-panel"><div class="panel-head"><h2>' + esc(tm ? tLabel(tm) : t.team) + ' <span class="muted" style="font-weight:600">· ' + k.yes + " attending, " + k.none + " not answered</span></h2>" +
+      '<span class="pill">' + (ed ? "Private: your team, the Board and Eva Morta" : "View only") + "</span></div>" +
+      (t.players.length ? '<div class="table-wrap"><table class="tn-table"><thead><tr><th>Player</th><th>Attendance</th><th>ID / passport</th><th>Documents (PDF or image, max 10 MB)</th></tr></thead><tbody>' + rows + "</tbody></table></div>"
+        : '<p class="empty">No players on the roster yet.' + (ed ? ' Add them first in <a href="#hub-teams">' + (can("all") ? "Teams" : "My team") + "</a> (Team roster), then come back here." : "") + "</p>") + "</section>";
+  }
+  function tnConfirmed(ts) {
+    var rows = [];
+    ts.forEach(function (t) { t.players.forEach(function (p) { if (p.status === "yes") rows.push({ t: t, p: p }); }); });
+    if (!rows.length) return "";
+    return '<section class="panel"><div class="panel-head"><h2>Confirmed players <span class="muted" style="font-weight:600">· ' + rows.length + '</span></h2></div><div class="table-wrap"><table><thead><tr><th>Team</th><th>Player</th><th>ID / passport</th><th>Birth date</th><th>Nationality</th><th class="r">Documents</th></tr></thead><tbody>' +
+      rows.map(function (x) { var tm = team(x.t.team), idv = tnId(x.p); return "<tr><td>" + esc(tm ? tLabel(tm) : x.t.team) + "</td><td><b>" + esc(x.p.first + " " + x.p.last) + "</b></td><td>" + (idv ? esc(idv) : '<span class="tn-n bad">Missing</span>') + '</td><td class="num">' + esc(rDate(x.p.birth)) + "</td><td>" + esc(x.p.nationality || "") + '</td><td class="r num">' + x.p.files.length + "</td></tr>"; }).join("") +
+      "</tbody></table></div></section>";
+  }
+  function tnEventForm(ev) {
+    return '<section class="panel"><div class="panel-head"><h2>Tournament details</h2><span class="pill">Admins, President, VPs</span></div>' +
+      '<form id="tn-event" class="tn-event"><label>Name<input name="name" maxlength="80" required value="' + esc(ev.name) + '"></label><label>Date<input name="date" type="date" required value="' + esc(ev.date) + '"></label>' +
+      '<label>Place<input name="place" maxlength="120" value="' + esc(ev.place || "") + '" placeholder="Venue, city"></label><label>Answer deadline (optional)<input name="deadline" type="date" value="' + esc(ev.deadline || "") + '"></label>' +
+      '<button class="btn sm solid" type="submit">Save details</button></form>' + (ev.updatedBy ? '<small class="muted">Last changed by ' + esc(ev.updatedBy) + " · " + esc(fmtWhen(ev.updatedAt)) + "</small>" : "") + "</section>";
+  }
+  function tnCsv() {
+    var d = LIVE.tournament, ev = d.event, lines = [["Team", "First name", "Last name", "Jersey number", "ID / passport", "Birth date", "Nationality", "Documents"]];
+    tnTeams().forEach(function (t) { var tm = team(t.team); t.players.forEach(function (p) { if (p.status === "yes") lines.push([tm ? tLabel(tm) : t.team, p.first, p.last, p.number || "", tnId(p), rDate(p.birth), p.nationality || "", String(p.files.length)]); }); });
+    var csv = lines.map(function (r) { return r.map(function (x) { x = String(x == null ? "" : x); return /[",\n;]/.test(x) ? '"' + x.replace(/"/g, '""') + '"' : x; }).join(","); }).join("\r\n");
+    var a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }));
+    a.download = (ev.name + " " + ev.date + " confirmed").toLowerCase().replace(/[^a-z0-9]+/g, "-") + ".csv";
+    document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
+  function bindTournament() {
+    hub.querySelectorAll("[data-tn-st]").forEach(function (b) { b.addEventListener("click", function () {
+      if (b.getAttribute("aria-pressed") === "true") return;
+      hub.querySelectorAll('[data-tn-st][data-key="' + b.getAttribute("data-key") + '"]').forEach(function (x) { x.disabled = true; });
+      Promise.resolve(backend.run("tnStatus", { team: b.getAttribute("data-team"), key: b.getAttribute("data-key"), status: b.getAttribute("data-tn-st") })).then(null, function (x) { render(); toast(errText(x)); });
+    }); });
+    hub.querySelectorAll(".tn-id").forEach(function (i) {
+      var was = i.value;
+      function saveId() { if (i.value.trim() === was.trim()) return; was = i.value; Promise.resolve(backend.run("tnId", { team: i.getAttribute("data-team"), key: i.getAttribute("data-key"), idNumber: i.value })).then(function () { toast("ID / passport number saved."); }, function (x) { toast(errText(x)); }); }
+      i.addEventListener("change", saveId);
+      i.addEventListener("keydown", function (ev) { if (ev.key === "Enter") { ev.preventDefault(); i.blur(); } });
+    });
+    hub.querySelectorAll("[data-tn-file]").forEach(function (inp) { inp.addEventListener("change", function () {
+      var files = Array.prototype.slice.call(inp.files || []), team_ = inp.getAttribute("data-team"), key = inp.getAttribute("data-key");
+      inp.blur();
+      inp.value = "";
+      files.reduce(function (pr, f) { return pr.then(function () {
+        if (f.size > 10 * 1048576) { toast(f.name + ": too big (max 10 MB)."); return; }
+        toast("Uploading " + f.name + "…");
+        return Promise.resolve(backend.uploadFile(f)).then(function (sid) { return backend.run("tnAddFile", { team: team_, key: key, storageId: sid, name: f.name }); })
+          .then(function (r) { toast(r && r.error ? f.name + ": " + r.error : f.name + " added."); }, function (x) { toast(errText(x)); });
+      }); }, Promise.resolve());
+    }); });
+    hub.querySelectorAll("[data-tn-rm]").forEach(function (b) { b.addEventListener("click", function () {
+      b.disabled = true;
+      Promise.resolve(backend.run("tnRemoveFile", { team: b.getAttribute("data-team"), key: b.getAttribute("data-key"), storageId: b.getAttribute("data-tn-rm") })).then(function () { toast("Document removed."); }, function (x) { b.disabled = false; toast(errText(x)); });
+    }); });
+    hub.querySelectorAll("[data-tn-open]").forEach(function (r) {
+      function op() { var id = r.getAttribute("data-tn-open"); state.tnOpen = state.tnOpen === id ? null : id; render(); }
+      r.addEventListener("click", op);
+      r.addEventListener("keydown", function (ev) { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); op(); } });
+    });
+    hub.querySelectorAll("[data-tn-csv]").forEach(function (b) { b.addEventListener("click", tnCsv); });
+    var ef = $("tn-event"); if (ef) ef.addEventListener("submit", function (ev) {
+      ev.preventDefault(); var bt = ef.querySelector("button"); bt.disabled = true;
+      Promise.resolve(backend.run("tnEvent", { name: ef.elements.name.value, date: ef.elements.date.value, place: ef.elements.place.value || undefined, deadline: ef.elements.deadline.value || undefined }))
+        .then(function () { toast("Tournament details saved."); }, function (x) { bt.disabled = false; toast(errText(x)); });
+    });
+  }
   function hubTeams() {
     var ts = visTeams();
     if (!can("money")) // teams without the money columns (Finance only)
@@ -1946,7 +2076,7 @@ export function initSite(backend, tools) {
       // Shared Hub data: same for everyone with the right access (convex/tasks, budgets, results, org, partners, inbox).
       LIVE.subs = [];
       applyPeople(); applyBudgets();
-      if (backend.watch) [["tasks", "tasks"], ["budgets", "budgets"], ["results", "results"], ["people", "people"], ["partners", "partners"], ["inbox", "inbox"]].forEach(function (x) {
+      if (backend.watch) [["tasks", "tasks"], ["budgets", "budgets"], ["results", "results"], ["people", "people"], ["partners", "partners"], ["inbox", "inbox"], ["tournament", "tournament"]].forEach(function (x) {
         LIVE.subs.push(backend.watch(x[0], function (d) { if (d === undefined) return; LIVE[x[1]] = d; if (x[1] === "people") applyPeople(); if (x[1] === "budgets") applyBudgets(); hubRefresh(); }));
       });
       if (backend.watch && boardAccount()) [["messages", "messages"], ["assocApps", "assocApps"]].forEach(function (x) {
@@ -1958,7 +2088,7 @@ export function initSite(backend, tools) {
       if (LIVE.unChat) LIVE.unChat(); LIVE.unChat = null; LIVE.chatOpen = null; LIVE.chatMsgs = null;
       (LIVE.subs || []).forEach(function (u) { try { u(); } catch (e) {} }); LIVE.subs = [];
       if (LIVE.unGoals) LIVE.unGoals(); LIVE.unGoals = null;
-      ["tasks", "budgets", "results", "people", "partners", "inbox", "goals", "messages", "assocApps", "chats"].forEach(function (k) { LIVE[k] = null; });
+      ["tasks", "budgets", "results", "people", "partners", "inbox", "goals", "messages", "assocApps", "chats", "tournament"].forEach(function (k) { LIVE[k] = null; });
       setTimeout(function () { applyPeople(); applyBudgets(); }, 0);
       LIVE.unExp(); LIVE.unIdeas(); if (LIVE.unNotifs) LIVE.unNotifs(); if (LIVE.unTupd) LIVE.unTupd(); if (LIVE.unLinks) LIVE.unLinks(); LIVE.unLinks = null; LIVE.links = null; LIVE.unTupd = null; LIVE.tupd = null; LIVE.unExp = LIVE.unIdeas = LIVE.unNotifs = null; LIVE.notifs = null; LIVE.exp = LIVE.ideas = null; LIVE.checks = {}; ROSTER = {}; ROSTER_ALL = null;
     }
@@ -2439,6 +2569,7 @@ export function initSite(backend, tools) {
       }).join("") + "</div>";
   }
   function bindHub() {
+    bindTournament();
     var da = $("demo-as"); if (da) da.addEventListener("change", function () { setDemo(da.value); });
     hub.querySelectorAll("[data-demo]").forEach(function (b) { b.addEventListener("click", function () { setDemo(b.getAttribute("data-demo")); }); });
     hub.querySelectorAll("[data-history]").forEach(function (b) { b.addEventListener("click", function () {
@@ -2795,7 +2926,8 @@ export function initSite(backend, tools) {
       if (h === "hub-goals" && !can("goals")) h = "hub-overview";
       if ((h === "hub-messages" || h === "hub-assoc-apps") && !can("board")) h = "hub-overview";
       if (h === "hub-chat" && !can("chat")) h = "hub-overview";
-      var inner = h === "hub-chat" ? hubChat() : h === "hub-messages" ? hubMessages() : h === "hub-assoc-apps" ? hubAssocApps() : h === "hub-partners" ? hubPartners() : h === "hub-goals" ? hubGoals() : h === "hub-teams" ? hubTeams() : h === "hub-team-editor" ? hubTeamEditor() : h === "hub-applications" ? hubApplications() : h === "hub-captains" ? hubCaptains() : h === "hub-expenses" ? hubExpenses() : h === "hub-departments" ? hubDepts() : h === "hub-report" || h === "hub-checkups" ? hubCheckups() : h === "hub-ideas" ? hubIdeas() : h === "hub-history" ? hubHistory() : hubOverview();
+      if (h === "hub-tournament" && !can("tournament")) h = "hub-overview";
+      var inner = h === "hub-tournament" ? hubTournament() : h === "hub-chat" ? hubChat() : h === "hub-messages" ? hubMessages() : h === "hub-assoc-apps" ? hubAssocApps() : h === "hub-partners" ? hubPartners() : h === "hub-goals" ? hubGoals() : h === "hub-teams" ? hubTeams() : h === "hub-team-editor" ? hubTeamEditor() : h === "hub-applications" ? hubApplications() : h === "hub-captains" ? hubCaptains() : h === "hub-expenses" ? hubExpenses() : h === "hub-departments" ? hubDepts() : h === "hub-report" || h === "hub-checkups" ? hubCheckups() : h === "hub-ideas" ? hubIdeas() : h === "hub-history" ? hubHistory() : hubOverview();
       hub.innerHTML = hubShell(h, inner); show("hub"); bindHub(); bindBell(); updateTitle(); return;
     }
     if (h === "signin") html = signinView();
