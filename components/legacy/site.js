@@ -1104,6 +1104,7 @@ export function initSite(backend, tools) {
     if (k === "partners") return hDept("par");
     if (k === "goals") return r !== "captain";
     if (k === "board") return r === "admin" || r === "exec" || r === "head"; // website messages + association applications
+    if (k === "chat") return r === "admin" || r === "exec" || r === "head" || r === "associate"; // the association's chat (no captains, no view-only)
     return false;
   }
   function tryoutCount() { return live() ? (LIVE.inbox || {}).tryouts || 0 : visibleSportsApplications().length; }
@@ -1211,12 +1212,12 @@ export function initSite(backend, tools) {
   }
   function pill(map, k) { return '<span class="pill ' + map[k][0] + '">' + map[k][1] + "</span>"; }
   function stat(k, v, s) { return '<div class="stat"><p class="eyebrow">' + k + '</p><span class="v num">' + v + "</span><small>" + s + "</small></div>"; }
-  var HUBV = [["hub-overview", "Overview"], ["hub-teams", "Teams"], ["hub-team-editor", "Team editor"], ["hub-applications", "Sports applications"], ["hub-assoc-apps", "Association applications"], ["hub-messages", "Messages"], ["hub-captains", "Captains"], ["hub-ideas", "Ideas & logistics"], ["hub-expenses", "Expenses ledger"], ["hub-partners", "Partnerships"], ["hub-departments", "Departments"], ["hub-goals", "Goals"], ["hub-history", "History"], ["hub-report", "Reports"]];
+  var HUBV = [["hub-overview", "Overview"], ["hub-chat", "Chat"], ["hub-teams", "Teams"], ["hub-team-editor", "Team editor"], ["hub-applications", "Sports applications"], ["hub-assoc-apps", "Association applications"], ["hub-messages", "Messages"], ["hub-captains", "Captains"], ["hub-ideas", "Ideas & logistics"], ["hub-expenses", "Expenses ledger"], ["hub-partners", "Partnerships"], ["hub-departments", "Departments"], ["hub-goals", "Goals"], ["hub-history", "History"], ["hub-report", "Reports"]];
 
   function hubShell(view, inner) {
     var pending = visExp().filter(canDecideE).length, newIdeas = can("ideas") ? visIdeas().filter(function (i) { return (i.status === "new" && canRunIdea(i)) || canApproveIdea(i) || canCommIdea(i); }).length : 0;
-    var nav = HUBV.filter(function (v) { return (v[0] !== "hub-expenses" || can("expenses")) && (v[0] !== "hub-departments" || can("depts")) && (v[0] !== "hub-report" || can("reports")) && (v[0] !== "hub-captains" || can("captains")) && (v[0] !== "hub-team-editor" || can("teamEdit")) && (v[0] !== "hub-applications" || can("applications")) && (v[0] !== "hub-ideas" || can("ideas")) && (v[0] !== "hub-partners" || can("partners")) && (v[0] !== "hub-goals" || can("goals")) && ((v[0] !== "hub-messages" && v[0] !== "hub-assoc-apps") || can("board")); }).map(function (v) {
-      return '<a href="#' + v[0] + '"' + (v[0] === view ? ' aria-current="page"' : "") + ">" + (v[0] === "hub-teams" && !can("all") ? "My team" : v[1]) + (v[0] === "hub-expenses" && pending ? '<span class="count num">' + pending + "</span>" : "") + (v[0] === "hub-overview" && unreadCount() ? '<span class="count num" title="New notifications">' + unreadCount() + "</span>" : "") + (v[0] === "hub-ideas" && newIdeas ? '<span class="count num">' + newIdeas + "</span>" : "") + (v[0] === "hub-applications" && tryoutCount() ? '<span class="count num">' + tryoutCount() + "</span>" : "") + (v[0] === "hub-messages" && newMsgCount() ? '<span class="count num" title="New messages">' + newMsgCount() + "</span>" : "") + (v[0] === "hub-assoc-apps" && newAppCount() ? '<span class="count num" title="New applications">' + newAppCount() + "</span>" : "") + (v[0] === "hub-partners" && (LIVE.inbox || {}).inquiries ? '<span class="count num" title="New partner inquiries">' + LIVE.inbox.inquiries + "</span>" : "") + "</a>";
+    var nav = HUBV.filter(function (v) { return (v[0] !== "hub-expenses" || can("expenses")) && (v[0] !== "hub-departments" || can("depts")) && (v[0] !== "hub-report" || can("reports")) && (v[0] !== "hub-captains" || can("captains")) && (v[0] !== "hub-team-editor" || can("teamEdit")) && (v[0] !== "hub-applications" || can("applications")) && (v[0] !== "hub-ideas" || can("ideas")) && (v[0] !== "hub-partners" || can("partners")) && (v[0] !== "hub-goals" || can("goals")) && ((v[0] !== "hub-messages" && v[0] !== "hub-assoc-apps") || can("board")) && (v[0] !== "hub-chat" || can("chat")); }).map(function (v) {
+      return '<a href="#' + v[0] + '"' + (v[0] === view ? ' aria-current="page"' : "") + ">" + (v[0] === "hub-teams" && !can("all") ? "My team" : v[1]) + (v[0] === "hub-expenses" && pending ? '<span class="count num">' + pending + "</span>" : "") + (v[0] === "hub-overview" && unreadCount() ? '<span class="count num" title="New notifications">' + unreadCount() + "</span>" : "") + (v[0] === "hub-ideas" && newIdeas ? '<span class="count num">' + newIdeas + "</span>" : "") + (v[0] === "hub-applications" && tryoutCount() ? '<span class="count num">' + tryoutCount() + "</span>" : "") + (v[0] === "hub-chat" && chatUnread() ? '<span class="count num" title="Unread chat messages">' + chatUnread() + "</span>" : "") + (v[0] === "hub-messages" && newMsgCount() ? '<span class="count num" title="New messages">' + newMsgCount() + "</span>" : "") + (v[0] === "hub-assoc-apps" && newAppCount() ? '<span class="count num" title="New applications">' + newAppCount() + "</span>" : "") + (v[0] === "hub-partners" && (LIVE.inbox || {}).inquiries ? '<span class="count num" title="New partner inquiries">' + LIVE.inbox.inquiries + "</span>" : "") + "</a>";
     }).join("");
     var u = state.user, me = admin || captain, multi = !!admin || allowedViews().length > 1;
     return '<div class="app"><aside class="rail"><div class="top"><a class="lock" href="#home" aria-label="Back to Esade Sports home">' + mono(38) + '<span>ESADE SPORTS<br>HUB</span></a><div class="history" aria-label="Page navigation"><button type="button" data-history="back" aria-label="Go back">' + ico("left") + '</button><button type="button" data-history="forward" aria-label="Go forward">' + ico("right") + '</button></div>' +
@@ -1547,6 +1548,103 @@ export function initSite(backend, tools) {
       }).join("") + "</tbody></table></div>" : '<p class="empty">' + (all.length ? "No application at this stage." : "No applications yet.") + "</p>") + "</section>";
   }
 
+  // ---- Chat: the association's group chats and direct messages (convex/hubChat.ts) -------------
+  // Board chat (Board + admins), one chat per department (its head and associates, plus President / VPs / admins)
+  // and direct messages between any two members. Convex decides what this account may open; "Demo as"
+  // hides the group chats the previewed role would not have. Direct messages are always your own.
+  function chatAccount() { var sc = captain && captain.scope; return !!admin || !!(sc && (sc.exec || (sc.heads || []).length || (sc.assoc || []).length)); }
+  function chatGroups() {
+    var u = hv(), c = LIVE.chats; if (!c) return [];
+    return c.groups.filter(function (g) {
+      if (g.id === "board") return u.role === "admin" || u.role === "exec" || u.role === "head";
+      return hFull() || DEPT_ID[g.id.slice(5)] === u.dept;
+    });
+  }
+  function chatDms() { var c = LIVE.chats; return c ? c.dms.slice().sort(function (a, b) { return (b.lastAt - a.lastAt) || a.name.localeCompare(b.name); }) : []; }
+  function chatUnread() { if (!can("chat") || !live()) return 0; return chatGroups().concat(chatDms()).reduce(function (n, x) { return n + (x.unread || 0); }, 0); }
+  function chatFind(id) { return chatGroups().concat(chatDms()).filter(function (x) { return x.id === id; })[0]; }
+  function chatTitle(x) { return x.id === "board" ? "Board" : x.id.indexOf("dept:") === 0 ? x.label + " team" : x.name; }
+  function fmtWhen(ms) {
+    var d = new Date(ms), n = new Date(), t = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+    return d.toDateString() === n.toDateString() ? t : d.getDate() + " " + MONTHS[d.getMonth()] + (d.getFullYear() !== n.getFullYear() ? " " + d.getFullYear() : "") + ", " + t;
+  }
+  // Keep one live subscription for the open conversation.
+  function chatWatch(id) {
+    if (LIVE.chatOpen === id) return;
+    if (LIVE.unChat) LIVE.unChat();
+    LIVE.chatOpen = id; LIVE.chatMsgs = undefined; LIVE.unChat = null;
+    if (!id || !backend || !backend.watch) return;
+    LIVE.unChat = backend.watch("chatMsgs", function (d) {
+      if (d === undefined || LIVE.chatOpen !== id) return;
+      LIVE.chatMsgs = d;
+      if (location.hash === "#hub-chat" && document.visibilityState !== "hidden") Promise.resolve(backend.run("chatRead", { channel: id })).catch(function () {});
+      chatPatch() || setTimeout(hubRefresh, 0);
+    }, { channel: id });
+  }
+  function chatSide() {
+    var cur = state.chatId, gs = chatGroups(), ds = chatDms();
+    var item = function (x) {
+      return '<button type="button" class="chat-item" data-chat="' + esc(x.id) + '"' + (x.id === cur ? ' aria-current="true"' : "") + '><span class="chat-item-top"><strong>' + esc(chatTitle(x)) + "</strong>" + (x.unread ? '<span class="count num" title="Unread">' + x.unread + "</span>" : "") + "</span>" +
+        '<small class="muted">' + (x.lastAt ? esc(clip((x.lastBy ? x.lastBy.split(" ")[0] + ": " : "") + x.lastText, 46)) : esc(x.role || "No messages yet")) + "</small></button>";
+    };
+    return '<p class="chat-group">Group chats</p>' + (gs.length ? gs.map(item).join("") : '<p class="empty">No group chat for this view.</p>') +
+      '<p class="chat-group">Direct messages</p>' + (ds.length ? ds.map(item).join("") : '<p class="empty">Nobody else is in the association yet. People show up here once they are approved in <a href="/admin">/admin</a>.</p>');
+  }
+  function chatLog() {
+    var m = LIVE.chatMsgs;
+    if (m === undefined) return '<p class="empty">Loading…</p>';
+    if (m === null) return '<p class="empty">You can no longer open this chat.</p>';
+    if (!m.length) return '<p class="empty">No messages yet. Say hello.</p>';
+    return m.map(function (x) {
+      return '<div class="chat-msg' + (x.mine ? " mine" : "") + '"><p class="chat-meta"><strong>' + esc(x.mine ? "You" : x.name) + '</strong> <span class="muted">' + esc(fmtWhen(x.at)) + "</span></p><p class=\"chat-body\">" + esc(x.body) + "</p></div>";
+    }).join("");
+  }
+  // Live updates while someone is typing: refresh the list and messages without re-rendering the form.
+  function chatPatch() {
+    if (location.hash !== "#hub-chat") return false;
+    var side = $("chat-side"), log = $("chat-log");
+    if (!side || !log) return false;
+    side.innerHTML = chatSide(); bindChatSide();
+    var atEnd = log.scrollHeight - log.scrollTop - log.clientHeight < 60;
+    log.innerHTML = chatLog(); if (atEnd) log.scrollTop = log.scrollHeight;
+    var nav = hub.querySelector('.rail nav a[href="#hub-chat"]'), n = chatUnread();
+    if (nav) { var b = nav.querySelector(".count"); if (n && !b) { b = document.createElement("span"); b.className = "count num"; nav.appendChild(b); } if (b) { if (n) b.textContent = n; else b.remove(); } }
+    return true;
+  }
+  function hubChat() {
+    var head = '<div class="ph-head"><div><h1 class="display">Chat.</h1><p>Talk to anyone in the association: your department\'s group chat, the Board chat, or a direct message to one person.</p></div></div>';
+    if (!live() || !chatAccount()) return head + '<section class="panel"><p class="empty">The chat opens once you are signed in with a Board or associate account.</p></section>';
+    if (LIVE.chats == null) { chatWatch(null); return head + '<section class="panel"><p class="empty">Loading…</p></section>'; }
+    if (state.chatId && !chatFind(state.chatId)) state.chatId = null;
+    if (!state.chatId) { var first = chatGroups()[0] || chatDms()[0]; state.chatId = first ? first.id : null; }
+    var cur = state.chatId ? chatFind(state.chatId) : null;
+    chatWatch(cur ? cur.id : null);
+    if (cur && cur.unread && document.visibilityState !== "hidden") Promise.resolve(backend.run("chatRead", { channel: cur.id })).catch(function () {});
+    var main = cur
+      ? '<div class="chat-head"><h2>' + esc(chatTitle(cur)) + "</h2>" + (cur.role ? '<small class="muted">' + esc(cur.role) + "</small>" : cur.id === "board" ? '<small class="muted">President, vice-presidents, heads of department and admins</small>' : '<small class="muted">Head, associates, President, vice-presidents and admins</small>') + "</div>" +
+        '<div id="chat-log" class="chat-log" aria-live="polite">' + chatLog() + "</div>" +
+        '<form id="chat-form" class="chat-form"><textarea id="chat-text" aria-label="Message" rows="2" maxlength="2000" placeholder="Write a message… (Enter to send, Shift+Enter for a new line)" required></textarea><button class="btn btn-blue" type="submit">Send</button></form>'
+      : '<p class="empty">Pick a chat on the left.</p>';
+    return head + '<section class="panel chat"><aside id="chat-side" class="chat-side" aria-label="Chats">' + chatSide() + '</aside><div class="chat-main">' + main + "</div></section>";
+  }
+  function bindChatSide() {
+    hub.querySelectorAll("[data-chat]").forEach(function (b) { b.addEventListener("click", function () { state.chatId = b.getAttribute("data-chat"); render(); var t = $("chat-text"); if (t) t.focus(); }); });
+  }
+  function bindChat() {
+    if (!$("chat-side")) return;
+    bindChatSide();
+    var log = $("chat-log"); if (log) log.scrollTop = log.scrollHeight;
+    var f = $("chat-form"), ta = $("chat-text");
+    if (!f) return;
+    ta.addEventListener("keydown", function (e) { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); f.requestSubmit(); } });
+    f.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var text = ta.value.trim(), id = state.chatId; if (!text || !id) return;
+      var btn = f.querySelector("button"); btn.disabled = true;
+      Promise.resolve(backend.run("chatSend", { channel: id, body: text })).then(function () { ta.value = ""; btn.disabled = false; ta.focus(); var l = $("chat-log"); if (l) l.scrollTop = l.scrollHeight; }, function (x) { btn.disabled = false; toast(errText(x)); });
+    });
+  }
+
   // ---- Goals: semester targets against the real numbers ----------------------------------------
   function termOf(y, s2) { return y + "-" + String((y + 1) % 100).padStart(2, "0") + " S" + (s2 ? 2 : 1); }
   function currentTerm() { var d = new Date(), y = d.getFullYear(), m = d.getMonth(); return m >= 8 ? termOf(y, false) : m === 0 ? termOf(y - 1, false) : termOf(y - 1, true); }
@@ -1725,11 +1823,13 @@ export function initSite(backend, tools) {
       if (backend.watch && boardAccount()) [["messages", "messages"], ["assocApps", "assocApps"]].forEach(function (x) {
         LIVE.subs.push(backend.watch(x[0], function (d) { if (d === undefined) return; LIVE[x[1]] = d || []; hubRefresh(); }));
       });
+      if (backend.watch && chatAccount()) LIVE.subs.push(backend.watch("chats", function (d) { if (d === undefined) return; LIVE.chats = d; chatPatch() || hubRefresh(); }));
       watchGoals(goalTerm());
     } else if (!on && LIVE.unExp) {
+      if (LIVE.unChat) LIVE.unChat(); LIVE.unChat = null; LIVE.chatOpen = null; LIVE.chatMsgs = null;
       (LIVE.subs || []).forEach(function (u) { try { u(); } catch (e) {} }); LIVE.subs = [];
       if (LIVE.unGoals) LIVE.unGoals(); LIVE.unGoals = null;
-      ["tasks", "budgets", "results", "people", "partners", "inbox", "goals", "messages", "assocApps"].forEach(function (k) { LIVE[k] = null; });
+      ["tasks", "budgets", "results", "people", "partners", "inbox", "goals", "messages", "assocApps", "chats"].forEach(function (k) { LIVE[k] = null; });
       setTimeout(function () { applyPeople(); applyBudgets(); }, 0);
       LIVE.unExp(); LIVE.unIdeas(); if (LIVE.unNotifs) LIVE.unNotifs(); if (LIVE.unTupd) LIVE.unTupd(); if (LIVE.unLinks) LIVE.unLinks(); LIVE.unLinks = null; LIVE.links = null; LIVE.unTupd = null; LIVE.tupd = null; LIVE.unExp = LIVE.unIdeas = LIVE.unNotifs = null; LIVE.notifs = null; LIVE.exp = LIVE.ideas = null; LIVE.checks = {}; ROSTER = {}; ROSTER_ALL = null;
     }
@@ -2422,6 +2522,7 @@ export function initSite(backend, tools) {
     hub.querySelectorAll("[data-p-cancel]").forEach(function (b) { b.addEventListener("click", function () { state.pEdit = null; state.pPrefill = null; render(); }); });
     hub.querySelectorAll("[data-p-del]").forEach(function (b) { b.addEventListener("click", function () { b.disabled = true; pRun("removePartner", { id: b.getAttribute("data-p-del") }, "Partner removed.").catch(function () { b.disabled = false; }); }); });
     hub.querySelectorAll("[data-pstage]").forEach(function (sel) { sel.addEventListener("change", function () { var p = pFind(sel.getAttribute("data-pstage")); if (!p) return; pRun("updatePartner", Object.assign({ id: p._id }, partnerArgs(p, { stage: sel.value })), "Stage updated."); }); });
+    bindChat();
     hub.querySelectorAll("[data-mf]").forEach(function (b) { b.addEventListener("click", function () { state.mFilter = b.getAttribute("data-mf"); render(); }); });
     hub.querySelectorAll("[data-af]").forEach(function (b) { b.addEventListener("click", function () { state.aFilter = b.getAttribute("data-af"); render(); }); });
     hub.querySelectorAll("[data-msg]").forEach(function (sel) {
@@ -2543,7 +2644,8 @@ export function initSite(backend, tools) {
       if (h === "hub-partners" && !can("partners")) h = "hub-overview";
       if (h === "hub-goals" && !can("goals")) h = "hub-overview";
       if ((h === "hub-messages" || h === "hub-assoc-apps") && !can("board")) h = "hub-overview";
-      var inner = h === "hub-messages" ? hubMessages() : h === "hub-assoc-apps" ? hubAssocApps() : h === "hub-partners" ? hubPartners() : h === "hub-goals" ? hubGoals() : h === "hub-teams" ? hubTeams() : h === "hub-team-editor" ? hubTeamEditor() : h === "hub-applications" ? hubApplications() : h === "hub-captains" ? hubCaptains() : h === "hub-expenses" ? hubExpenses() : h === "hub-departments" ? hubDepts() : h === "hub-report" || h === "hub-checkups" ? hubCheckups() : h === "hub-ideas" ? hubIdeas() : h === "hub-history" ? hubHistory() : hubOverview();
+      if (h === "hub-chat" && !can("chat")) h = "hub-overview";
+      var inner = h === "hub-chat" ? hubChat() : h === "hub-messages" ? hubMessages() : h === "hub-assoc-apps" ? hubAssocApps() : h === "hub-partners" ? hubPartners() : h === "hub-goals" ? hubGoals() : h === "hub-teams" ? hubTeams() : h === "hub-team-editor" ? hubTeamEditor() : h === "hub-applications" ? hubApplications() : h === "hub-captains" ? hubCaptains() : h === "hub-expenses" ? hubExpenses() : h === "hub-departments" ? hubDepts() : h === "hub-report" || h === "hub-checkups" ? hubCheckups() : h === "hub-ideas" ? hubIdeas() : h === "hub-history" ? hubHistory() : hubOverview();
       hub.innerHTML = hubShell(h, inner); show("hub"); bindHub(); return;
     }
     if (h === "signin") html = signinView();

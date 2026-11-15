@@ -123,7 +123,7 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_team", ["teamId"]),
 
-  // Members' chat. channel: "general", "board", "dept:<Department>" or "sport:<Sport>".
+  // Members' chat. channel: "general", "board", "dept:<Department>", "sport:<Sport>" or "dm:<email>|<email>" (Hub direct messages).
   chatMessages: defineTable({
     channel: v.string(),
     authorEmail: v.string(),
@@ -132,6 +132,13 @@ export default defineSchema({
     body: v.string(),
     editedAt: v.optional(v.number()),
   }).index("by_channel", ["channel"]),
+
+  // Hub chat: when each person last opened a chat (unread badges). channel as above, or "dm:<email>|<email>".
+  chatReads: defineTable({
+    email: v.string(),
+    channel: v.string(),
+    at: v.number(),
+  }).index("by_email_channel", ["email", "channel"]),
 
   // Profiles sent from the Alumni corner (no login). Shown on the website only once an admin approves them.
   // email and phone stay private: only admins see them in /admin; the public query never returns them.

@@ -21,6 +21,8 @@ const WATCH: Record<string, FunctionReference<"query">> = {
   inbox: api.inbox.counts,
   messages: api.admin.listContactMessages,
   assocApps: api.admin.listAssociationApplications,
+  chats: api.hubChat.overview,
+  chatMsgs: api.hubChat.messages,
 };
 const RUN: Record<string, FunctionReference<"mutation">> = {
   addTask: api.tasks.add,
@@ -40,6 +42,8 @@ const RUN: Record<string, FunctionReference<"mutation">> = {
   setMessage: api.admin.setContactStatus,
   replyMessage: api.admin.replyToMessage,
   setAppStage: api.admin.setApplicationStage,
+  chatSend: api.hubChat.send,
+  chatRead: api.hubChat.markRead,
 };
 
 let started = false; // the prototype script binds global listeners: run it once per page load
