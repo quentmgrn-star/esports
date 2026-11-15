@@ -1110,7 +1110,7 @@ export function initSite(backend, tools) {
   var DEPT_ID = { "Finance": "fin", "Media & Marketing": "med", "Operations": "ops", "Partnerships": "par", "IT": "it" };
   function hv() { return state.user; }
   function hFull() { var r = hv().role; return r === "admin" || r === "exec" || r === "viewer"; }
-  function hRO() { return hv().role === "viewer"; }
+  function hRO() { return hv().role === "viewer" || !!hv().ro; }
   function hDept(d) { var u = hv(); return hFull() || ((u.role === "head" || u.role === "associate") && u.dept === d); }
   function teamOk(id) { var u = hv(); return hFull() || u.role === "head" || (u.teams || []).indexOf(id) > -1; }
   function can(k) {
@@ -1198,23 +1198,25 @@ export function initSite(backend, tools) {
     state.user = JSON.parse(JSON.stringify(d[2])); state.teamOpen = null; save(); renderAcct();
     if (location.hash === "#hub-overview") render(); else go("hub-overview");
   }
-  // Captain pages of any team: admins and the President / Vice-presidents open, read and edit every team's
-  // captain pages (My team, roster, tournament, handover, ideas, expenses). Convex already lets them edit every team.
-  function opensAnyTeam() { return !!admin || !!(captain && captain.scope && captain.scope.exec); }
-  function onTeamPages(u) { return opensAnyTeam() && u.role === "captain" && (u.teams || []).length === 1; }
+  // Captain pages of any team (My team, roster, tournament, handover, ideas, expenses). Only for admins and the
+  // President / Vice-presidents (read and edit) and the Student Council / Eva Morta view-only account (read only).
+  // Not for heads, associates or captains. Convex checks the same rules on every query and change.
+  function teamEditor() { return !!admin || !!(captain && captain.scope && captain.scope.exec); }
+  function opensAnyTeam() { return teamEditor() || !!(captain && captain.scope && captain.scope.viewer); }
+  function onTeamPages(u) { return u.role === "captain" && (u.teams || []).length === 1 && (teamEditor() || (!!u.ro && opensAnyTeam())); }
   function teamBar(u) {
     if (!opensAnyTeam()) return "";
     var cur = onTeamPages(u) ? u.teams[0] : "", t = cur ? team(cur) : null;
     var sel = '<label class="demo-as">' + (t ? "Switch team" : "Open a team") + '<select id="team-as">' + (t ? "" : '<option value="" selected>Choose a team…</option>') +
       TEAMS.map(function (x) { return '<option value="' + x.id + '"' + (x.id === cur ? " selected" : "") + ">" + esc(tLabel(x)) + "</option>"; }).join("") + "</select></label>";
     return t
-      ? '<div class="banner demo team-bar on"><b>Captain pages</b><span>You are on the captain pages of <strong>' + esc(tLabel(t)) + "</strong>, as its captain sees them. You can read and change everything here.</span>" + sel + '<button type="button" class="btn sm" data-team-exit>Back to my view</button></div>'
+      ? '<div class="banner demo team-bar on"><b>Captain pages</b><span>You are on the captain pages of <strong>' + esc(tLabel(t)) + "</strong>, as its captain sees them. " + (u.ro ? "View only: you can read everything here." : "You can read and change everything here.") + "</span>" + sel + '<button type="button" class="btn sm" data-team-exit>Back to my view</button></div>'
       : '<div class="banner demo team-bar"><b>Captain pages</b><span>Open any team’s captain pages: My team, roster, tournament, handover, ideas and expenses.</span>' + sel + "</div>";
   }
   function setTeamView(id) {
     if (!opensAnyTeam()) return;
     if (id && !team(id)) return;
-    state.user = id ? { role: "captain", teams: [id] } : admin ? { role: "admin" } : { role: "exec" };
+    state.user = id ? (teamEditor() ? { role: "captain", teams: [id] } : { role: "captain", teams: [id], ro: true }) : admin ? { role: "admin" } : teamEditor() ? { role: "exec" } : { role: "viewer" };
     state.teamOpen = null; save(); renderAcct();
     var h = location.hash.slice(1);
     if (h.indexOf("hub-") === 0 && h !== "hub-overview") render(); else go(id ? "hub-teams" : "hub-overview");
@@ -1222,7 +1224,7 @@ export function initSite(backend, tools) {
   function viewAllowed(u) {
     if (!u || !HUB_ROLES[u.role]) return false;
     if (admin) return true;
-    if (opensAnyTeam() && u.role === "captain" && (u.teams || []).length === 1 && team(u.teams[0])) return true;
+    if (opensAnyTeam() && u.role === "captain" && (u.teams || []).length === 1 && team(u.teams[0]) && (teamEditor() || u.ro)) return true;
     return allowedViews().some(function (v) { return v.role === u.role && v.dept === u.dept && (v.teams || []).join() === (u.teams || []).join(); });
   }
   function totals(id) { var o = { paid: 0, pending: 0 }; allExp().forEach(function (e) { if (e.team !== id) return; if (e.status === "paid") o.paid += e.amount; else if (e.status !== "rejected") o.pending += e.amount; }); return o; }
@@ -1899,22 +1901,23 @@ export function initSite(backend, tools) {
   // Roster as a table (like the captain's Google Sheet). "Add team member" and a click on a row open the player form in a dialog.
   function rDate(d) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d || ""); return m ? m[3] + "/" + m[2] + "/" + m[1] : d || ""; }
   function rosterPanel(id) {
-    if (!canRoster(id)) return "";
+    var ed = canRoster(id); // the view-only account (Student Council / Eva Morta) reads it on the captain pages
+    if (!ed && !hv().ro) return "";
     var pl = rosterOf(id);
     if (pl === null) return '<section class="panel"><div class="panel-head"><h2>Team roster</h2></div><p class="empty">Loading…</p></section>';
     var cols = PL_FIELDS.map(function (f) { return f[0] === "number" ? "No." : f[0] === "program" ? "Program" : f[0] === "notes" ? "Allergies" : f[1]; });
     var table = pl.length ? '<div class="table-wrap"><table class="roster-sheet"><thead><tr><th class="r">#</th>' + cols.map(function (c) { return "<th>" + c + "</th>"; }).join("") + "<th></th></tr></thead><tbody>" +
-      pl.map(function (p, i) { return '<tr class="click" data-pl-edit="' + i + '" data-team="' + id + '" tabindex="0" title="Edit this player"><td class="r num muted">' + (i + 1) + "</td>" +
+      pl.map(function (p, i) { return (ed ? '<tr class="click" data-pl-edit="' + i + '" data-team="' + id + '" tabindex="0" title="Edit this player">' : "<tr>") + '<td class="r num muted">' + (i + 1) + "</td>" +
         PL_FIELDS.map(function (f) { var v = f[0] === "birth" ? rDate(p.birth) : p[f[0]]; return '<td class="rc-' + f[0] + '">' + (v ? esc(v) : '<span class="muted">—</span>') + "</td>"; }).join("") +
-        '<td><button type="button" class="btn sm ghost" data-pl-edit="' + i + '" data-team="' + id + '">Edit</button></td></tr>'; }).join("") + "</tbody></table></div>"
-      : '<p class="empty">No players yet. Use <b>Add team member</b>, or paste the rows from your team sheet.</p>';
+        "<td>" + (ed ? '<button type="button" class="btn sm ghost" data-pl-edit="' + i + '" data-team="' + id + '">Edit</button>' : "") + "</td></tr>"; }).join("") + "</tbody></table></div>"
+      : ed ? '<p class="empty">No players yet. Use <b>Add team member</b>, or paste the rows from your team sheet.</p>' : '<p class="empty">No players yet.</p>';
     var sizes = sizeSummary(pl);
     return '<section class="panel roster-panel"><div class="panel-head"><h2>Team roster <span class="muted" style="font-weight:600">· ' + pl.length + " player" + (pl.length === 1 ? "" : "s") + "</span></h2>" +
       '<span class="pill">Private: captain and Board only</span></div>' +
-      '<div class="roster-actions"><button type="button" class="btn sm solid" data-pl-add="' + id + '">+ Add team member</button><button type="button" class="btn sm" data-pl-paste="' + id + '">Paste from Google Sheets</button>' +
+      (ed ? '<div class="roster-actions"><button type="button" class="btn sm solid" data-pl-add="' + id + '">+ Add team member</button><button type="button" class="btn sm" data-pl-paste="' + id + '">Paste from Google Sheets</button>' : '<div class="roster-actions">') +
       (sizes ? '<span class="muted" style="font-size:13px">Shirt sizes: <b>' + esc(sizes) + "</b></span>" : "") + "</div>" + table +
       (live() && ROSTER[id] && ROSTER[id].updatedBy ? '<small class="muted">Last saved by ' + esc(ROSTER[id].updatedBy) + " · " + esc(fmtWhen(ROSTER[id].updatedAt)) + "</small>" : "") +
-      rosterDialog(id, pl) + "</section>";
+      (ed ? rosterDialog(id, pl) : "") + "</section>";
   }
   function rosterDialog(id, pl) {
     var e = state.rosterEdit;

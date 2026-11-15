@@ -4,16 +4,18 @@ import { getAccess, requireAccess, type Access } from "./roles";
 import { TEAMS } from "./teamList";
 
 // Team rosters hold personal data (ID numbers, birth dates, phones, allergies).
-// Read and edit: the team's own captain(s), admins, the President and the Vice-presidents.
-// Not heads, not associates, not the read-only Student Council view, and never the public site.
+// Edit: the team's own captain(s), admins, the President and the Vice-presidents.
+// Read: the same people plus the read-only Student Council / Eva Morta account (captain pages of every team).
+// Not heads, not associates, and never the public site.
 const allowed = (a: Access, team: string) => !a.readOnly && (a.isAdmin || a.exec || a.teams.includes(team));
-const board = (a: Access) => !a.readOnly && (a.isAdmin || a.exec);
+const reads = (a: Access, team: string) => allowed(a, team) || a.viewer;
+const board = (a: Access) => a.isAdmin || a.exec || a.viewer;
 
 export const get = query({
   args: { team: v.string() },
   handler: async (ctx, { team }) => {
     const a = await getAccess(ctx);
-    if (!a || !allowed(a, team)) return null;
+    if (!a || !reads(a, team)) return null;
     return await ctx.db.query("rosters").withIndex("by_team", (q) => q.eq("team", team)).unique();
   },
 });
