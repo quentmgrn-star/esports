@@ -328,12 +328,17 @@ export function initSite(backend, tools) {
   // Public browsing never needs a login. This page is only for the people who run Esade Sports.
   function signinView() {
     return '<section class="band"><div class="wrap"><h1 class="display">Members<br>area.</h1><p>For captains, Board members, associates and the Student Council: requests, decisions and follow-up in one place. Visitors don\u2019t need an account, everything public is open.</p></div></section>' +
-      '<section class="signin"><div class="wrap"><div class="access">' +
+      '<section class="signin"><div class="wrap">' + (admin || captain ? "" : membersOnly()) + '<div class="access">' +
       (admin || captain ? hubPicker() + (captain && !admin ? requestBlock() : "")
       : '<div class="acc"><p class="eyebrow">Captains · Board · Associates</p><strong>Sign in to the Hub</strong><p>Expenses and budgets, team updates, try-out applications, department tasks and reports for the Student Council.</p>' +
         '<a class="btn btn-blue" href="/admin">' + (admin === undefined ? "Checking your login\u2026" : "Sign in") + '</a></div>' + requestBlock()) +
       '</div><p class="hint">Only accounts approved by the Board can sign in.</p>' +
       (admin ? '<div class="members-board">' + BOARD_BLOCK + '</div>' : "") + '</div></section>';
+  }
+  // Shown above the sign-in: the Hub is for association members and captains, not for visitors.
+  function membersOnly() {
+    return '<div class="members-only" role="note"><strong>Members-only access</strong><p>Reserved for Esade Sports association members and team captains. Not for visitors or students in general: everything public on this site is open without an account.</p>' +
+      '<p class="mo-join">Want to get involved? <a href="/#apply-associate" target="_blank" rel="noopener">Join the association</a></p></div>';
   }
   // "Request access": becomes a request that the right person approves in /admin
   // (associates: their head of department; captains: the Board). Board positions are added by the admin.

@@ -327,6 +327,53 @@ function describeError(e: { message?: string; status?: number; statusText?: stri
   return "Something went wrong" + status + ". Please try again.";
 }
 
+// Same three languages as the public site; uses the language picked there (saved as "es-lang").
+const MEMBERS_ONLY = {
+  en: ["Members-only access", "Reserved for Esade Sports association members and team captains. Not for visitors or students in general.", "Want to get involved?", "Join the association"],
+  ca: ["Accés només per a membres", "Reservat als membres de l'associació Esade Sports i als capitans dels equips. No és per a visitants ni per a estudiants en general.", "Vols implicar-t'hi?", "Uneix-te a l'associació"],
+  es: ["Acceso solo para miembros", "Reservado a los miembros de la asociación Esade Sports y a los capitanes de los equipos. No es para visitantes ni para estudiantes en general.", "¿Quieres participar?", "Únete a la asociación"],
+};
+
+function MembersOnlyNotice() {
+  const [lang, setLang] = useState<keyof typeof MEMBERS_ONLY>("en");
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem("es-lang");
+      if (v === "ca" || v === "es") setLang(v);
+    } catch {}
+  }, []);
+  const [title, body, ask, link] = MEMBERS_ONLY[lang];
+  return (
+    <div className="members-only" role="note">
+      <strong>{title}</strong>
+      <p>{body}</p>
+      <p className="mo-join">
+        {ask}{" "}
+        <a href="/#apply-associate" target="_blank" rel="noopener">
+          {link}
+        </a>
+      </p>
+      <div className="lang" role="group" aria-label="Language">
+        {(["en", "ca", "es"] as const).map((l) => (
+          <button
+            key={l}
+            type="button"
+            aria-pressed={lang === l}
+            onClick={() => {
+              setLang(l);
+              try {
+                localStorage.setItem("es-lang", l);
+              } catch {}
+            }}
+          >
+            {l.toUpperCase()}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function AuthForm() {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [name, setName] = useState("");
@@ -353,6 +400,7 @@ function AuthForm() {
 
   return (
     <Panel title={mode === "signin" ? "Sign in" : "Create account"}>
+      <MembersOnlyNotice />
       <p className="adm-p">
         {mode === "signin"
           ? "Admin area of Esade Sports. Sign in with your admin account."
