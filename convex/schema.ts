@@ -340,6 +340,15 @@ export default defineSchema({
     byEmail: v.string(),
     at: v.number(),
   }).index("by_at", ["at"]),
+  // Team activity feed (convex/activity.ts): what was done on a team, by whom and when. No personal data.
+  activity: defineTable({
+    team: v.string(),
+    area: v.string(),
+    what: v.string(),
+    by: v.string(),
+    byEmail: v.string(),
+    at: v.number(),
+  }).index("by_team_at", ["team", "at"]),
   notifSeen: defineTable({ email: v.string(), at: v.number() }).index("by_email", ["email"]),
 
   // Next tournament (e.g. Unijess, 29 Jan 2027): one row, edited by admins / President / VPs.

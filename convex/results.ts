@@ -1,6 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { canEdit, getAccess, requireAccess, type Access } from "./roles";
+import { logActivity } from "./activity";
 import { TEAMS } from "./teamList";
 
 // Match results typed in the Hub (Team editor). Public: they show on the team page straight away.
@@ -59,6 +60,7 @@ export const add = mutation({
       byEmail: a.email,
       at: Date.now(),
     });
+    await logActivity(ctx, a, x.team, "results", `Result: ${x.side === "Home" ? "vs" : "at"} ${opponent}${score ? ` ${score}` : ""} (${x.status}, ${x.date})`);
     return null;
   },
 });
@@ -71,6 +73,7 @@ export const remove = mutation({
     if (!r) return null;
     if (!edits(a, r.team)) throw new ConvexError("You can't remove this result.");
     await ctx.db.delete(id);
+    await logActivity(ctx, a, r.team, "results", `Removed the result vs ${r.opponent} (${r.date})`);
     return null;
   },
 });

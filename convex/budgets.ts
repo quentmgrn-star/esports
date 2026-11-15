@@ -1,6 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { canEdit, canSee, getAccess, requireAccess, type Access } from "./roles";
+import { logActivity } from "./activity";
 import { TEAMS } from "./teamList";
 
 // Each team's season budget, set by Finance and agreed with the captain. Only Operations and Marketing spend it.
@@ -45,6 +46,7 @@ export const set = mutation({
     const old = await ctx.db.query("teamBudgets").withIndex("by_team", (q) => q.eq("team", x.team)).unique();
     if (old) await ctx.db.patch(old._id, row);
     else await ctx.db.insert("teamBudgets", row);
+    await logActivity(ctx, a, x.team, "budget", `Budget set to €${row.total} (${row.opsShare}% Operations, ${row.status})`);
     return null;
   },
 });

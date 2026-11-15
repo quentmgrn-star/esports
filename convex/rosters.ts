@@ -1,6 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getAccess, requireAccess, type Access } from "./roles";
+import { logActivity } from "./activity";
 import { TEAMS } from "./teamList";
 
 // Team rosters hold personal data (ID numbers, birth dates, phones, allergies).
@@ -61,6 +62,16 @@ export const save = mutation({
       }))
       .filter((p) => p.first || p.last);
     const row = await ctx.db.query("rosters").withIndex("by_team", (q) => q.eq("team", team)).unique();
+    // Activity feed: names only (no ID, phone or email).
+    const nm = (p: { first: string; last: string }) => `${p.first} ${p.last}`.trim();
+    const before = new Map((row?.players ?? []).map((p) => [nm(p).toLowerCase(), JSON.stringify(p)]));
+    const after = new Set(clean.map((p) => nm(p).toLowerCase()));
+    const added = clean.filter((p) => !before.has(nm(p).toLowerCase())).map(nm);
+    const removed = (row?.players ?? []).filter((p) => !after.has(nm(p).toLowerCase())).map(nm);
+    const edited = clean.filter((p) => { const b = before.get(nm(p).toLowerCase()); return b !== undefined && b !== JSON.stringify(p); }).map(nm);
+    const list = (xs: string[]) => (xs.length > 4 ? `${xs.slice(0, 4).join(", ")} +${xs.length - 4}` : xs.join(", "));
+    const parts = [added.length && `added ${list(added)}`, removed.length && `removed ${list(removed)}`, edited.length && `edited ${list(edited)}`].filter(Boolean);
+    if (parts.length) await logActivity(ctx, a, team, "roster", `Roster: ${parts.join(" · ")}`);
     const data = { team, players: clean, updatedBy: `${a.name || a.email.split("@")[0]} (${a.label})`, updatedAt: Date.now() };
     if (row) await ctx.db.patch(row._id, data);
     else await ctx.db.insert("rosters", data);

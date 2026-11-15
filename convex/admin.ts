@@ -1,9 +1,10 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
-import type { Id } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import { authComponent, isAdminEmail } from "./auth";
 import { stageValidator, TEAM_STATUSES } from "./stages";
 import { canEdit, canSee, getAccess, isExecEditor, requireAccess, type Access, type Resource } from "./roles";
+import { logActivity } from "./activity";
 import { TEAMS, teamLabel } from "./teamList";
 import { internal } from "./_generated/api";
 
@@ -151,12 +152,12 @@ export const listTeamApplications = query({
   },
 });
 
-async function editableTeamApp(ctx: MutationCtx, id: Id<"teamApplications">) {
+async function editableTeamApp(ctx: MutationCtx, id: Id<"teamApplications">): Promise<Doc<"teamApplications"> & { by: Access }> {
   const a = await requireAccess(ctx);
   const app = await ctx.db.get(id);
   if (!app) throw new ConvexError("Sign-up not found.");
   if (!canEdit(a, tryoutRes(app))) throw deny(a);
-  return app;
+  return { ...app, by: a };
 }
 
 export const setTeamApplicationStatus = mutation({
@@ -164,15 +165,18 @@ export const setTeamApplicationStatus = mutation({
   handler: async (ctx, { id, status }) => {
     if (!TEAM_STATUSES.includes(status)) throw new ConvexError("Unknown status.");
     const app = await editableTeamApp(ctx, id);
-    if (app.status !== status) await ctx.db.patch(id, { status, statusChangedAt: Date.now() });
+    if (app.status === status) return;
+    await ctx.db.patch(id, { status, statusChangedAt: Date.now() });
+    await logActivity(ctx, app.by, app.teamSlug, "signups", `${app.kind === "coach" ? "Coach" : "Try-out"} sign-up of ${app.firstName} ${app.lastName.slice(0, 1)}.: ${app.status} → ${status}`);
   },
 });
 
 export const setTeamApplicationNotes = mutation({
   args: { id: v.id("teamApplications"), notes: v.string() },
   handler: async (ctx, { id, notes }) => {
-    await editableTeamApp(ctx, id);
+    const app = await editableTeamApp(ctx, id);
     await ctx.db.patch(id, { notes: notes.trim().slice(0, 5000) || undefined });
+    await logActivity(ctx, app.by, app.teamSlug, "signups", `Notes updated on the sign-up of ${app.firstName} ${app.lastName.slice(0, 1)}.`);
   },
 });
 

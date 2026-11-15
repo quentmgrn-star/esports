@@ -2,6 +2,7 @@ import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { canEdit, canSee, getAccess, requireAccess, type Access } from "./roles";
+import { logActivity } from "./activity";
 import { TEAMS } from "./teamList";
 import { notify } from "./notifications";
 
@@ -71,6 +72,7 @@ export const suggest = mutation({
       team: x.team, kind, text, status: fromOps ? "researching" : "new", origin: fromOps ? "ops" : "captain",
       by: who(a), byEmail: a.email, at: Date.now(), comments: [],
     });
+    await logActivity(ctx, a, x.team, "ideas", `${fromOps ? "Operations suggested" : "Suggested"} an idea (${kind}): ${text.slice(0, 120)}`);
     if (fromOps) await sendToCaptain(ctx, a, id, x.concerns ?? "team", x.estimate, undefined);
     else await notify(ctx, a, { team: x.team, dept: OPS, title: `New idea from the captain: ${kind}`, body: `${teamName(x.team)} · ${text.slice(0, 160)}`, link: "hub-ideas" });
     return null;
@@ -120,7 +122,11 @@ export const update = mutation({
     if (x.action === "send") {
       await ctx.db.patch(x.id, base);
       await sendToCaptain(ctx, a, x.id, x.concerns ?? "team", base.estimate, x.comment);
-    } else if (x.action === "drop") await ctx.db.patch(x.id, { ...base, status: "dropped" });
+      await logActivity(ctx, a, r.team, "ideas", `Sent to the captain for approval: ${r.kind}`);
+    } else if (x.action === "drop") {
+      await ctx.db.patch(x.id, { ...base, status: "dropped" });
+      await logActivity(ctx, a, r.team, "ideas", `Dropped the idea: ${r.kind}`);
+    }
     else await ctx.db.patch(x.id, { ...base, status: x.action === "research" ? "researching" : r.status === "new" ? "researching" : r.status });
     return null;
   },
@@ -137,6 +143,7 @@ export const decide = mutation({
     const now = Date.now(), comments = [...(r.comments ?? [])];
     if (x.comment?.trim()) comments.push({ by: who(a), at: now, text: x.comment.trim().slice(0, 600) });
     await ctx.db.patch(x.id, { status: x.approve ? "approved" : "dropped", comments, updatedBy: who(a), updatedAt: now });
+    await logActivity(ctx, a, r.team, "ideas", `${x.approve ? "Approved" : "Declined"} the idea: ${r.kind} · ${r.text.slice(0, 80)}${x.comment?.trim() ? ` · “${x.comment.trim().slice(0, 100)}”` : ""}`);
     if (x.approve) {
       await notify(ctx, a, { team: r.team, dept: MKT, title: `To communicate: ${r.kind}`, body: `${teamName(r.team)} · approved by the captain. Post it on the media accounts or as platform news.`, link: "hub-ideas" });
       await notify(ctx, a, { team: r.team, dept: OPS, title: `Approved by the captain: ${r.kind}`, body: teamName(r.team), link: "hub-ideas" });
@@ -154,6 +161,7 @@ export const communicated = mutation({
     if (r.status !== "approved") throw new ConvexError("Only approved ideas can be marked as communicated.");
     if (!marketing(a, r.team)) throw new ConvexError("Only Marketing for this team can do this.");
     await ctx.db.patch(x.id, { status: "communicated", channel: x.channel, updatedBy: who(a), updatedAt: Date.now() });
+    await logActivity(ctx, a, r.team, "ideas", `Communicated (${x.channel === "media" ? "media accounts" : "platform news"}): ${r.kind}`);
     await notify(ctx, a, { team: r.team, captains: true, title: `Communicated: ${r.kind}`, body: x.channel === "media" ? "Posted on the media accounts." : "Published as platform news.", link: "hub-ideas" });
     return null;
   },
@@ -168,6 +176,7 @@ export const comment = mutation({
     const text = x.text.trim().slice(0, 600);
     if (!text) return null;
     await ctx.db.patch(x.id, { comments: [...(r.comments ?? []), { by: who(a), at: Date.now(), text }] });
+    await logActivity(ctx, a, r.team, "ideas", `Commented on ${r.kind}: “${text.slice(0, 120)}”`);
     return null;
   },
 });

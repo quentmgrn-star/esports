@@ -27,6 +27,7 @@ const WATCH: Record<string, FunctionReference<"query">> = {
   tournament: api.tournament.overview,
   handover: api.handover.list,
   tryouts: api.admin.listTeamApplications,
+  activity: api.activity.forTeam,
 };
 const RUN: Record<string, FunctionReference<"mutation">> = {
   addTask: api.tasks.add,

@@ -2,6 +2,7 @@ import { ConvexError, v } from "convex/values";
 import { mutation, query, type MutationCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { DEPARTMENTS, canEdit, canSee, getAccess, requireAccess, type Access } from "./roles";
+import { logActivity } from "./activity";
 import { TEAMS } from "./teamList";
 
 // Expenses ledger. Who sees what (convex/roles.ts):
@@ -68,6 +69,7 @@ export const request = mutation({
     const link = x.link?.trim();
     if (link && !/^https:\/\//i.test(link)) throw new ConvexError("The link must start with https://");
     const now = Date.now();
+    await logActivity(ctx, a, x.team, "expenses", `Requested an expense: ${item} (€${Math.round(x.amount * 100) / 100}, ${x.dept})`);
     return await ctx.db.insert("expenses", {
       team: x.team,
       dept: x.dept,
@@ -104,6 +106,7 @@ export const decide = mutation({
       if (e.status !== "validated") throw new ConvexError("Only a validated expense can be marked paid.");
       if (!pays(a)) throw new ConvexError("Only the Head of Finance, the President or a Vice-president marks expenses paid.");
       await ctx.db.patch(id, { status, history: [...e.history, { action: "paid", by: who(a), at: now }] });
+      await logActivity(ctx, a, e.team, "expenses", `Marked paid: ${e.item} (€${e.amount})`);
       return null;
     }
     if (e.status !== "requested") throw new ConvexError("This request was already decided. Reconsider it first.");
@@ -119,6 +122,7 @@ export const decide = mutation({
       reason: status === "rejected" ? why : undefined,
       history: [...e.history, { action: status, by: who(a), at: now, reason: why || undefined }],
     });
+    await logActivity(ctx, a, e.team, "expenses", `${status === "validated" ? "Validated" : "Rejected"} the expense: ${e.item} (€${e.amount})${why ? ` · “${why}”` : ""}`);
     return null;
   },
 });
@@ -143,6 +147,8 @@ export const esadeStep = mutation({
       esadeNote: why || undefined,
       history: [...e.history, { action: ESADE_ACTION[step], by: who(a), at: now, reason: why || undefined }],
     });
+    const said = step === "sent" ? "Sent to Esade finance" : step === "accepted" ? "Esade accepted" : "Esade refused";
+    await logActivity(ctx, a, e.team, "expenses", `${said}: ${e.item} (€${e.amount})`);
     return null;
   },
 });
@@ -165,6 +171,7 @@ export const reconsider = mutation({
       reason: undefined,
       history: [...e.history, { action: "reopened", by: who(a), at: Date.now(), reason: why }],
     });
+    await logActivity(ctx, a, e.team, "expenses", `Reopened the expense: ${e.item} · “${why}”`);
     return null;
   },
 });

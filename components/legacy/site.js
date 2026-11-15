@@ -1310,7 +1310,7 @@ export function initSite(backend, tools) {
     return '<div class="app"><aside class="rail"><div class="top"><a class="lock" href="#home" aria-label="Back to Esade Sports home">' + mono(38) + '<span>ESADE SPORTS<br>HUB</span></a><div class="history" aria-label="Page navigation"><button type="button" data-history="back" aria-label="Go back">' + ico("left") + '</button><button type="button" data-history="forward" aria-label="Go forward">' + ico("right") + '</button>' + (live() ? bellHtml() : "") + '</div>' +
       '<div class="who"><p class="eyebrow">Signed in' + (admin ? " as admin" : "") + '</p><strong>' + esc(me.email) + "</strong><small>Viewing as " + esc(viewLabel(u)) + (hRO() ? " · read-only" : "") + "</small>" + (multi ? '<a class="back-site" href="#signin">Change view</a>' : "") + '<a class="back-site" href="/admin">Requests &amp; applications</a><a class="back-site" href="#home">← Public site</a><button type="button" data-signout>Sign out</button>' + langSwitch() + '</div></div>' +
       '<nav aria-label="Hub">' + nav + "</nav></aside>" +
-      '<main class="main">' + teamBar(u) + (admin && !onTeamPages(u) ? demoBar(u) : admin || opensAnyTeam() || live() ? "" : '<div class="banner"><b>Prototype</b><span>Example figures and tasks, saved in this browser only.</span></div>') + inner + "</main></div>";
+      '<main class="main">' + teamBar(u) + (onTeamPages(u) ? activityPanel(u.teams[0]) : "") + (admin && !onTeamPages(u) ? demoBar(u) : admin || opensAnyTeam() || live() ? "" : '<div class="banner"><b>Prototype</b><span>Example figures and tasks, saved in this browser only.</span></div>') + inner + "</main></div>";
   }
   // People responsible for a team in each department (captain view, team detail).
   function teamContacts(teamId) {
@@ -2270,9 +2270,12 @@ export function initSite(backend, tools) {
     }); });
   }
   function hubTeams() {
-    var ts = visTeams();
+    var ts = visTeams(), u0 = state.user || {};
+    // A captain sees their own team's live activity here (on the captain pages it sits under the team bar).
+    var feedTeam = u0.role === "captain" && !onTeamPages(u0) ? ((u0.teams || []).indexOf(state.teamOpen) > -1 ? state.teamOpen : (u0.teams || [])[0]) : null;
+    var feed = feedTeam && team(feedTeam) ? activityPanel(feedTeam) : "";
     if (!can("money")) // teams without the money columns (Finance only)
-      return '<div class="ph-head"><div><h1 class="display">' + (can("all") ? "Every team." : "Your teams.") + '</h1><p>Budgets and expenses are handled by Finance.</p></div></div>' +
+      return '<div class="ph-head"><div><h1 class="display">' + (can("all") ? "Every team." : "Your teams.") + '</h1><p>Budgets and expenses are handled by Finance.</p></div></div>' + feed +
         '<section class="panel"><div class="table-wrap"><table><thead><tr><th>Team</th><th>Captain</th></tr></thead><tbody>' +
         ts.map(function (t) { return '<tr><td class="tname">' + esc(tLabel(t)) + "</td><td>" + esc(captainName(captainForTeam(t.id))) + "</td></tr>"; }).join("") + "</tbody></table></div></section>";
     var open = state.teamOpen || (ts.length === 1 ? ts[0].id : null), detail = "";
@@ -2288,7 +2291,7 @@ export function initSite(backend, tools) {
       '<section class="panel"><div class="table-wrap"><table><thead><tr><th>Team</th><th>Budget</th><th class="r">Agreed</th><th class="r">Paid</th><th>Used (paid + waiting)</th></tr></thead><tbody>' +
       ts.map(function (t) { var o = totals(t.id), p = t.budget ? Math.min(100, o.paid / t.budget * 100) : 0, q = t.budget ? Math.min(100 - p, o.pending / t.budget * 100) : 0;
         return '<tr class="click" data-hteam="' + t.id + '" tabindex="0"><td class="tname">' + esc(tLabel(t)) + "</td><td>" + pill(BUDGET_STATUS, t.status) + '</td><td class="r num">' + EUR.format(t.budget) + '</td><td class="r num">' + EUR.format(o.paid) + '</td><td style="width:22%"><div class="bar"><i style="width:' + p + '%"></i><i class="pend" style="left:' + p + "%;width:" + q + '%"></i></div></td></tr>'; }).join("") +
-      "</tbody></table></div>" + (can("all") ? '<p class="muted" style="margin:0;font-size:12px">Select a team to see its associates and expenses.</p>' : "") + "</section>" + rostersOverview() + detail;
+      "</tbody></table></div>" + (can("all") ? '<p class="muted" style="margin:0;font-size:12px">Select a team to see its associates and expenses.</p>' : "") + "</section>" + feed + rostersOverview() + detail;
   }
   // ---- Expenses ledger -------------------------------------------------------------------------
   // Signed in with Convex: rows come from the database (only what this account may see, kept live).
@@ -2336,6 +2339,7 @@ export function initSite(backend, tools) {
       if (LIVE.unChat) LIVE.unChat(); LIVE.unChat = null; LIVE.chatOpen = null; LIVE.chatMsgs = null;
       (LIVE.subs || []).forEach(function (u) { try { u(); } catch (e) {} }); LIVE.subs = [];
       if (LIVE.unGoals) LIVE.unGoals(); LIVE.unGoals = null;
+      if (LIVE.unAct) LIVE.unAct(); LIVE.unAct = null; LIVE.act = null; LIVE.actTeam = null;
       ["tasks", "budgets", "results", "people", "partners", "inbox", "goals", "messages", "assocApps", "chats", "tournament", "handover", "tryouts"].forEach(function (k) { LIVE[k] = null; });
       setTimeout(function () { applyPeople(); applyBudgets(); }, 0);
       LIVE.unExp(); LIVE.unIdeas(); if (LIVE.unNotifs) LIVE.unNotifs(); if (LIVE.unTupd) LIVE.unTupd(); if (LIVE.unLinks) LIVE.unLinks(); LIVE.unLinks = null; LIVE.links = null; LIVE.unTupd = null; LIVE.tupd = null; LIVE.unExp = LIVE.unIdeas = LIVE.unNotifs = null; LIVE.notifs = null; LIVE.exp = LIVE.ideas = null; LIVE.checks = {}; ROSTER = {}; ROSTER_ALL = null;
@@ -2350,6 +2354,41 @@ export function initSite(backend, tools) {
     var un = backend.watch("goals", function (d) { if (d === undefined || LIVE.goalsTerm !== term) return; LIVE.goals = d; setTimeout(hubRefresh, 0); }, { term: term });
     if (LIVE.goalsTerm === term) LIVE.unGoals = un; else un();
   }
+  // Live activity of one team (captain pages): every change made on the team, newest first, kept live by Convex.
+  // Admins, President / VPs and the view-only account see any team; a captain only their own (checked in Convex).
+  var ACT_AREAS = [["all", "Everything"], ["expenses", "Expenses"], ["ideas", "Ideas & logistics"], ["roster", "Roster"], ["tournament", "Tournament"], ["handover", "Handover"], ["results", "Results"], ["signups", "Sign-ups"], ["budget", "Budget"], ["team", "Team editor"]];
+  function watchActivity(id) {
+    if (!backend || !backend.watch || !(admin || captain)) return;
+    if (LIVE.unAct && LIVE.actTeam === id) return;
+    if (LIVE.unAct) LIVE.unAct();
+    LIVE.actTeam = id; LIVE.act = undefined; LIVE.unAct = function () {};
+    var un = backend.watch("activity", function (d) { if (d === undefined || LIVE.actTeam !== id) return; LIVE.act = d || []; setTimeout(hubRefresh, 0); }, { team: id });
+    if (LIVE.actTeam === id) LIVE.unAct = un; else un();
+  }
+  function ago(at) {
+    var m = Math.floor((Date.now() - at) / 60000);
+    if (m < 1) return "just now"; if (m < 60) return m + " min ago";
+    var h = Math.floor(m / 60); if (h < 24) return h + " h ago";
+    var d = Math.floor(h / 24); return d < 7 ? d + (d === 1 ? " day ago" : " days ago") : fmtDay(at);
+  }
+  function activityPanel(id) {
+    if (!live() || !backend.watch) return "";
+    watchActivity(id);
+    var rows = LIVE.actTeam === id ? LIVE.act : undefined, area = state.actArea || "all", all = rows || [];
+    var list = area === "all" ? all : all.filter(function (r) { return r.area === area; }), shown = state.actMore ? list : list.slice(0, 8);
+    var label = {}; ACT_AREAS.forEach(function (x) { label[x[0]] = x[1]; });
+    var fresh = all.filter(function (r) { return Date.now() - r.at < 10 * 60000; }).length;
+    return '<details class="panel act-panel" id="act-panel"' + (state.actClosed ? "" : " open") + '><summary><h2><span class="live-dot" aria-hidden="true"></span>Live activity · ' + esc(tLabel(team(id))) + "</h2>" +
+      (fresh ? '<span class="count num" title="Changes in the last 10 minutes">' + fresh + " new</span>" : "") + "</summary>" +
+      '<p class="muted act-help">What the captain and the team’s associates do on this team, as it happens: no need to refresh.</p>' +
+      '<label class="act-filter" for="act-area">Show<select id="act-area">' + ACT_AREAS.map(function (x) { return '<option value="' + x[0] + '"' + (x[0] === area ? " selected" : "") + ">" + x[1] + "</option>"; }).join("") + "</select></label>" +
+      (rows === undefined ? '<p class="empty">Loading…</p>' : !list.length ? '<p class="empty">Nothing yet' + (area === "all" ? " for this team. Changes will appear here live." : " in this area.") + "</p>" :
+        '<ul class="act-list">' + shown.map(function (r) {
+          return '<li' + (Date.now() - r.at < 10 * 60000 ? ' class="fresh"' : "") + '><span class="act-area">' + esc(label[r.area] || r.area) + '</span><span class="act-what">' + esc(r.what) + '<small class="muted">' + esc(r.mine ? "You" : r.by) + ' · <time data-at="' + r.at + '" title="' + esc(new Date(r.at).toLocaleString("en-GB")) + '">' + esc(ago(r.at)) + "</time></small></span></li>";
+        }).join("") + "</ul>" + (list.length > 8 ? '<button type="button" class="btn sm ghost" data-act-more>' + (state.actMore ? "Show less" : "Show all " + list.length) + "</button>" : "")) +
+      "</details>";
+  }
+  setInterval(function () { document.querySelectorAll("#act-panel time[data-at]").forEach(function (t) { t.textContent = ago(+t.getAttribute("data-at")); }); }, 30000);
   function allExp() { return live() ? LIVE.exp || [] : state.expenses; }
   function visExp() { return allExp().filter(seeExp); }
   // Who sees an expense: Finance for the team (it validates everything), the expense's own department
@@ -3006,6 +3045,9 @@ export function initSite(backend, tools) {
       if (!live()) { state.links = (state.links || []).filter(function (l) { return String(l.id) !== id; }); save(); render(); return; }
       b.disabled = true; Promise.resolve(backend.removeDeptLink({ id: id })).then(function () { toast("Link removed."); }, function (x) { b.disabled = false; toast(errText(x)); });
     }); });
+    var actA = $("act-area"); if (actA) actA.addEventListener("change", function () { state.actArea = actA.value; state.actMore = false; render(); });
+    var actP = $("act-panel"); if (actP) actP.addEventListener("toggle", function () { state.actClosed = !actP.open; });
+    hub.querySelectorAll("[data-act-more]").forEach(function (b) { b.addEventListener("click", function () { state.actMore = !state.actMore; render(); }); });
     ["hi-dept", "hi-team"].forEach(function (k) { var el = $(k); if (el) el.addEventListener("change", function () { if (k === "hi-dept") state.histDept = el.value; else state.histTeam = el.value; render(); }); });
     var idf = $("idea-form"); if (idf) idf.addEventListener("submit", function (ev) {
       ev.preventDefault(); var text = $("id-text").value.trim(); if (!text) return;
@@ -3224,7 +3266,7 @@ export function initSite(backend, tools) {
   var DRAFT_KEY = "es-drafts", draftSent = {};
   var DRAFT_SKIP = /pass|passport|dni|nie\b|id-?num|idnum|iddoc|tn-id|iban|card|code|website/i;
   // Controls that save or switch the view as soon as they change: never put back from a draft.
-  var DRAFT_NOT = /^(cal-team|p-team-f|demo-as|team-as|ck-team|hi-dept|hi-team|ti-team)$/;
+  var DRAFT_NOT = /^(cal-team|p-team-f|demo-as|team-as|ck-team|hi-dept|hi-team|ti-team|act-area)$/;
   var DRAFT_LIVE_ATTRS = ["data-task", "data-pstage", "data-msg", "data-app-stage", "data-inq", "data-bd", "data-key", "data-tn-file", "data-ho-file"];
   function draftRead() { try { var d = JSON.parse(sessionStorage.getItem(DRAFT_KEY) || "{}"); return d && typeof d === "object" ? d : {}; } catch (e) { return {}; } }
   function draftWrite(d) { try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify(d)); } catch (e) {} }

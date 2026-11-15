@@ -2,6 +2,7 @@ import { ConvexError, v } from "convex/values";
 import { mutation, query, type MutationCtx } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
 import { canEdit, canSee, DEPARTMENTS, getAccess, requireAccess, type Access } from "./roles";
+import { logActivity } from "./activity";
 import { TEAMS } from "./teamList";
 
 // Team handover (Hub). For each team and department: notes, contacts, links and files (invoices, league
@@ -100,6 +101,7 @@ export const save = mutation({
     const data = { notes, contacts, links, updatedBy: who(a), updatedAt: Date.now() };
     if (row) await ctx.db.patch(row._id, data);
     else await ctx.db.insert("handover", { team: args.team, dept: args.dept, files: [], ...data });
+    await logActivity(ctx, a, args.team, "handover", `Handover: updated the ${args.dept} section`);
     return null;
   },
 });
@@ -123,6 +125,7 @@ export const addFile = mutation({
     const file = { id: storageId, name: name.trim().slice(0, 120) || "File", type: meta.contentType ?? "", size: meta.size, by: who(a), at: Date.now() };
     if (row) await ctx.db.patch(row._id, { files: [...row.files, file], updatedBy: who(a), updatedAt: Date.now() });
     else await ctx.db.insert("handover", { team, dept, contacts: [], links: [], files: [file], updatedBy: who(a), updatedAt: Date.now() });
+    await logActivity(ctx, a, team, "handover", `Handover: added ${file.name} to ${dept}`);
     return { error: null };
   },
 });
@@ -135,6 +138,7 @@ export const removeFile = mutation({
     if (!row || !row.files.some((f) => f.id === storageId)) return null;
     await ctx.storage.delete(storageId);
     await ctx.db.patch(row._id, { files: row.files.filter((f) => f.id !== storageId), updatedBy: who(a), updatedAt: Date.now() });
+    await logActivity(ctx, a, team, "handover", `Handover: removed a file from ${dept}`);
     return null;
   },
 });

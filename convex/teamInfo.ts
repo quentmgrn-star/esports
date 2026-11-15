@@ -1,6 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { canSee, getAccess, requireEdit, type Resource } from "./roles";
+import { logActivity } from "./activity";
 import { TEAMS } from "./teamList";
 
 // Team pages belong to the team's captains and to Media & Marketing (rules: convex/roles.ts).
@@ -73,5 +74,6 @@ export const save = mutation({
     const existing = await ctx.db.query("teamInfo").withIndex("by_team", (q) => q.eq("teamId", args.teamId)).unique();
     if (existing) await ctx.db.replace(existing._id, row);
     else await ctx.db.insert("teamInfo", row);
+    await logActivity(ctx, a, args.teamId, "team", "Team editor: updated the team information");
   },
 });

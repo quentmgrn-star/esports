@@ -2,6 +2,7 @@ import { ConvexError, v } from "convex/values";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
 import { getAccess, isExecEditor, requireAccess, type Access } from "./roles";
+import { logActivity } from "./activity";
 import { TEAMS } from "./teamList";
 
 // Tournament tab (Hub). Captains mark each roster player Attending / Not attending and add the ID or passport
@@ -99,6 +100,7 @@ export const setStatus = mutation({
     const row = await playerRow(ctx, a, team, key);
     const label = status === "yes" ? "Attending" : status === "no" ? "Not attending" : "Not answered";
     await touch(ctx, a, row, `Marked ${label}`, { status: status === "none" ? undefined : status });
+    await logActivity(ctx, a, team, "tournament", `Tournament: ${row.name} marked ${label}`);
     return null;
   },
 });
@@ -110,6 +112,7 @@ export const setIdNumber = mutation({
     const row = await playerRow(ctx, a, team, key);
     const clean = idNumber.trim().slice(0, 30) || undefined;
     await touch(ctx, a, row, clean ? "Changed the ID / passport number" : "Removed the ID / passport number", { idNumber: clean });
+    await logActivity(ctx, a, team, "tournament", `Tournament: ID / passport number ${clean ? "added" : "removed"} for ${row.name}`);
     return null;
   },
 });
@@ -132,6 +135,7 @@ export const addFile = mutation({
     if (row.files.length >= MAX_FILES) return await refuse(`Max ${MAX_FILES} documents per player. Remove one first.`);
     const file = { id: storageId, name: name.trim().slice(0, 120) || "Document", type: meta.contentType ?? "", size: meta.size, by: who(a), at: Date.now() };
     await touch(ctx, a, row, `Added ${file.name}`, { files: [...row.files, file] });
+    await logActivity(ctx, a, team, "tournament", `Tournament: document added for ${row.name}`);
     return { error: null };
   },
 });
@@ -145,6 +149,7 @@ export const removeFile = mutation({
     if (!f) return null;
     await ctx.storage.delete(storageId);
     await touch(ctx, a, row, `Removed ${f.name}`, { files: row.files.filter((x) => x.id !== storageId) });
+    await logActivity(ctx, a, team, "tournament", `Tournament: document removed for ${row.name}`);
     return null;
   },
 });
