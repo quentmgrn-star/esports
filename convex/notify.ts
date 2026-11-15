@@ -115,6 +115,7 @@ export const sendReply = internalAction({
       "",
       r.text,
       "",
+      "Kind regards,",
       `${r.byName}`,
       "Esade Sports",
       "",

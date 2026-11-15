@@ -23,9 +23,9 @@ const T: Record<Kind, Record<Lang, [string, string]>> = {
     es: ["Gracias por ofrecerte como entrenador", "Gracias por ofrecerte a entrenar a {team}. El capitán o capitana y el equipo de Operaciones leerán tu solicitud y te responderán por correo."],
   },
   association: {
-    en: ["We received your application", "Thanks for applying to join Esade Sports ({team}). The Board and the heads of the departments you chose will review it. We will email you about the next step."],
-    ca: ["Hem rebut la teva candidatura", "Gràcies per presentar-te a Esade Sports ({team}). La Junta i els responsables dels departaments que has triat la revisaran. T'escriurem amb el següent pas."],
-    es: ["Hemos recibido tu candidatura", "Gracias por presentarte a Esade Sports ({team}). La Junta y los responsables de los departamentos que has elegido la revisarán. Te escribiremos con el siguiente paso."],
+    en: ["We received your application", "Thanks for applying to join Esade Sports ({team}). The Board and the heads of department will review your application, and we will email you about the next step."],
+    ca: ["Hem rebut la teva candidatura", "Gràcies per presentar-te a Esade Sports ({team}). La Junta i els responsables de departament revisaran la teva candidatura i t'escriurem amb el següent pas."],
+    es: ["Hemos recibido tu candidatura", "Gracias por presentarte a Esade Sports ({team}). La Junta y los responsables de departamento revisarán tu candidatura y te escribiremos con el siguiente paso."],
   },
   alumni: {
     en: ["We received your alumni profile", "Thanks for adding your profile to the Esade Sports Alumni corner. An admin checks every profile before it goes online; you will see it on the website once it is approved."],
@@ -48,11 +48,54 @@ const T: Record<Kind, Record<Lang, [string, string]>> = {
     es: ["Gracias por tu interés en colaborar", "Gracias por tu interés en colaborar con Esade Sports ({team}). Nuestro equipo de Partnerships te responderá por correo."],
   },
 };
+// Polite closing line(s) before the signature, matched to each email.
+const CLOSE: Record<Kind, Record<Lang, string>> = {
+  tryout: {
+    en: "Good luck, and we look forward to meeting you!\n\nBest wishes,",
+    ca: "Molta sort, i tenim ganes de conèixer-te!\n\nSalutacions cordials,",
+    es: "¡Mucha suerte, y tenemos ganas de conocerte!\n\nUn saludo cordial,",
+  },
+  social: {
+    en: "Have fun, and see you soon!\n\nBest wishes,",
+    ca: "Que t'ho passis molt bé, i fins aviat!\n\nSalutacions cordials,",
+    es: "¡Que lo disfrutes, y hasta pronto!\n\nUn saludo cordial,",
+  },
+  coach: {
+    en: "Thank you again for wanting to help our teams grow.\n\nKind regards,",
+    ca: "Gràcies de nou per voler ajudar els nostres equips a créixer.\n\nSalutacions cordials,",
+    es: "Gracias de nuevo por querer ayudar a nuestros equipos a crecer.\n\nUn saludo cordial,",
+  },
+  association: {
+    en: "Thank you again for your interest in Esade Sports.\n\nBest wishes,",
+    ca: "Gràcies de nou pel teu interès en Esade Sports.\n\nSalutacions cordials,",
+    es: "Gracias de nuevo por tu interés en Esade Sports.\n\nUn saludo cordial,",
+  },
+  alumni: {
+    en: "Thank you for staying part of the Esade Sports community.\n\nWarm regards,",
+    ca: "Gràcies per continuar formant part de la comunitat d'Esade Sports.\n\nSalutacions cordials,",
+    es: "Gracias por seguir formando parte de la comunidad de Esade Sports.\n\nUn saludo cordial,",
+  },
+  access: {
+    en: "Thank you for your patience.\n\nKind regards,",
+    ca: "Gràcies per la teva paciència.\n\nSalutacions cordials,",
+    es: "Gracias por tu paciencia.\n\nUn saludo cordial,",
+  },
+  contact: {
+    en: "Thank you for getting in touch.\n\nKind regards,",
+    ca: "Gràcies per posar-te en contacte amb nosaltres.\n\nSalutacions cordials,",
+    es: "Gracias por ponerte en contacto con nosotros.\n\nUn saludo cordial,",
+  },
+  partner: {
+    en: "We look forward to talking with you.\n\nKind regards,",
+    ca: "Tenim ganes de parlar amb tu.\n\nSalutacions cordials,",
+    es: "Tenemos ganas de hablar contigo.\n\nUn saludo cordial,",
+  },
+};
 const HELLO: Record<Lang, string> = { en: "Hello", ca: "Hola", es: "Hola" };
 const BYE: Record<Lang, string> = {
-  en: "Esade Sports\n(This is an automatic confirmation. You can reply to this email if you have a question.)",
-  ca: "Esade Sports\n(Aquesta és una confirmació automàtica. Pots respondre aquest correu si tens cap pregunta.)",
-  es: "Esade Sports\n(Esta es una confirmación automática. Puedes responder a este correo si tienes alguna pregunta.)",
+  en: "Esade Sports\n\n(This is an automatic confirmation. You can reply to this email if you have a question.)",
+  ca: "Esade Sports\n\n(Aquesta és una confirmació automàtica. Pots respondre aquest correu si tens cap pregunta.)",
+  es: "Esade Sports\n\n(Esta es una confirmación automática. Puedes responder a este correo si tienes alguna pregunta.)",
 };
 
 export const confirm = internalAction({
@@ -64,7 +107,7 @@ export const confirm = internalAction({
     if (!t || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x.to)) return null;
     const lang: Lang = x.lang === "ca" || x.lang === "es" ? x.lang : "en";
     const [subject, body] = t[lang];
-    const text = `${HELLO[lang]}${x.name ? " " + x.name : ""},\n\n${body.replace("{team}", x.about ?? "Esade Sports")}\n\n${BYE[lang]}`;
+    const text = `${HELLO[lang]}${x.name ? " " + x.name : ""},\n\n${body.replace("{team}", x.about ?? "Esade Sports")}\n\n${CLOSE[x.kind as Kind][lang]}\n${BYE[lang]}`;
     try {
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
