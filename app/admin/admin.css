@@ -153,3 +153,12 @@
   .adm-table th, .adm-table td { padding: 10px 12px; }
   .adm-filters { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Password help: success notes, "Temporary password" in Organisation */
+.adm-ok { background: var(--ok-bg, #e7f6ec); color: var(--ok, #1f7a3f); padding: 10px 12px; font-weight: 600; }
+.adm-temp-line { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
+.adm-temp-btn { font-size: 12px; }
+.adm-temp { flex-basis: 100%; display: grid; gap: 8px; justify-items: start; background: var(--mist); border-left: 4px solid var(--blue); padding: 10px 12px; margin: 4px 0; }
+.adm-temp p { margin: 0; }
+.adm-temp-pw { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.adm-temp-pw code { font: 700 18px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .06em; background: var(--white, #fff); color: var(--navy); padding: 6px 10px; border: 1.5px solid var(--navy); user-select: all; word-break: break-all; }

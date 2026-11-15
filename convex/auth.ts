@@ -26,7 +26,24 @@ export const createAuth = (ctx: GenericCtx<DataModel>) =>
   betterAuth({
     baseURL: process.env.SITE_URL,
     database: authComponent.adapter(ctx),
-    emailAndPassword: { enabled: true, requireEmailVerification: false },
+    emailAndPassword: {
+      enabled: true,
+      requireEmailVerification: false,
+      // "Forgot password?" (convex/passwords.ts). Better Auth only calls this when the account exists,
+      // and answers the sign-in page the same way either way. The link works once, for 1 hour.
+      resetPasswordTokenExpiresIn: 60 * 60,
+      revokeSessionsOnPasswordReset: true,
+      sendResetPassword: async ({ user, url, token }) => {
+        const back = new URL(url).searchParams.get("callbackURL") ?? "";
+        const lang = /lang=(ca|es|en)/.exec(back)?.[1];
+        const c = ctx as { scheduler?: { runAfter: (ms: number, fn: unknown, args: unknown) => Promise<unknown> } };
+        await c.scheduler?.runAfter(0, internal.passwords.sendResetEmail, { email: user.email, name: user.name, token, lang });
+      },
+      onPasswordReset: async ({ user }) => {
+        const c = ctx as { runMutation?: (fn: unknown, args: unknown) => Promise<unknown> };
+        await c.runMutation?.(internal.passwords.clearMustChange, { email: user.email });
+      },
+    },
     databaseHooks: {
       user: {
         create: {

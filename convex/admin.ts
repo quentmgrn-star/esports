@@ -263,6 +263,9 @@ export const emailProblems = query({
       if (notSent(x.confirmEmail)) out.push({ at: x._creationTime, form: "Contact message", name: x.name, email: x.email, about: x.subject, why: x.confirmEmail! });
       if (x.emailStatus?.startsWith("failed")) out.push({ at: x._creationTime, form: "Contact message (copy to captains/admins)", name: x.name, email: x.email, about: x.subject, why: x.emailStatus });
     }
+    for (const x of await ctx.db.query("passwordEvents").collect())
+      if (x.kind === "reset-email" && notSent(x.emailStatus) && x.emailStatus !== "sending")
+        out.push({ at: x.at, form: "Forgot password (reset link)", name: x.email, email: x.email, about: "", why: x.emailStatus! });
     return out.sort((p, q) => q.at - p.at).slice(0, 100);
   },
 });

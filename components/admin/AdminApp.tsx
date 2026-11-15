@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import { useAction, useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { authClient } from "@/lib/auth-client";
 import { convex } from "@/components/ConvexClientProvider";
@@ -250,14 +250,41 @@ function Gate() {
   const { isLoading, isAuthenticated } = useConvexAuth();
   const session = authClient.useSession();
   const me = useQuery(api.admin.me, isAuthenticated ? {} : "skip") as Me | undefined;
+  const mustChange = useQuery(api.passwords.mustChange, isAuthenticated ? {} : "skip") as boolean | undefined;
   const signedInEmail = session.data?.user?.email;
+  // "Forgot password?" email link: /admin?reset=<token>&lang=xx
+  const [resetToken, setResetToken] = useState<string | null>(null);
+  const [notice, setNotice] = useState("");
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const l = q.get("lang");
+    if (l === "en" || l === "ca" || l === "es") {
+      try {
+        localStorage.setItem("es-lang", l);
+      } catch {}
+    }
+    if (q.get("reset")) setResetToken(q.get("reset"));
+  }, []);
 
+  if (resetToken)
+    return (
+      <ResetPassword
+        token={resetToken}
+        onDone={(msg) => {
+          window.history.replaceState(null, "", "/admin");
+          setResetToken(null);
+          setNotice(msg);
+        }}
+      />
+    );
   if (isLoading || session.isPending || (isAuthenticated && me === undefined)) {
     return <Panel title="Loading">Checking your session…</Panel>;
   }
   // Signed in with Better Auth, but Convex has not accepted the session (yet).
   if (signedInEmail && (!isAuthenticated || !me)) return <Connecting email={signedInEmail} convexOk={isAuthenticated} />;
-  if (!isAuthenticated || !me) return <AuthForm />;
+  if (!isAuthenticated || !me) return <AuthForm notice={notice} />;
+  // Signed in with a temporary password set by an admin: choose your own first.
+  if (mustChange) return <ChooseOwnPassword />;
   if (!me.label) {
     return (
       <Panel title="No access">
@@ -334,14 +361,28 @@ const MEMBERS_ONLY = {
   es: ["Acceso solo para miembros", "Reservado a los miembros de la asociación Esade Sports y a los capitanes de los equipos. No es para visitantes ni para estudiantes en general.", "¿Quieres participar?", "Únete a la asociación"],
 };
 
-function MembersOnlyNotice() {
-  const [lang, setLang] = useState<keyof typeof MEMBERS_ONLY>("en");
+type Lang = keyof typeof MEMBERS_ONLY;
+// The language picked on the public site or on this page (saved as "es-lang").
+function useLang(): [Lang, (l: Lang) => void] {
+  const [lang, setLang] = useState<Lang>("en");
   useEffect(() => {
     try {
       const v = localStorage.getItem("es-lang");
       if (v === "ca" || v === "es") setLang(v);
     } catch {}
   }, []);
+  return [
+    lang,
+    (l: Lang) => {
+      setLang(l);
+      try {
+        localStorage.setItem("es-lang", l);
+      } catch {}
+    },
+  ];
+}
+
+function MembersOnlyNotice({ lang, setLang }: { lang: Lang; setLang: (l: Lang) => void }) {
   const [title, body, ask, link] = MEMBERS_ONLY[lang];
   return (
     <div className="members-only" role="note">
@@ -359,12 +400,7 @@ function MembersOnlyNotice() {
             key={l}
             type="button"
             aria-pressed={lang === l}
-            onClick={() => {
-              setLang(l);
-              try {
-                localStorage.setItem("es-lang", l);
-              } catch {}
-            }}
+            onClick={() => setLang(l)}
           >
             {l.toUpperCase()}
           </button>
@@ -374,8 +410,170 @@ function MembersOnlyNotice() {
   );
 }
 
-function AuthForm() {
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+// Password help texts (sign-in page, reset link page, temporary password).
+const PW = {
+  en: {
+    forgot: "Forgot password?",
+    forgotTitle: "Reset your password",
+    forgotIntro: "Enter the email of your account. We will email you a link to choose a new password.",
+    send: "Email me a link",
+    sent: "If an account exists for this email, a link to choose a new password is on its way. It works for 1 hour.",
+    noEmail: "No email after a few minutes? Check your spam folder, or ask an association admin (or the President or a Vice-president) to set a temporary password for you.",
+    back: "Back to sign in",
+    newTitle: "Choose a new password",
+    newPw: "New password (at least 8 characters)",
+    again: "Type it again",
+    mismatch: "The two passwords are not the same.",
+    save: "Save my new password",
+    done: "Password changed. Sign in with your new password.",
+    expired: "This link has expired or was already used. Ask for a new one with \"Forgot password?\".",
+    tempTitle: "Choose your own password",
+    tempIntro: "You signed in with a temporary password. Choose your own password to continue.",
+    tempCurrent: "Temporary password",
+    wait: "Please wait…",
+  },
+  ca: {
+    forgot: "Has oblidat la contrasenya?",
+    forgotTitle: "Restableix la contrasenya",
+    forgotIntro: "Escriu el correu del teu compte. T'enviarem un enllaç per triar una contrasenya nova.",
+    send: "Envia'm un enllaç",
+    sent: "Si hi ha un compte amb aquest correu, t'arribarà un enllaç per triar una contrasenya nova. Funciona durant 1 hora.",
+    noEmail: "No t'arriba cap correu al cap d'uns minuts? Mira la carpeta de correu brossa, o demana a un administrador de l'associació (o al president o a un vicepresident) que et posi una contrasenya temporal.",
+    back: "Torna a iniciar sessió",
+    newTitle: "Tria una contrasenya nova",
+    newPw: "Contrasenya nova (mínim 8 caràcters)",
+    again: "Escriu-la una altra vegada",
+    mismatch: "Les dues contrasenyes no són iguals.",
+    save: "Desa la contrasenya nova",
+    done: "Contrasenya canviada. Inicia sessió amb la contrasenya nova.",
+    expired: "Aquest enllaç ha caducat o ja s'ha fet servir. Demana'n un de nou amb \"Has oblidat la contrasenya?\".",
+    tempTitle: "Tria la teva contrasenya",
+    tempIntro: "Has iniciat sessió amb una contrasenya temporal. Tria la teva pròpia contrasenya per continuar.",
+    tempCurrent: "Contrasenya temporal",
+    wait: "Un moment…",
+  },
+  es: {
+    forgot: "¿Has olvidado la contraseña?",
+    forgotTitle: "Restablece tu contraseña",
+    forgotIntro: "Escribe el correo de tu cuenta. Te enviaremos un enlace para elegir una contraseña nueva.",
+    send: "Envíame un enlace",
+    sent: "Si existe una cuenta con este correo, te llegará un enlace para elegir una contraseña nueva. Funciona durante 1 hora.",
+    noEmail: "¿No te llega ningún correo al cabo de unos minutos? Mira la carpeta de spam, o pide a un administrador de la asociación (o al presidente o a un vicepresidente) que te ponga una contraseña temporal.",
+    back: "Volver a iniciar sesión",
+    newTitle: "Elige una contraseña nueva",
+    newPw: "Contraseña nueva (mínimo 8 caracteres)",
+    again: "Escríbela otra vez",
+    mismatch: "Las dos contraseñas no son iguales.",
+    save: "Guardar la contraseña nueva",
+    done: "Contraseña cambiada. Inicia sesión con tu contraseña nueva.",
+    expired: "Este enlace ha caducado o ya se ha usado. Pide uno nuevo con \"¿Has olvidado la contraseña?\".",
+    tempTitle: "Elige tu propia contraseña",
+    tempIntro: "Has iniciado sesión con una contraseña temporal. Elige tu propia contraseña para continuar.",
+    tempCurrent: "Contraseña temporal",
+    wait: "Un momento…",
+  },
+};
+
+// Opened from the "Forgot password?" email: choose a new password with the one-hour token.
+function ResetPassword({ token, onDone }: { token: string; onDone: (notice: string) => void }) {
+  const [lang] = useLang();
+  const t = PW[lang];
+  const [pw, setPw] = useState("");
+  const [pw2, setPw2] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (pw !== pw2) return setError(t.mismatch);
+    setError("");
+    setBusy(true);
+    try {
+      const res = await authClient.resetPassword({ newPassword: pw, token });
+      if (res.error) setError(res.error.code === "INVALID_TOKEN" || res.error.status === 400 ? t.expired : describeError(res.error));
+      else return onDone(t.done);
+    } catch (err) {
+      setError(`Could not reach the server (${err instanceof Error ? err.message : String(err)}).`);
+    }
+    setBusy(false);
+  }
+  return (
+    <Panel title={t.newTitle}>
+      <form className="adm-form" onSubmit={submit}>
+        <label className="field">
+          {t.newPw}
+          <input type="password" required minLength={8} value={pw} onChange={(e) => setPw(e.target.value)} autoComplete="new-password" />
+        </label>
+        <label className="field">
+          {t.again}
+          <input type="password" required minLength={8} value={pw2} onChange={(e) => setPw2(e.target.value)} autoComplete="new-password" />
+        </label>
+        {error && <p className="err">{error}</p>}
+        <button className="btn btn-blue" type="submit" disabled={busy}>
+          {busy ? t.wait : t.save}
+        </button>
+      </form>
+      <button className="adm-link" type="button" onClick={() => onDone("")}>
+        {t.back}
+      </button>
+    </Panel>
+  );
+}
+
+// Signed in with a temporary password set by an admin / President / VP.
+function ChooseOwnPassword() {
+  const [lang] = useLang();
+  const t = PW[lang];
+  const done = useMutation(api.passwords.changed);
+  const [current, setCurrent] = useState("");
+  const [pw, setPw] = useState("");
+  const [pw2, setPw2] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (pw !== pw2) return setError(t.mismatch);
+    setError("");
+    setBusy(true);
+    try {
+      const res = await authClient.changePassword({ currentPassword: current, newPassword: pw, revokeOtherSessions: true });
+      if (res.error) setError(describeError(res.error));
+      else await done({});
+    } catch (err) {
+      setError(`Could not reach the server (${err instanceof Error ? err.message : String(err)}).`);
+    }
+    setBusy(false);
+  }
+  return (
+    <Panel title={t.tempTitle}>
+      <p className="adm-p">{t.tempIntro}</p>
+      <form className="adm-form" onSubmit={submit}>
+        <label className="field">
+          {t.tempCurrent}
+          <input type="password" required value={current} onChange={(e) => setCurrent(e.target.value)} autoComplete="current-password" />
+        </label>
+        <label className="field">
+          {t.newPw}
+          <input type="password" required minLength={8} value={pw} onChange={(e) => setPw(e.target.value)} autoComplete="new-password" />
+        </label>
+        <label className="field">
+          {t.again}
+          <input type="password" required minLength={8} value={pw2} onChange={(e) => setPw2(e.target.value)} autoComplete="new-password" />
+        </label>
+        {error && <p className="err">{error}</p>}
+        <button className="btn btn-blue" type="submit" disabled={busy}>
+          {busy ? t.wait : t.save}
+        </button>
+      </form>
+      <SignOut />
+    </Panel>
+  );
+}
+
+function AuthForm({ notice = "" }: { notice?: string }) {
+  const [lang, setLang] = useLang();
+  const t = PW[lang];
+  const [mode, setMode] = useState<"signin" | "signup" | "forgot">("signin");
+  const [sent, setSent] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -386,6 +584,18 @@ function AuthForm() {
     e.preventDefault();
     setError("");
     setBusy(true);
+    if (mode === "forgot") {
+      try {
+        // Same answer whether or not the account exists (Better Auth), so nobody can check who has one.
+        const res = await authClient.requestPasswordReset({ email, redirectTo: `/admin?lang=${lang}` });
+        if (res.error) setError(describeError(res.error));
+        else setSent(true);
+      } catch (err) {
+        setError(`Could not reach the server (${err instanceof Error ? err.message : String(err)}).`);
+      }
+      setBusy(false);
+      return;
+    }
     try {
       const res =
         mode === "signin"
@@ -398,9 +608,52 @@ function AuthForm() {
     setBusy(false);
   }
 
+  if (mode === "forgot")
+    return (
+      <Panel title={t.forgotTitle}>
+        <MembersOnlyNotice lang={lang} setLang={setLang} />
+        {sent ? (
+          <p className="adm-p adm-ok" role="status">
+            {t.sent}
+          </p>
+        ) : (
+          <>
+            <p className="adm-p">{t.forgotIntro}</p>
+            <form className="adm-form" onSubmit={submit}>
+              <label className="field">
+                Email
+                <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
+              </label>
+              {error && <p className="err">{error}</p>}
+              <button className="btn btn-blue" type="submit" disabled={busy}>
+                {busy ? t.wait : t.send}
+              </button>
+            </form>
+          </>
+        )}
+        <p className="adm-p adm-sub">{t.noEmail}</p>
+        <button
+          className="adm-link"
+          type="button"
+          onClick={() => {
+            setMode("signin");
+            setSent(false);
+            setError("");
+          }}
+        >
+          {t.back}
+        </button>
+      </Panel>
+    );
+
   return (
     <Panel title={mode === "signin" ? "Sign in" : "Create account"}>
-      <MembersOnlyNotice />
+      <MembersOnlyNotice lang={lang} setLang={setLang} />
+      {notice && (
+        <p className="adm-p adm-ok" role="status">
+          {notice}
+        </p>
+      )}
       <p className="adm-p">
         {mode === "signin"
           ? "Admin area of Esade Sports. Sign in with your admin account."
@@ -433,6 +686,18 @@ function AuthForm() {
           {busy ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"}
         </button>
       </form>
+      {mode === "signin" && (
+        <button
+          className="adm-link"
+          type="button"
+          onClick={() => {
+            setMode("forgot");
+            setError("");
+          }}
+        >
+          {t.forgot}
+        </button>
+      )}
       <button
         className="adm-link"
         type="button"
@@ -587,7 +852,7 @@ function Dashboard({ me }: { me: NonNullable<Me> }) {
       ) : section === "requests" && approves ? (
         <Requests me={me} rows={requests ?? undefined} />
       ) : section === "organisation" && seesOrg ? (
-        <Organisation />
+        <Organisation me={me} />
       ) : section === "captains" && me.full ? (
         <Captains />
       ) : section === "alumni" && me.full ? (
@@ -1712,7 +1977,7 @@ const whereOf = (m: Pick<MemberRow, "role" | "department" | "teams" | "position"
     .join(" · ");
 const errText = (err: unknown) => (err instanceof Error ? err.message.replace(/^[\s\S]*ConvexError:\s*/, "").split("\n")[0] : String(err));
 
-function PersonLine({ p, tag }: { p: Person; tag?: string }) {
+function PersonLine({ p, tag, reset }: { p: Person; tag?: string; reset?: boolean }) {
   return (
     <li>
       <strong>{p.name || p.email.split("@")[0]}</strong>
@@ -1720,11 +1985,135 @@ function PersonLine({ p, tag }: { p: Person; tag?: string }) {
       <a className="adm-sub" href={`mailto:${p.email}`}>
         {p.email}
       </a>
+      {reset && <TempPassword email={p.email} name={p.name || p.email} />}
     </li>
   );
 }
 
-function Organisation() {
+// Organisation tab: set a temporary password for someone who forgot theirs. Shown once, never emailed or stored.
+function TempPassword({ email, name }: { email: string; name: string }) {
+  const setTemporary = useAction(api.passwords.setTemporary);
+  const [step, setStep] = useState<"idle" | "confirm" | "busy" | "done">("idle");
+  const [pw, setPw] = useState("");
+  const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
+  async function go() {
+    setStep("busy");
+    setError("");
+    try {
+      const r = await setTemporary({ email });
+      setPw(r.password);
+      setStep("done");
+    } catch (e) {
+      const data = (e as { data?: unknown }).data;
+      setError(typeof data === "string" ? data : e instanceof Error ? e.message : String(e));
+      setStep("idle");
+    }
+  }
+  if (step === "idle")
+    return (
+      <span className="adm-temp-line">
+        <button className="adm-link adm-temp-btn" type="button" onClick={() => setStep("confirm")}>
+          Temporary password
+        </button>
+        {error && <span className="err">{error}</span>}
+      </span>
+    );
+  if (step === "done")
+    return (
+      <div className="adm-temp" role="status">
+        <p>
+          Temporary password for <strong>{name}</strong>:
+        </p>
+        <p className="adm-temp-pw">
+          <code>{pw}</code>
+          <button
+            type="button"
+            className="btn btn-ghost-navy"
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(pw);
+                setCopied(true);
+              } catch {}
+            }}
+          >
+            {copied ? "Copied" : "Copy"}
+          </button>
+        </p>
+        <p className="adm-sub">
+          Shown only once. Give it to them in person or by private message (not by email). When they sign in, they will be asked to
+          choose their own password.
+        </p>
+        <button
+          className="adm-link"
+          type="button"
+          onClick={() => {
+            setPw("");
+            setCopied(false);
+            setStep("idle");
+          }}
+        >
+          Done, hide it
+        </button>
+      </div>
+    );
+  return (
+    <div className="adm-temp">
+      <p>
+        Set a temporary password for <strong>{name}</strong>? Their current password stops working and they are signed out
+        everywhere.
+      </p>
+      <p className="adm-temp-pw">
+        <button className="btn btn-blue" type="button" disabled={step === "busy"} onClick={go}>
+          {step === "busy" ? "Please wait…" : "Yes, set it"}
+        </button>
+        <button className="btn btn-ghost-navy" type="button" disabled={step === "busy"} onClick={() => setStep("idle")}>
+          Cancel
+        </button>
+      </p>
+    </div>
+  );
+}
+
+// Last password resets (temporary passwords and "Forgot password?" emails), newest first.
+function PasswordHistory() {
+  const rows = useQuery(api.passwords.recent, {}) as
+    | { email: string; kind: "temporary" | "reset-email"; by: string | null; at: number; mustChange: boolean; emailStatus: string | null }[]
+    | undefined;
+  return (
+    <section>
+      <h2 className="adm-h3">Password help</h2>
+      <p className="adm-p">
+        Forgot their password? They click &quot;Forgot password?&quot; on the sign-in page and get a link by email. If no email arrives,
+        click &quot;Temporary password&quot; next to their name above and pass it on in person.
+      </p>
+      {rows?.length ? (
+        <ul className="adm-people">
+          {rows.map((r, i) => (
+            <li key={i}>
+              <strong>{r.email}</strong>
+              <i className="adm-tag">{r.kind === "temporary" ? "Temporary password" : "Reset link"}</i>
+              <span className="adm-sub">
+                {new Date(r.at).toLocaleString("en-GB")}
+                {r.kind === "temporary"
+                  ? ` · set by ${r.by ?? "?"}${r.mustChange ? " · not changed yet" : " · own password chosen"}`
+                  : r.emailStatus === "sent"
+                    ? " · email sent"
+                    : r.emailStatus === "sending"
+                      ? " · sending"
+                      : ` · email not sent (${r.emailStatus ?? "?"})`}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="adm-sub">No password resets yet.</p>
+      )}
+    </section>
+  );
+}
+
+function Organisation({ me }: { me: NonNullable<Me> }) {
   const o = useQuery(api.org.overview, {}) as
     | {
         admins: Person[];
@@ -1738,20 +2127,22 @@ function Organisation() {
   if (o === undefined) return <p className="adm-p">Loading…</p>;
   if (o === null) return <p className="adm-p">Not authorised.</p>;
   const sports = [...new Set(TEAMS.map((t) => t.sport))];
+  // Same rule as convex/passwords.ts: not yourself; only an admin resets an admin, the President or a VP.
+  const canReset = (p: Person, top = false) => !me.readOnly && p.email !== me.email && (me.isAdmin || (me.exec && !top));
   return (
     <div className="adm-org">
       <section>
         <h2 className="adm-h3">Admin</h2>
         <ul className="adm-people">
           {o.admins.map((p) => (
-            <PersonLine key={p.email} p={p} tag="Admin" />
+            <PersonLine key={p.email} p={p} tag="Admin" reset={canReset(p, true)} />
           ))}
         </ul>
       </section>
       <section>
         <h2 className="adm-h3">President and vice-presidents</h2>
         <ul className="adm-people">
-          {o.exec.length ? o.exec.map((p) => <PersonLine key={p.email} p={p} tag={p.position} />) : <li className="adm-sub">Not set yet</li>}
+          {o.exec.length ? o.exec.map((p) => <PersonLine key={p.email} p={p} tag={p.position} reset={canReset(p, true)} />) : <li className="adm-sub">Not set yet</li>}
         </ul>
       </section>
       <section>
@@ -1761,9 +2152,9 @@ function Organisation() {
             <article key={d.name} className="adm-org-card">
               <h3>{d.name}</h3>
               <ul className="adm-people">
-                {d.heads.length ? d.heads.map((p) => <PersonLine key={p.email} p={p} tag="Head" />) : <li className="adm-sub">No head yet</li>}
+                {d.heads.length ? d.heads.map((p) => <PersonLine key={p.email} p={p} tag="Head" reset={canReset(p)} />) : <li className="adm-sub">No head yet</li>}
                 {d.associates.map((p) => (
-                  <PersonLine key={p.email} p={p} tag={(p.teams ?? []).map(teamLabel).join(", ")} />
+                  <PersonLine key={p.email} p={p} tag={(p.teams ?? []).map(teamLabel).join(", ")} reset={canReset(p)} />
                 ))}
               </ul>
               {!d.associates.length && <p className="adm-sub">No associates yet</p>}
@@ -1776,7 +2167,7 @@ function Organisation() {
           <h2 className="adm-h3">View only</h2>
           <ul className="adm-people">
             {o.viewers.map((p) => (
-              <PersonLine key={p.email} p={p} tag="Student Council" />
+              <PersonLine key={p.email} p={p} tag="Student Council" reset={canReset(p)} />
             ))}
           </ul>
         </section>
@@ -1793,7 +2184,7 @@ function Organisation() {
                   .map((t) => {
                     const squad = TEAMS.find((x) => x.id === t.id)?.squad;
                     return t.captains.length ? (
-                      t.captains.map((p) => <PersonLine key={t.id + p.email} p={p} tag={squad} />)
+                      t.captains.map((p) => <PersonLine key={t.id + p.email} p={p} tag={squad} reset={canReset(p)} />)
                     ) : (
                       <li key={t.id} className="adm-sub">
                         {squad}: no captain yet
@@ -1805,6 +2196,7 @@ function Organisation() {
           ))}
         </div>
       </section>
+      <PasswordHistory />
     </div>
   );
 }

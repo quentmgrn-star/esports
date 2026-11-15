@@ -507,4 +507,16 @@ export default defineSchema({
     at: v.number(),
     updatedAt: v.optional(v.number()),
   }).index("by_term", ["term"]),
+
+  // Password help (convex/passwords.ts). Never stores a password, only who did what and when.
+  //   "temporary": an admin / President / VP set a temporary password; mustChange until the person picks their own.
+  //   "reset-email": someone asked for a "Forgot password?" link; emailStatus says whether the email went out.
+  passwordEvents: defineTable({
+    email: v.string(),
+    kind: v.union(v.literal("temporary"), v.literal("reset-email")),
+    by: v.optional(v.string()),
+    at: v.number(),
+    mustChange: v.optional(v.boolean()),
+    emailStatus: v.optional(v.string()),
+  }).index("by_email", ["email"]),
 });

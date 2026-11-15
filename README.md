@@ -76,6 +76,10 @@ People names in the Hub come from approved members (`org.overview`); nobody appr
 
 Confirmation emails (`convex/mail.ts`) go out after every public form (try-outs, just for fun, coaching, association applications, alumni profiles, access requests, contact, partner) in the visitor's language, once `RESEND_API_KEY` and `MAIL_FROM` are set on Convex. Without them, forms work and no email is sent.
 
+Forgotten passwords (`convex/passwords.ts`):
+- **Forgot password?** on the `/admin` sign-in page emails a link (EN/CA/ES, valid 1 hour, works once) to choose a new password. Same answer whether or not the account exists; at most 3 emails per address per hour. A link that did not go out shows in the "Email not sent" warning.
+- **Temporary password**: in `/admin` > Organisation, admins, the President and the VPs can set one for a member (only an admin can do it for an admin, the President or a VP). It is shown once to pass on in person, never emailed or stored; the member is signed out everywhere and asked to choose their own password when they sign in. The Organisation tab lists the last 20 resets (who, when).
+
 ## Deploy on Vercel
 
 1. Import this repo in Vercel (framework preset: Next.js).
