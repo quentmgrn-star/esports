@@ -1,7 +1,7 @@
 import { query } from "./_generated/server";
 import { canSee, getAccess } from "./roles";
 import { canDecide } from "./org";
-import { seesApp, tryoutRes } from "./admin";
+import { seesApp, seesMessage, tryoutRes } from "./admin";
 
 // "Waiting for you" on the Hub overview: what the signed-in person should act on outside the Hub pages
 // (member requests, applications and try-outs live in /admin; partner inquiries in Partnerships).
@@ -17,6 +17,7 @@ export const counts = query({
     const inquiries = canSee(a, { dept: "Partnerships" })
       ? (await ctx.db.query("partnerInquiries").collect()).filter((i) => (i.status ?? "new") === "new").length
       : 0;
-    return { requests, applications, tryouts, inquiries };
+    const messages = (await ctx.db.query("contactMessages").collect()).filter((m) => m.status === "new" && seesMessage(a, m)).length;
+    return { requests, applications, tryouts, inquiries, messages };
   },
 });

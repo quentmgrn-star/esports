@@ -1099,6 +1099,7 @@ export function initSite(backend, tools) {
     if (k === "tasks") return !ro && r !== "captain";
     if (k === "partners") return hDept("par");
     if (k === "goals") return r !== "captain";
+    if (k === "board") return r === "admin" || r === "exec" || r === "head"; // website messages + association applications
     return false;
   }
   function tryoutCount() { return live() ? (LIVE.inbox || {}).tryouts || 0 : visibleSportsApplications().length; }
@@ -1206,12 +1207,12 @@ export function initSite(backend, tools) {
   }
   function pill(map, k) { return '<span class="pill ' + map[k][0] + '">' + map[k][1] + "</span>"; }
   function stat(k, v, s) { return '<div class="stat"><p class="eyebrow">' + k + '</p><span class="v num">' + v + "</span><small>" + s + "</small></div>"; }
-  var HUBV = [["hub-overview", "Overview"], ["hub-teams", "Teams"], ["hub-team-editor", "Team editor"], ["hub-applications", "Sports applications"], ["hub-captains", "Captains"], ["hub-ideas", "Ideas & logistics"], ["hub-expenses", "Expenses ledger"], ["hub-partners", "Partnerships"], ["hub-departments", "Departments"], ["hub-goals", "Goals"], ["hub-history", "History"], ["hub-report", "Reports"]];
+  var HUBV = [["hub-overview", "Overview"], ["hub-teams", "Teams"], ["hub-team-editor", "Team editor"], ["hub-applications", "Sports applications"], ["hub-assoc-apps", "Association applications"], ["hub-messages", "Messages"], ["hub-captains", "Captains"], ["hub-ideas", "Ideas & logistics"], ["hub-expenses", "Expenses ledger"], ["hub-partners", "Partnerships"], ["hub-departments", "Departments"], ["hub-goals", "Goals"], ["hub-history", "History"], ["hub-report", "Reports"]];
 
   function hubShell(view, inner) {
     var pending = visExp().filter(canDecideE).length, newIdeas = can("ideas") ? visIdeas().filter(function (i) { return (i.status === "new" && canRunIdea(i)) || canApproveIdea(i) || canCommIdea(i); }).length : 0;
-    var nav = HUBV.filter(function (v) { return (v[0] !== "hub-expenses" || can("expenses")) && (v[0] !== "hub-departments" || can("depts")) && (v[0] !== "hub-report" || can("reports")) && (v[0] !== "hub-captains" || can("captains")) && (v[0] !== "hub-team-editor" || can("teamEdit")) && (v[0] !== "hub-applications" || can("applications")) && (v[0] !== "hub-ideas" || can("ideas")) && (v[0] !== "hub-partners" || can("partners")) && (v[0] !== "hub-goals" || can("goals")); }).map(function (v) {
-      return '<a href="#' + v[0] + '"' + (v[0] === view ? ' aria-current="page"' : "") + ">" + (v[0] === "hub-teams" && !can("all") ? "My team" : v[1]) + (v[0] === "hub-expenses" && pending ? '<span class="count num">' + pending + "</span>" : "") + (v[0] === "hub-overview" && unreadCount() ? '<span class="count num" title="New notifications">' + unreadCount() + "</span>" : "") + (v[0] === "hub-ideas" && newIdeas ? '<span class="count num">' + newIdeas + "</span>" : "") + (v[0] === "hub-applications" && tryoutCount() ? '<span class="count num">' + tryoutCount() + "</span>" : "") + (v[0] === "hub-partners" && (LIVE.inbox || {}).inquiries ? '<span class="count num" title="New partner inquiries">' + LIVE.inbox.inquiries + "</span>" : "") + "</a>";
+    var nav = HUBV.filter(function (v) { return (v[0] !== "hub-expenses" || can("expenses")) && (v[0] !== "hub-departments" || can("depts")) && (v[0] !== "hub-report" || can("reports")) && (v[0] !== "hub-captains" || can("captains")) && (v[0] !== "hub-team-editor" || can("teamEdit")) && (v[0] !== "hub-applications" || can("applications")) && (v[0] !== "hub-ideas" || can("ideas")) && (v[0] !== "hub-partners" || can("partners")) && (v[0] !== "hub-goals" || can("goals")) && ((v[0] !== "hub-messages" && v[0] !== "hub-assoc-apps") || can("board")); }).map(function (v) {
+      return '<a href="#' + v[0] + '"' + (v[0] === view ? ' aria-current="page"' : "") + ">" + (v[0] === "hub-teams" && !can("all") ? "My team" : v[1]) + (v[0] === "hub-expenses" && pending ? '<span class="count num">' + pending + "</span>" : "") + (v[0] === "hub-overview" && unreadCount() ? '<span class="count num" title="New notifications">' + unreadCount() + "</span>" : "") + (v[0] === "hub-ideas" && newIdeas ? '<span class="count num">' + newIdeas + "</span>" : "") + (v[0] === "hub-applications" && tryoutCount() ? '<span class="count num">' + tryoutCount() + "</span>" : "") + (v[0] === "hub-messages" && newMsgCount() ? '<span class="count num" title="New messages">' + newMsgCount() + "</span>" : "") + (v[0] === "hub-assoc-apps" && newAppCount() ? '<span class="count num" title="New applications">' + newAppCount() + "</span>" : "") + (v[0] === "hub-partners" && (LIVE.inbox || {}).inquiries ? '<span class="count num" title="New partner inquiries">' + LIVE.inbox.inquiries + "</span>" : "") + "</a>";
     }).join("");
     var u = state.user, me = admin || captain, multi = !!admin || allowedViews().length > 1;
     return '<div class="app"><aside class="rail"><div class="top"><a class="lock" href="#home" aria-label="Back to Esade Sports home">' + mono(38) + '<span>ESADE SPORTS<br>HUB</span></a><div class="history" aria-label="Page navigation"><button type="button" data-history="back" aria-label="Go back">' + ico("left") + '</button><button type="button" data-history="forward" aria-label="Go forward">' + ico("right") + '</button></div>' +
@@ -1386,7 +1387,8 @@ export function initSite(backend, tools) {
     add(ideas, ideas === 1 ? "captain idea waiting for you" : "captain ideas waiting for you", "#hub-ideas");
     var approver = u.role === "admin" || u.role === "exec" || u.role === "head";
     if (approver) add(ib.requests, ib.requests === 1 ? "access request to approve (associate or captain)" : "access requests to approve (associates or captains)", "/admin");
-    if (approver) add(ib.applications, ib.applications === 1 ? "new application to join your department" : "new applications to join your department", "/admin");
+    if (approver) add(ib.applications, ib.applications === 1 ? "new application to join your department" : "new applications to join your department", "#hub-assoc-apps");
+    if (approver) add(ib.messages, ib.messages === 1 ? "new message from the website" : "new messages from the website", "#hub-messages");
     add(ib.tryouts, ib.tryouts === 1 ? "new try-out or coach sign-up" : "new try-out or coach sign-ups", u.role === "captain" || u.dept === "ops" || hFull() ? "/admin" : "#hub-applications");
     if (can("partners")) {
       var me = meEmail(), soon = ((LIVE.partners || {}).partners || []).filter(function (p) { return p.nextDate && p.nextDate <= todayYmd(7) && p.stage !== "signed" && p.stage !== "lost" && (u.role !== "associate" || p.ownerEmail === me || !p.ownerEmail); }).length;
@@ -1465,6 +1467,57 @@ export function initSite(backend, tools) {
           "<td>" + (d.canInquiry && !hRO() ? '<select data-inq="' + esc(i._id) + '" aria-label="Status">' + Object.keys(INQ_STATUS).map(function (k) { return '<option value="' + k + '"' + (k === i.status ? " selected" : "") + ">" + INQ_STATUS[k] + "</option>"; }).join("") + "</select>" : esc(INQ_STATUS[i.status] || i.status)) + "</td>" +
           '<td class="r">' + (edit && i.status !== "added" ? '<button type="button" class="btn sm" data-inq-add="' + esc(i._id) + '">Add to tracker</button>' : "") + "</td></tr>";
       }).join("") + "</tbody></table></div>" : '<p class="empty">No partner messages from the website yet.</p>') + "</section>";
+  }
+
+  // ---- Website messages and association applications (admins and the Board) -------------------
+  // Same data as /admin (convex/admin.ts): Convex only sends what the signed-in account may see.
+  function boardAccount() { return !!admin || !!(captain && captain.scope && (captain.scope.exec || (captain.scope.heads || []).length)); }
+  var MSG_STATUS = { "new": ["warn", "New"], read: ["info", "Read"], answered: ["ok", "Answered"] };
+  var APP_STAGE = { applied: "Applied", review: "Under review", interview: "Interview", "case": "Case interview", offer: "Offer", accepted: "Accepted", declined: "Declined", rejected: "Rejected" };
+  var APP_TABS = [["all", "All"], ["applied", "Applied"], ["review", "Under review"], ["interview", "Interview"], ["case", "Case interview"], ["decision", "Decision"]];
+  function visMsgs() { return can("board") && live() ? LIVE.messages || [] : []; }
+  function visApps() {
+    if (!can("board") || !live()) return [];
+    var u = hv(), d = DEPTS.filter(function (x) { return x.id === u.dept; })[0]; // a head (or the admin previewing one) sees their department's applicants
+    return (LIVE.assocApps || []).filter(function (a) { return u.role !== "head" || (d && (a.pref1 === d.name || a.pref2 === d.name)); });
+  }
+  function newMsgCount() { return visMsgs().filter(function (m) { return m.status === "new"; }).length; }
+  function newAppCount() { return visApps().filter(function (a) { return (a.stage || "applied") === "applied"; }).length; }
+  function clip(t, n) { t = t || ""; return t.length > n ? t.slice(0, n - 1) + "…" : t; }
+  function hubMessages() {
+    var head = '<div class="ph-head"><div><h1 class="display">Messages.</h1><p>Everything sent through the contact form on the website. Mark each one read, then answered once someone has replied by email.</p></div></div>';
+    if (!live()) return head + '<section class="panel"><p class="empty">Messages show once you are signed in.</p></section>';
+    if (LIVE.messages == null) return head + '<section class="panel"><p class="empty">Loading…</p></section>';
+    var all = visMsgs(), f = state.mFilter || "new", rows = all.filter(function (m) { return f === "all" || m.status === f; });
+    var cnt = function (k) { return all.filter(function (m) { return m.status === k; }).length; };
+    return head + '<div class="grid-4">' + stat("New", String(cnt("new")), "not opened yet") + stat("Read", String(cnt("read")), "waiting for an answer") + stat("Answered", String(cnt("answered")), "done") + stat("Total", String(all.length), "since the site opened") + "</div>" +
+      '<section class="panel"><div class="chips" role="group" aria-label="Status">' + [["new", "New"], ["read", "Read"], ["answered", "Answered"], ["all", "All"]].map(function (x) { return '<button class="chip" data-mf="' + x[0] + '" aria-pressed="' + (f === x[0]) + '">' + x[1] + "</button>"; }).join("") + "</div>" +
+      (rows.length ? '<div class="table-wrap"><table><thead><tr><th>From</th><th>Topic</th><th>Message</th><th>Received</th><th>Status</th></tr></thead><tbody>' + rows.map(function (m) {
+        return "<tr><td><strong>" + esc(m.name) + '</strong><br><small><a href="mailto:' + esc(m.email) + "?subject=" + encodeURIComponent("Re: " + (m.subject || "")) + '">' + esc(m.email) + "</a>" + (m.phone ? "<br>" + esc(m.phone) : "") + "</small></td>" +
+          "<td>" + esc(m.topic) + (m.sport ? '<br><small class="muted">' + esc(m.sport) + "</small>" : "") + "</td>" +
+          "<td><strong>" + esc(m.subject) + "</strong>" + (m.message.length > 160 ? '<details><summary><small class="muted">' + esc(clip(m.message, 160)) + '</small></summary><p style="white-space:pre-wrap;margin:6px 0 0">' + esc(m.message) + "</p></details>" : '<br><small class="muted" style="white-space:pre-wrap">' + esc(m.message) + "</small>") + "</td>" +
+          '<td class="num muted">' + esc(fmtDay(m._creationTime)) + "</td>" +
+          "<td>" + (hRO() ? pill(MSG_STATUS, m.status) : '<select data-msg="' + esc(m._id) + '" aria-label="Status of the message from ' + esc(m.name) + '">' + Object.keys(MSG_STATUS).map(function (k) { return '<option value="' + k + '"' + (k === m.status ? " selected" : "") + ">" + MSG_STATUS[k][1] + "</option>"; }).join("") + "</select>") + "</td></tr>";
+      }).join("") + "</tbody></table></div>" : '<p class="empty">' + (all.length ? "No message with this status." : "No messages from the website yet.") + "</p>") + "</section>";
+  }
+  function hubAssocApps() {
+    var head = '<div class="ph-head"><div><h1 class="display">Association applications.</h1><p>Students applying to join a department. Heads see the applicants who chose their department; the President, VPs and admins see everyone. Notes stay in <a href="/admin">Requests &amp; applications</a>.</p></div></div>';
+    if (!live()) return head + '<section class="panel"><p class="empty">Applications show once you are signed in.</p></section>';
+    if (LIVE.assocApps == null) return head + '<section class="panel"><p class="empty">Loading…</p></section>';
+    var all = visApps(), f = state.aFilter || "all";
+    var inTab = function (a, t) { var st = a.stage || "applied"; return t === "all" || (t === "decision" ? ["offer", "accepted", "declined", "rejected"].indexOf(st) > -1 : st === t); };
+    var rows = all.filter(function (a) { return inTab(a, f); });
+    return head + '<section class="panel"><div class="chips" role="group" aria-label="Stage">' + APP_TABS.map(function (x) { var n = all.filter(function (a) { return inTab(a, x[0]); }).length; return '<button class="chip" data-af="' + x[0] + '" aria-pressed="' + (f === x[0]) + '">' + x[1] + " (" + n + ")</button>"; }).join("") + "</div>" +
+      (rows.length ? '<div class="table-wrap"><table><thead><tr><th>Applicant</th><th>Studies</th><th>Departments</th><th>Motivation</th><th>Files</th><th>Received</th><th>Stage</th></tr></thead><tbody>' + rows.map(function (a) {
+        var st = a.stage || "applied", name = a.firstName + " " + a.lastName;
+        return "<tr><td><strong>" + esc(name) + '</strong><br><small><a href="mailto:' + esc(a.email) + '">' + esc(a.email) + "</a><br>" + esc(a.phone) + (a.linkedin ? '<br><a href="' + esc(a.linkedin) + '" target="_blank" rel="noopener">LinkedIn</a>' : "") + "</small></td>" +
+          "<td>" + esc(a.programme) + '<br><small class="muted">' + esc(a.year) + "</small></td>" +
+          "<td>" + esc(a.pref1) + (a.pref2 ? '<br><small class="muted">then ' + esc(a.pref2) + "</small>" : "") + "</td>" +
+          '<td>' + (a.motivation.length > 120 ? '<details><summary><small class="muted">' + esc(clip(a.motivation, 120)) + '</small></summary><p style="white-space:pre-wrap;margin:6px 0 0">' + esc(a.motivation) + "</p></details>" : '<small class="muted" style="white-space:pre-wrap">' + esc(a.motivation) + "</small>") + "</td>" +
+          "<td>" + (a.cvUrl ? '<a href="' + esc(a.cvUrl) + '" target="_blank" rel="noopener">CV</a>' : "") + (a.videoUrl ? '<br><a href="' + esc(a.videoUrl) + '" target="_blank" rel="noopener">Video</a>' : "") + "</td>" +
+          '<td class="num muted">' + esc(fmtDay(a._creationTime)) + "</td>" +
+          "<td>" + (hRO() ? esc(APP_STAGE[st] || st) : '<select data-app-stage="' + esc(a._id) + '" aria-label="Stage of ' + esc(name) + '">' + Object.keys(APP_STAGE).map(function (k) { return '<option value="' + k + '"' + (k === st ? " selected" : "") + ">" + APP_STAGE[k] + "</option>"; }).join("") + "</select>") + "</td></tr>";
+      }).join("") + "</tbody></table></div>" : '<p class="empty">' + (all.length ? "No application at this stage." : "No applications yet.") + "</p>") + "</section>";
   }
 
   // ---- Goals: semester targets against the real numbers ----------------------------------------
@@ -1642,11 +1695,14 @@ export function initSite(backend, tools) {
       if (backend.watch) [["tasks", "tasks"], ["budgets", "budgets"], ["results", "results"], ["people", "people"], ["partners", "partners"], ["inbox", "inbox"]].forEach(function (x) {
         LIVE.subs.push(backend.watch(x[0], function (d) { if (d === undefined) return; LIVE[x[1]] = d; if (x[1] === "people") applyPeople(); if (x[1] === "budgets") applyBudgets(); hubRefresh(); }));
       });
+      if (backend.watch && boardAccount()) [["messages", "messages"], ["assocApps", "assocApps"]].forEach(function (x) {
+        LIVE.subs.push(backend.watch(x[0], function (d) { if (d === undefined) return; LIVE[x[1]] = d || []; hubRefresh(); }));
+      });
       watchGoals(goalTerm());
     } else if (!on && LIVE.unExp) {
       (LIVE.subs || []).forEach(function (u) { try { u(); } catch (e) {} }); LIVE.subs = [];
       if (LIVE.unGoals) LIVE.unGoals(); LIVE.unGoals = null;
-      ["tasks", "budgets", "results", "people", "partners", "inbox", "goals"].forEach(function (k) { LIVE[k] = null; });
+      ["tasks", "budgets", "results", "people", "partners", "inbox", "goals", "messages", "assocApps"].forEach(function (k) { LIVE[k] = null; });
       setTimeout(function () { applyPeople(); applyBudgets(); }, 0);
       LIVE.unExp(); LIVE.unIdeas(); if (LIVE.unNotifs) LIVE.unNotifs(); if (LIVE.unTupd) LIVE.unTupd(); if (LIVE.unLinks) LIVE.unLinks(); LIVE.unLinks = null; LIVE.links = null; LIVE.unTupd = null; LIVE.tupd = null; LIVE.unExp = LIVE.unIdeas = LIVE.unNotifs = null; LIVE.notifs = null; LIVE.exp = LIVE.ideas = null; LIVE.checks = {}; ROSTER = {}; ROSTER_ALL = null;
     }
@@ -2339,6 +2395,10 @@ export function initSite(backend, tools) {
     hub.querySelectorAll("[data-p-cancel]").forEach(function (b) { b.addEventListener("click", function () { state.pEdit = null; state.pPrefill = null; render(); }); });
     hub.querySelectorAll("[data-p-del]").forEach(function (b) { b.addEventListener("click", function () { b.disabled = true; pRun("removePartner", { id: b.getAttribute("data-p-del") }, "Partner removed.").catch(function () { b.disabled = false; }); }); });
     hub.querySelectorAll("[data-pstage]").forEach(function (sel) { sel.addEventListener("change", function () { var p = pFind(sel.getAttribute("data-pstage")); if (!p) return; pRun("updatePartner", Object.assign({ id: p._id }, partnerArgs(p, { stage: sel.value })), "Stage updated."); }); });
+    hub.querySelectorAll("[data-mf]").forEach(function (b) { b.addEventListener("click", function () { state.mFilter = b.getAttribute("data-mf"); render(); }); });
+    hub.querySelectorAll("[data-af]").forEach(function (b) { b.addEventListener("click", function () { state.aFilter = b.getAttribute("data-af"); render(); }); });
+    hub.querySelectorAll("[data-msg]").forEach(function (sel) { sel.addEventListener("change", function () { pRun("setMessage", { id: sel.getAttribute("data-msg"), status: sel.value }, "Status updated."); }); });
+    hub.querySelectorAll("[data-app-stage]").forEach(function (sel) { sel.addEventListener("change", function () { pRun("setAppStage", { id: sel.getAttribute("data-app-stage"), stage: sel.value }, "Stage updated."); }); });
     hub.querySelectorAll("[data-inq]").forEach(function (sel) { sel.addEventListener("change", function () { pRun("setInquiry", { id: sel.getAttribute("data-inq"), status: sel.value }, "Status updated."); }); });
     hub.querySelectorAll("[data-inq-add]").forEach(function (b) { b.addEventListener("click", function () {
       var i = (((LIVE.partners || {}).inquiries) || []).filter(function (x) { return x._id === b.getAttribute("data-inq-add"); })[0]; if (!i) return;
@@ -2435,7 +2495,8 @@ export function initSite(backend, tools) {
       if (h === "hub-ideas" && !can("ideas")) h = "hub-overview";
       if (h === "hub-partners" && !can("partners")) h = "hub-overview";
       if (h === "hub-goals" && !can("goals")) h = "hub-overview";
-      var inner = h === "hub-partners" ? hubPartners() : h === "hub-goals" ? hubGoals() : h === "hub-teams" ? hubTeams() : h === "hub-team-editor" ? hubTeamEditor() : h === "hub-applications" ? hubApplications() : h === "hub-captains" ? hubCaptains() : h === "hub-expenses" ? hubExpenses() : h === "hub-departments" ? hubDepts() : h === "hub-report" || h === "hub-checkups" ? hubCheckups() : h === "hub-ideas" ? hubIdeas() : h === "hub-history" ? hubHistory() : hubOverview();
+      if ((h === "hub-messages" || h === "hub-assoc-apps") && !can("board")) h = "hub-overview";
+      var inner = h === "hub-messages" ? hubMessages() : h === "hub-assoc-apps" ? hubAssocApps() : h === "hub-partners" ? hubPartners() : h === "hub-goals" ? hubGoals() : h === "hub-teams" ? hubTeams() : h === "hub-team-editor" ? hubTeamEditor() : h === "hub-applications" ? hubApplications() : h === "hub-captains" ? hubCaptains() : h === "hub-expenses" ? hubExpenses() : h === "hub-departments" ? hubDepts() : h === "hub-report" || h === "hub-checkups" ? hubCheckups() : h === "hub-ideas" ? hubIdeas() : h === "hub-history" ? hubHistory() : hubOverview();
       hub.innerHTML = hubShell(h, inner); show("hub"); bindHub(); return;
     }
     if (h === "signin") html = signinView();

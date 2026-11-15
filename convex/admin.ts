@@ -95,13 +95,15 @@ export const setApplicationNotes = mutation({
   },
 });
 
-// Contact form messages, newest first. Admins see all; a captain sees the messages about their teams' sports.
+// Contact form messages, newest first. Admins and the Board (president, VPs, heads) see all of them;
+// a captain sees their teams' sports; an associate sees their department's topics.
+export const seesMessage = (a: Access, m: { sport?: string; topic: string }) => a.board || canSee(a, messageRes(m));
 export const listContactMessages = query({
   args: {},
   handler: async (ctx) => {
     const a = await requireAccess(ctx);
     const all = await ctx.db.query("contactMessages").order("desc").collect();
-    return all.filter((m) => canSee(a, messageRes(m)));
+    return all.filter((m) => seesMessage(a, m));
   },
 });
 
@@ -114,7 +116,7 @@ export const setContactStatus = mutation({
     const a = await requireAccess(ctx);
     const m = await ctx.db.get(id);
     if (!m) throw new ConvexError("Message not found.");
-    if (!canEdit(a, messageRes(m))) throw deny(a);
+    if (a.readOnly || !(a.board || canEdit(a, messageRes(m)))) throw deny(a);
     await ctx.db.patch(id, { status });
   },
 });

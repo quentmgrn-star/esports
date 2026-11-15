@@ -19,6 +19,8 @@ const WATCH: Record<string, FunctionReference<"query">> = {
   partners: api.partners.list,
   goals: api.goals.list,
   inbox: api.inbox.counts,
+  messages: api.admin.listContactMessages,
+  assocApps: api.admin.listAssociationApplications,
 };
 const RUN: Record<string, FunctionReference<"mutation">> = {
   addTask: api.tasks.add,
@@ -35,6 +37,8 @@ const RUN: Record<string, FunctionReference<"mutation">> = {
   updateGoal: api.goals.update,
   setGoalActual: api.goals.setActual,
   removeGoal: api.goals.remove,
+  setMessage: api.admin.setContactStatus,
+  setAppStage: api.admin.setApplicationStage,
 };
 
 let started = false; // the prototype script binds global listeners: run it once per page load
