@@ -1276,21 +1276,20 @@ html.kb-active, html.kb-active * { cursor: grabbing !important; user-select: non
 @media (max-width: 480px) { #hub .stat { padding: 16px 14px 16px 18px; } #hub .stat .v { font-size: 24px; } }
 
 /* Latest activity of a team (Hub captain pages) */
-#hub .act-panel { margin-bottom: 14px; }
-#hub .act-panel > summary { display: flex; align-items: center; gap: 10px; cursor: pointer; list-style: none; flex-wrap: wrap; }
-#hub .act-panel > summary::-webkit-details-marker { display: none; }
-#hub .act-panel > summary::after { content: "▾"; margin-left: auto; color: var(--ink-soft); }
-#hub .act-panel:not([open]) > summary::after { content: "▸"; }
-#hub .act-panel h2 { display: flex; align-items: center; gap: 8px; }
-#hub .act-help { margin: 0; font-size: 13px; }
-#hub .act-filter { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; }
-#hub .act-filter select { max-width: 220px; }
-#hub .act-list { list-style: none; margin: 0; padding: 0; max-height: 420px; overflow-y: auto; }
-#hub .act-list li { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 12px; padding: 9px 8px; border-bottom: 1px solid var(--line); }
+#hub .act-panel { margin-bottom: 14px; padding: 14px 18px; gap: 8px; }
+#hub .act-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+#hub .act-filter select { max-width: 200px; font-size: 13px; }
+#hub .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+#hub .act-list { list-style: none; margin: 0; padding: 0; }
+#hub .act-list.open { max-height: 380px; overflow-y: auto; }
+#hub .act-list li { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; padding: 7px 4px; border-bottom: 1px solid var(--line); }
 #hub .act-area { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-soft); padding-top: 2px; }
 #hub .act-what { overflow-wrap: anywhere; font-size: 14px; }
-#hub .act-what small { display: block; font-size: 12px; margin-top: 2px; }
-@media (max-width: 640px) { #hub .act-list li { grid-template-columns: 1fr; gap: 2px; } }
+#hub .act-what small { display: block; font-size: 12px; margin-top: 1px; }
+#hub .act-toggle { justify-self: center; display: inline-flex; align-items: center; gap: 6px; background: none; border: 0; padding: 6px 12px; font: inherit; font-size: 13px; font-weight: 700; color: var(--blue); cursor: pointer; }
+#hub .act-arrow { display: inline-block; font-size: 16px; line-height: 1; transition: transform .2s; }
+#hub .act-arrow.up { transform: rotate(180deg); }
+@media (max-width: 640px) { #hub .act-panel { padding: 12px; } #hub .act-list li { grid-template-columns: 1fr; gap: 1px; padding: 6px 2px; } #hub .act-filter select { max-width: 160px; } }
 #hub .ho-msg { margin: 8px 0 0; font-size: 13px; font-weight: 600; min-height: 1em; }
 #hub .ho-msg:empty { display: none; }
 #hub .ho-msg.ok { color: var(--ok); }

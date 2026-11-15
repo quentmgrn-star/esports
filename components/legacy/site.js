@@ -2400,20 +2400,23 @@ export function initSite(backend, tools) {
     var h = Math.floor(m / 60); if (h < 24) return h + " h ago";
     var d = Math.floor(h / 24); return d < 7 ? d + (d === 1 ? " day ago" : " days ago") : fmtDay(at);
   }
+  // Compact: the 3 latest items; the arrow opens the list (25, then "Show more"). Open state kept only on this page.
   function activityPanel(id) {
     if (!live() || !backend.watch) return "";
     watchActivity(id);
+    var page = location.hash + "|" + id; if (state.actPage !== page) { state.actPage = page; state.actOpen = false; state.actMore = false; }
     var rows = LIVE.actTeam === id ? LIVE.act : undefined, area = state.actArea || "all", all = rows || [];
-    var list = area === "all" ? all : all.filter(function (r) { return r.area === area; }), shown = state.actMore ? list : list.slice(0, 25);
+    var list = area === "all" ? all : all.filter(function (r) { return r.area === area; });
+    var shown = !state.actOpen ? list.slice(0, 3) : state.actMore ? list : list.slice(0, 25);
     var label = {}; ACT_AREAS.forEach(function (x) { label[x[0]] = x[1]; });
-    return '<details class="panel act-panel" id="act-panel"' + (state.actClosed ? "" : " open") + '><summary><h2>Latest activity · ' + esc(tLabel(team(id))) + "</h2></summary>" +
-      '<p class="muted act-help">The latest changes on this team by the captain and the team’s associates, newest first.</p>' +
-      '<label class="act-filter" for="act-area">Show<select id="act-area">' + ACT_AREAS.map(function (x) { return '<option value="' + x[0] + '"' + (x[0] === area ? " selected" : "") + ">" + x[1] + "</option>"; }).join("") + "</select></label>" +
+    var arrow = list.length > 3 ? '<button type="button" class="act-toggle" data-act-open aria-expanded="' + !!state.actOpen + '">' + (state.actOpen ? "Show less" : "Show all " + list.length) + ' <span class="act-arrow' + (state.actOpen ? " up" : "") + '" aria-hidden="true">▾</span></button>' : "";
+    return '<section class="panel act-panel" id="act-panel"><div class="act-head"><h2>Latest activity · ' + esc(tLabel(team(id))) + "</h2>" +
+      '<label class="act-filter" for="act-area"><span class="sr-only">Show</span><select id="act-area" aria-label="Show">' + ACT_AREAS.map(function (x) { return '<option value="' + x[0] + '"' + (x[0] === area ? " selected" : "") + ">" + x[1] + "</option>"; }).join("") + "</select></label></div>" +
       (rows === undefined ? '<p class="empty">Loading…</p>' : !list.length ? '<p class="empty">Nothing yet' + (area === "all" ? " for this team." : " in this area.") + "</p>" :
-        '<ul class="act-list">' + shown.map(function (r) {
+        '<ul class="act-list' + (state.actOpen ? " open" : "") + '">' + shown.map(function (r) {
           return '<li><span class="act-area">' + esc(label[r.area] || r.area) + '</span><span class="act-what">' + esc(r.what) + '<small class="muted">' + esc(r.mine ? "You" : r.by) + ' · <time data-at="' + r.at + '" title="' + esc(new Date(r.at).toLocaleString("en-GB")) + '">' + esc(ago(r.at)) + "</time></small></span></li>";
-        }).join("") + "</ul>" + (list.length > 25 ? '<button type="button" class="btn sm ghost" data-act-more>' + (state.actMore ? "Show less" : "Show more (" + list.length + ")") + "</button>" : "")) +
-      "</details>";
+        }).join("") + "</ul>" + arrow + (state.actOpen && list.length > 25 ? '<button type="button" class="btn sm ghost" data-act-more>' + (state.actMore ? "Show fewer" : "Show more (" + list.length + ")") + "</button>" : "")) +
+      "</section>";
   }
   setInterval(function () { document.querySelectorAll("#act-panel time[data-at]").forEach(function (t) { t.textContent = ago(+t.getAttribute("data-at")); }); }, 30000);
   function allExp() { return live() ? LIVE.exp || [] : state.expenses; }
@@ -3073,7 +3076,7 @@ export function initSite(backend, tools) {
       b.disabled = true; Promise.resolve(backend.removeDeptLink({ id: id })).then(function () { toast("Link removed."); }, function (x) { b.disabled = false; toast(errText(x)); });
     }); });
     var actA = $("act-area"); if (actA) actA.addEventListener("change", function () { state.actArea = actA.value; state.actMore = false; render(); });
-    var actP = $("act-panel"); if (actP) actP.addEventListener("toggle", function () { state.actClosed = !actP.open; });
+    hub.querySelectorAll("[data-act-open]").forEach(function (b) { b.addEventListener("click", function () { state.actOpen = !state.actOpen; state.actMore = false; render(); }); });
     hub.querySelectorAll("[data-act-more]").forEach(function (b) { b.addEventListener("click", function () { state.actMore = !state.actMore; render(); }); });
     ["hi-dept", "hi-team"].forEach(function (k) { var el = $(k); if (el) el.addEventListener("change", function () { if (k === "hi-dept") state.histDept = el.value; else state.histTeam = el.value; render(); }); });
     var idf = $("idea-form"); if (idf) idf.addEventListener("submit", function (ev) {
