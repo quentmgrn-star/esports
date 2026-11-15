@@ -1353,7 +1353,7 @@ function Captains() {
         <div className="adm-filters" style={{ padding: 0 }}>
           <label className="field">
             Email they will sign in with
-            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@alumni.esade.edu" />
+            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" />
           </label>
           <label className="field">
             Name (optional)
@@ -1835,7 +1835,7 @@ function Requests({ me, rows }: { me: NonNullable<Me>; rows: MemberRow[] | undef
           </label>
           <label className="field">
             Email they will sign in with
-            <input type="email" required value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} placeholder="name@alumni.esade.edu" />
+            <input type="email" required value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} placeholder="name@example.com" />
           </label>
           <label className="field">
             Role

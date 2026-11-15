@@ -543,6 +543,8 @@ export function initI18n() {
     "About you": ["Sobre tu","Sobre ti"],
     "Profile photo": ["Foto de perfil","Foto de perfil"],
     "(optional)": ["(opcional)","(opcional)"],
+    "(any address)": ["(qualsevol adreça)","(cualquier dirección)"],
+    "(Esade or personal, either works)": ["(d'Esade o personal, totes dues serveixen)","(de Esade o personal, ambas sirven)"],
     "Optional": ["Opcional","Opcional"],
     "First name": ["Nom","Nombre"],
     "Last name": ["Cognoms","Apellidos"],
