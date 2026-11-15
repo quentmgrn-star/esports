@@ -1169,7 +1169,7 @@ export function initSite(backend, tools) {
     if (k === "chat") return r === "admin" || r === "exec" || r === "head" || r === "associate"; // the association's chat (no captains, no view-only)
     return false;
   }
-  function tryoutCount() { return live() ? (LIVE.inbox || {}).tryouts || 0 : visibleSportsApplications().length; }
+  function tryoutCount() { if (!live()) return visibleSportsApplications().length; return LIVE.tryouts ? visTryouts().filter(function (a) { return (a.status || "New") === "New"; }).length : (LIVE.inbox || {}).tryouts || 0; }
   function visTeams() { return TEAMS.filter(function (t) { return teamOk(t.id); }); }
   function visDepts() { var u = hv(); return DEPTS.filter(function (d) { return hFull() || (d.id !== "board" && d.id === u.dept); }); }
   function firstTeam() { var t = visTeams()[0]; return t ? t.id : TEAMS[0].id; }
@@ -1483,7 +1483,7 @@ export function initSite(backend, tools) {
     if (approver) add(ib.requests, ib.requests === 1 ? "access request to approve (associate or captain)" : "access requests to approve (associates or captains)", "/admin");
     if (approver) add(ib.applications, ib.applications === 1 ? "new application to join your department" : "new applications to join your department", "#hub-assoc-apps");
     if (approver) add(ib.messages, ib.messages === 1 ? "new message from the website" : "new messages from the website", "#hub-messages");
-    add(ib.tryouts, ib.tryouts === 1 ? "new try-out or coach sign-up" : "new try-out or coach sign-ups", u.role === "captain" || u.dept === "ops" || hFull() ? "/admin" : "#hub-applications");
+    add(ib.tryouts, ib.tryouts === 1 ? "new try-out or coach sign-up" : "new try-out or coach sign-ups", "#hub-applications");
     if (can("partners")) {
       var soon = partnerDueCount();
       add(ib.inquiries, ib.inquiries === 1 ? "new partner inquiry from the website" : "new partner inquiries from the website", "#hub-partners");
@@ -2324,7 +2324,7 @@ export function initSite(backend, tools) {
       // Shared Hub data: same for everyone with the right access (convex/tasks, budgets, results, org, partners, inbox).
       LIVE.subs = [];
       applyPeople(); applyBudgets();
-      if (backend.watch) [["tasks", "tasks"], ["budgets", "budgets"], ["results", "results"], ["people", "people"], ["partners", "partners"], ["inbox", "inbox"], ["tournament", "tournament"], ["handover", "handover"]].forEach(function (x) {
+      if (backend.watch) [["tasks", "tasks"], ["budgets", "budgets"], ["results", "results"], ["people", "people"], ["partners", "partners"], ["inbox", "inbox"], ["tournament", "tournament"], ["handover", "handover"], ["tryouts", "tryouts"]].forEach(function (x) {
         LIVE.subs.push(backend.watch(x[0], function (d) { if (d === undefined) return; LIVE[x[1]] = d; if (x[1] === "people") applyPeople(); if (x[1] === "budgets") applyBudgets(); hubRefresh(); }));
       });
       if (backend.watch && boardAccount()) [["messages", "messages"], ["assocApps", "assocApps"], ["emailProblems", "emailProblems"]].forEach(function (x) {
@@ -2336,7 +2336,7 @@ export function initSite(backend, tools) {
       if (LIVE.unChat) LIVE.unChat(); LIVE.unChat = null; LIVE.chatOpen = null; LIVE.chatMsgs = null;
       (LIVE.subs || []).forEach(function (u) { try { u(); } catch (e) {} }); LIVE.subs = [];
       if (LIVE.unGoals) LIVE.unGoals(); LIVE.unGoals = null;
-      ["tasks", "budgets", "results", "people", "partners", "inbox", "goals", "messages", "assocApps", "chats", "tournament", "handover"].forEach(function (k) { LIVE[k] = null; });
+      ["tasks", "budgets", "results", "people", "partners", "inbox", "goals", "messages", "assocApps", "chats", "tournament", "handover", "tryouts"].forEach(function (k) { LIVE[k] = null; });
       setTimeout(function () { applyPeople(); applyBudgets(); }, 0);
       LIVE.unExp(); LIVE.unIdeas(); if (LIVE.unNotifs) LIVE.unNotifs(); if (LIVE.unTupd) LIVE.unTupd(); if (LIVE.unLinks) LIVE.unLinks(); LIVE.unLinks = null; LIVE.links = null; LIVE.unTupd = null; LIVE.tupd = null; LIVE.unExp = LIVE.unIdeas = LIVE.unNotifs = null; LIVE.notifs = null; LIVE.exp = LIVE.ideas = null; LIVE.checks = {}; ROSTER = {}; ROSTER_ALL = null;
     }
@@ -2748,12 +2748,61 @@ export function initSite(backend, tools) {
       return '<tr><td><strong>' + esc(a.first + " " + a.last) + '</strong><br><small class="muted">' + esc(a.email) + ' · ' + esc(a.phone) + '</small></td>' + (can("all") ? '<td class="tname">' + esc(a.teamLabel) + '</td>' : '') + '<td>' + esc(a.type) + '<br><small class="muted">' + esc(a.folder) + '</small></td><td>' + esc(a.programme || "Esade student") + '<br><small class="muted">' + esc(a.level || "Level not specified") + '</small></td><td class="num muted">' + esc(a.createdAt) + '</td><td><span class="pill info">' + esc(a.status || "New") + '</span></td></tr>';
     }).join('') + '</tbody></table></div>';
   }
+  // ---- Try-outs inbox (live): try-out, "just for fun" and coach sign-ups (convex/admin.ts listTeamApplications).
+  // Convex only returns the teams this account may see (captain: own teams; Operations: its teams; Board/admins: all);
+  // the Hub then keeps the teams of the current view (Captain pages bar, "Demo as").
+  var TRY_STATUSES = ["New", "Contacted", "Trial invited", "Accepted", "Declined"]; // same as convex/stages.ts
+  function trySlug(s) { return String(s || "New").replace(/\s+/g, "-").toLowerCase(); }
+  function visTryouts() { return live() && LIVE.tryouts ? LIVE.tryouts.filter(function (a) { return teamOk(a.teamSlug); }) : []; }
+  function tryKind(a) { return a.kind === "coach" ? "Coach" : a.track === "social" ? "Just for fun" : "Try-out"; }
+  function tryTeam(a) { var t = team(a.teamSlug); return t ? tLabel(t) : a.teamSlug; }
+  function tryStatusSel(a) {
+    var st = a.status || "New", opts = TRY_STATUSES.indexOf(st) > -1 ? TRY_STATUSES : [st].concat(TRY_STATUSES);
+    return '<select class="stg-sel stg-' + trySlug(st) + '" data-try-status="' + esc(a._id) + '" aria-label="Status of ' + esc(a.firstName + " " + a.lastName) + '">' + opts.map(function (o) { return "<option" + (o === st ? " selected" : "") + ">" + esc(o) + "</option>"; }).join("") + "</select>";
+  }
+  function tryStatusCell(a) { return hRO() ? '<span class="stg-chip stg-' + trySlug(a.status) + '">' + esc(a.status || "New") + "</span>" : tryStatusSel(a); }
+  function hubTryoutsLive() {
+    var head = '<div class="ph-head"><div><h1 class="display">Try-outs inbox.</h1><p>Try-out, "just for fun" and coach sign-ups from the website. Each captain sees their own team; Operations sees the teams it covers. Click a sign-up to see everything and add notes.</p></div></div>';
+    if (LIVE.tryouts == null) return head + '<section class="panel"><p class="empty">Loading…</p></section>';
+    var all = visTryouts(), f = state.tFilter || "all", tf = state.tTeam || "";
+    var teams = visTeams().filter(function (t) { return all.some(function (a) { return a.teamSlug === t.id; }); });
+    if (tf && !teams.some(function (t) { return t.id === tf; })) tf = "";
+    var inTeam = all.filter(function (a) { return !tf || a.teamSlug === tf; });
+    var rows = inTeam.filter(function (a) { return f === "all" || (a.status || "New") === f; });
+    var cnt = function (k) { return inTeam.filter(function (a) { return (a.status || "New") === k; }).length; };
+    var many = visTeams().length > 1, open = all.filter(function (a) { return a._id === state.tryOpen; })[0];
+    return head + '<div class="grid-4">' + stat("New", String(cnt("New")), "not handled yet") + stat("Trial invited", String(cnt("Trial invited")), "invited to a session") + stat("Accepted", String(cnt("Accepted")), "joined the team") + stat("Total", String(inTeam.length), "sign-ups received") + "</div>" +
+      '<section class="panel"><div class="chips" role="group" aria-label="Status">' + [["all", "All"]].concat(TRY_STATUSES.map(function (s) { return [s, s]; })).map(function (x) { return '<button class="chip" data-tf="' + esc(x[0]) + '" aria-pressed="' + (f === x[0]) + '">' + esc(x[1]) + (x[0] === "all" ? "" : " (" + cnt(x[0]) + ")") + "</button>"; }).join("") +
+      (many && teams.length > 1 ? '<select id="try-team" aria-label="Team"><option value="">All teams</option>' + teams.map(function (t) { return '<option value="' + t.id + '"' + (t.id === tf ? " selected" : "") + ">" + esc(tLabel(t)) + "</option>"; }).join("") + "</select>" : "") + "</div>" +
+      (rows.length ? '<div class="table-wrap"><table class="msg-table"><thead><tr><th>Applicant</th>' + (many ? "<th>Team</th>" : "") + "<th>Sign-up</th><th>Studies</th><th>Received</th><th>Status</th></tr></thead><tbody>" + rows.map(function (a) {
+        var st = a.status || "New";
+        return '<tr class="msg-row stg-row stg-' + trySlug(st) + (st === "New" ? " unread" : "") + '" data-try-open="' + esc(a._id) + '" tabindex="0" title="Open the sign-up">' +
+          '<td><span class="msg-name">' + esc(a.firstName + " " + a.lastName) + "</span>" + mailFailPill(a) + '<br><small class="muted">' + esc(a.email) + " · " + esc(a.phone) + "</small></td>" +
+          (many ? '<td class="tname">' + esc(tryTeam(a)) + "</td>" : "") +
+          "<td>" + esc(tryKind(a)) + '<br><small class="muted">' + esc(a.level || "Level not given") + "</small>" + (a.notes ? '<br><span class="msg-more">Has notes →</span>' : "") + "</td>" +
+          "<td>" + (a.esadeStudent ? "Esade student" : "Not at Esade") + (a.programme ? '<br><small class="muted">' + esc(a.programme) + "</small>" : "") + "</td>" +
+          '<td class="num muted">' + esc(fmtDay(a._creationTime)) + "</td>" +
+          "<td>" + tryStatusCell(a) + "</td></tr>";
+      }).join("") + "</tbody></table></div>" : '<p class="empty">' + (all.length ? "No sign-up with this status." : "No try-out or coach sign-ups yet.") + "</p>") + "</section>" +
+      (open ? tryDialog(open) : "");
+  }
+  function tryDialog(a) {
+    var name = a.firstName + " " + a.lastName;
+    return '<div class="match-modal"><div class="match-backdrop" data-try-close></div><section class="match-dialog msg-dialog" role="dialog" aria-modal="true" aria-labelledby="try-title">' +
+      '<button class="match-close" type="button" data-try-close aria-label="Close">×</button>' +
+      '<p class="eyebrow" style="color:var(--blue)">' + esc(tryTeam(a)) + " · " + esc(tryKind(a)) + '</p><h2 id="try-title">' + esc(name) + "</h2>" +
+      '<dl class="match-details"><div><dt>Email</dt><dd><a href="mailto:' + esc(a.email) + '">' + esc(a.email) + "</a></dd></div><div><dt>Phone</dt><dd>" + esc(a.phone) + "</dd></div>" +
+      "<div><dt>Esade student</dt><dd>" + (a.esadeStudent ? "Yes" : "No") + "</dd></div>" + (a.programme ? "<div><dt>Programme</dt><dd>" + esc(a.programme) + "</dd></div>" : "") +
+      "<div><dt>Level</dt><dd>" + esc(a.level || "Not given") + "</dd></div><div><dt>Received</dt><dd>" + esc(new Date(a._creationTime).toLocaleString("en-GB")) + "</dd></div>" +
+      "<div><dt>Status</dt><dd>" + tryStatusCell(a) + "</dd></div>" + (a.confirmEmail ? "<div><dt>Confirmation</dt><dd>" + (a.confirmEmail === "sent" ? "Sent" : mailFailPill(a)) + "</dd></div>" : "") + "</dl>" +
+      (a.coachingExperience ? '<h3 class="msg-h3">Coaching experience</h3><p class="msg-body">' + esc(a.coachingExperience) + "</p>" : "") +
+      (hRO() ? (a.notes ? '<h3 class="msg-h3">Notes</h3><p class="msg-body">' + esc(a.notes) + "</p>" : "") :
+        '<form id="try-notes" data-id="' + esc(a._id) + '" class="msg-form"><label for="try-notes-text" class="msg-h3">Notes (only people who can see this sign-up read them)</label><textarea id="try-notes-text" name="notes" rows="4" maxlength="5000" placeholder="e.g. Called on Monday, comes to the trial on Thursday">' + esc(a.notes || "") + "</textarea>" +
+        '<div class="msg-actions"><button type="submit" class="btn solid">Save notes</button><a class="btn" href="mailto:' + esc(a.email) + '">Email ' + esc(a.firstName) + "</a></div></form>") +
+      "</section></div>";
+  }
   function hubApplications() {
-    if (live()) {
-      var n = (LIVE.inbox || {}).tryouts || 0;
-      return '<div class="ph-head"><div><h1 class="display">Try-outs inbox.</h1><p>Try-out, "just for fun" and coach sign-ups from the website. Each captain sees their own team; Operations sees the teams it covers.</p></div></div>' +
-        '<section class="panel"><div class="panel-head"><h2>Sign-ups</h2>' + (n ? '<span class="pill warn">' + n + " new</span>" : "") + '</div><p class="muted" style="margin:0 0 14px">The sign-ups, with their status (New, Contacted, Trial invited, Accepted, Declined) and your notes, are in the members area.</p><a class="btn solid" href="/admin">Open try-outs and coaches</a></section>';
-    }
+    if (live()) return hubTryoutsLive();
     var apps = visibleSportsApplications(), t = state.user.role === "captain" ? team(firstTeam()) : null, recipient = t ? captainForTeam(t.id) : null;
     return '<div class="ph-head"><div><h1 class="display">Try-outs inbox.</h1><p>' + (t ? 'Applications for ' + esc(tLabel(t)) + ' are routed to you as captain.' : 'Board view across every sports application folder. Each captain sees only applications for their own team.') + '</p></div></div>' +
       '<section class="panel"><div class="panel-head"><h2>' + (t ? 'Your team applications' : 'All team applications') + '</h2><span class="muted num">' + apps.length + ' received</span></div><p class="muted" style="margin:0 0 18px">Folder: <strong>' + esc(t ? sportsApplicationsFolder(t.id) : 'Applications for sports/*') + '</strong>' + (recipient ? ' · Captain recipient: <strong>' + esc(captainName(recipient)) + ' · ' + esc(recipient.email) + '</strong>' : '') + '</p>' + sportsApplicationsTable(apps) + '</section>' +
@@ -3055,6 +3104,23 @@ export function initSite(backend, tools) {
     hub.querySelectorAll("[data-p-del]").forEach(function (b) { b.addEventListener("click", function () { b.disabled = true; pRun("removePartner", { id: b.getAttribute("data-p-del") }, "Partner removed.").catch(function () { b.disabled = false; }); }); });
     hub.querySelectorAll("[data-pstage]").forEach(function (sel) { sel.addEventListener("change", function () { var p = pFind(sel.getAttribute("data-pstage")); if (!p) return; pRun("updatePartner", Object.assign({ id: p._id }, partnerArgs(p, { stage: sel.value })), "Stage updated."); }); });
     bindChat();
+    hub.querySelectorAll("[data-tf]").forEach(function (b) { b.addEventListener("click", function () { state.tFilter = b.getAttribute("data-tf"); render(); }); });
+    var trt = $("try-team"); if (trt) trt.addEventListener("change", function () { state.tTeam = trt.value; render(); });
+    hub.querySelectorAll("[data-try-status]").forEach(function (sel) {
+      sel.addEventListener("click", function (e) { e.stopPropagation(); });
+      sel.addEventListener("change", function () { sel.disabled = true; pRun("setTryStatus", { id: sel.getAttribute("data-try-status"), status: sel.value }, "Status changed to " + sel.value + ".").catch(function () { render(); }); });
+    });
+    function openTry(id) { state.tryOpen = id; render(); }
+    hub.querySelectorAll("[data-try-open]").forEach(function (tr) {
+      tr.addEventListener("click", function (e) { if (e.target.closest("a, select, button")) return; openTry(tr.getAttribute("data-try-open")); });
+      tr.addEventListener("keydown", function (e) { if ((e.key === "Enter" || e.key === " ") && e.target === tr) { e.preventDefault(); openTry(tr.getAttribute("data-try-open")); } });
+    });
+    hub.querySelectorAll("[data-try-close]").forEach(function (b) { b.addEventListener("click", function () { state.tryOpen = null; render(); }); });
+    var tnf = $("try-notes");
+    if (tnf) tnf.addEventListener("submit", function (ev) {
+      ev.preventDefault(); var btn = tnf.querySelector("button[type=submit]"); btn.disabled = true;
+      pRun("setTryNotes", { id: tnf.getAttribute("data-id"), notes: tnf.elements.notes.value }, "Notes saved.").then(function () { btn.disabled = false; tnf.elements.notes.blur(); }, function () { btn.disabled = false; });
+    });
     hub.querySelectorAll("[data-mf]").forEach(function (b) { b.addEventListener("click", function () { state.mFilter = b.getAttribute("data-mf"); render(); }); });
     hub.querySelectorAll("[data-af]").forEach(function (b) { b.addEventListener("click", function () { state.aFilter = b.getAttribute("data-af"); render(); }); });
     hub.querySelectorAll("[data-aview]").forEach(function (b) { b.addEventListener("click", function () { state.aView = b.getAttribute("data-aview"); save(); render(); }); });
@@ -3354,6 +3420,7 @@ export function initSite(backend, tools) {
     if (e.key === "Escape") closeMatch();
     if (e.key === "Escape" && state.rosterEdit) { state.rosterEdit = null; render(); }
     if (e.key === "Escape" && state.msgOpen && location.hash === "#hub-messages") { state.msgOpen = null; render(); }
+    if (e.key === "Escape" && state.tryOpen && location.hash === "#hub-applications") { state.tryOpen = null; render(); }
   });
   var pf = $("partner-form");
   pf.addEventListener("submit", function (e) {

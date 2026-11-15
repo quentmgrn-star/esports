@@ -26,6 +26,7 @@ const WATCH: Record<string, FunctionReference<"query">> = {
   chatMsgs: api.hubChat.messages,
   tournament: api.tournament.overview,
   handover: api.handover.list,
+  tryouts: api.admin.listTeamApplications,
 };
 const RUN: Record<string, FunctionReference<"mutation">> = {
   addTask: api.tasks.add,
@@ -55,6 +56,8 @@ const RUN: Record<string, FunctionReference<"mutation">> = {
   hoSave: api.handover.save,
   hoAddFile: api.handover.addFile,
   hoRemoveFile: api.handover.removeFile,
+  setTryStatus: api.admin.setTeamApplicationStatus,
+  setTryNotes: api.admin.setTeamApplicationNotes,
 };
 
 let started = false; // the prototype script binds global listeners: run it once per page load
