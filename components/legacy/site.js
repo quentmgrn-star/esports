@@ -714,7 +714,7 @@ export function initSite(backend, tools) {
       "</div></div>" +
       '<div class="fsec"><h2>Your details</h2><div class="fgrid">' + fieldI("ct-name", "Name", "", 'required maxlength="100" autocomplete="name"') + fieldI("ct-email", "Email", "", 'type="email" required maxlength="200" autocomplete="email"') + phoneField("ct-phone", "Phone number", false) + "</div>" +
       '<div class="hp" aria-hidden="true"><label for="ct-website">Website<input id="ct-website" tabindex="-1" autocomplete="off"></label></div></div>' +
-      '<div class="fsec"><label class="consent" for="ct-consent"><input type="checkbox" id="ct-consent" required><span>I have read the <a href="#privacy">privacy policy</a> and agree that Esade Sports uses my details to answer this message.</span></label></div>' +
+      '<div class="fsec"><label class="consent" for="ct-consent"><input type="checkbox" id="ct-consent" required><span>I have read the <a href="#privacy" target="_blank" rel="noopener">privacy policy</a> and agree that Esade Sports uses my details to answer this message.</span></label></div>' +
       '<p class="err" id="ct-err" hidden></p><div class="form-actions"><button class="btn btn-blue" type="submit">Send message</button><span class="muted" style="font-size:13px">We usually reply within a few days.</span></div></form>' +
       '<div class="locked" id="ct-done" hidden><h2>Thanks for your message</h2><p>We have received it and will reply by email.</p><a class="btn btn-ghost-navy" href="#home">Back to home</a></div></div></section>';
   }
@@ -1808,7 +1808,7 @@ export function initSite(backend, tools) {
     var main = cur
       ? '<div class="chat-head"><h2>' + esc(chatTitle(cur)) + "</h2>" + (cur.role ? '<small class="muted">' + esc(cur.role) + "</small>" : cur.id === "board" ? '<small class="muted">President, vice-presidents, heads of department and admins</small>' : '<small class="muted">Head, associates, President, vice-presidents and admins</small>') + "</div>" +
         '<div id="chat-log" class="chat-log" aria-live="polite">' + chatLog() + "</div>" +
-        '<form id="chat-form" class="chat-form"><textarea id="chat-text" aria-label="Message" rows="2" maxlength="2000" placeholder="Write a message… (Enter to send, Shift+Enter for a new line)" required></textarea><button class="btn btn-blue" type="submit">Send</button></form>'
+        '<form id="chat-form" class="chat-form" data-ch="' + esc(cur.id) + '"><textarea id="chat-text" aria-label="Message" rows="2" maxlength="2000" placeholder="Write a message… (Enter to send, Shift+Enter for a new line)" required></textarea><button class="btn btn-blue" type="submit">Send</button></form>'
       : '<p class="empty">Pick a chat on the left.</p>';
     return head + '<section class="panel chat"><aside id="chat-side" class="chat-side" aria-label="Chats">' + chatSide() + '</aside><div class="chat-main">' + main + "</div></section>";
   }
@@ -2586,7 +2586,7 @@ export function initSite(backend, tools) {
     var loading = live() && LIVE.checks[p.kind + "|" + p.key] === null;
     var issues = notes.filter(function (c) { return c.status === "issues"; }).length;
     var who = { weekly: "Associates, for their department and teams", monthly: "Heads for their department; the President and VPs for everything", semester: "Every member: how the year is going" }[p.kind];
-    var form = hRO() ? "" : '<form class="form ck-form" id="ck-form"><p class="form-sub">Your check-up for ' + esc(ckScopeText(sc)) + "</p>" +
+    var form = hRO() ? "" : '<form class="form ck-form" id="ck-form" data-period="' + esc(p.kind + "|" + p.key + "|" + (sc.team || "")) + '"><p class="form-sub">Your check-up for ' + esc(ckScopeText(sc)) + "</p>" +
       (u.role === "associate" && (u.teams || []).length > 1 ? '<label for="ck-team">Team<select id="ck-team">' + u.teams.map(function (t) { return '<option value="' + t + '"' + (t === sc.team ? " selected" : "") + ">" + esc(tLabel(team(t))) + "</option>"; }).join("") + "</select></label>" : "") +
       '<fieldset class="ck-status"><legend>How is it going?</legend><label><input type="radio" name="ck-st" value="ok" checked> All OK</label><label><input type="radio" name="ck-st" value="issues"> Issues to flag</label></fieldset>' +
       '<label for="ck-note" style="grid-column:1/-1">Notes <small>(required if there are issues)</small><textarea id="ck-note" rows="3" maxlength="1000" placeholder="What went well, what is blocked, what needs the Board"></textarea></label>' +
@@ -2703,10 +2703,10 @@ export function initSite(backend, tools) {
   }
   function hubTeamEditor() {
     var ts = visTeams(), selected = state.teamOpen && teamOk(state.teamOpen) ? state.teamOpen : ts[0].id, t = team(selected), info = teamInfoFor(selected), results = teamResultsFor(selected);
-    var teamField = ts.length > 1 ? '<label for="ti-team">Team<select id="ti-team">' + ts.map(function (x) { return '<option value="' + x.id + '"' + (x.id === selected ? ' selected' : '') + '>' + esc(tLabel(x)) + '</option>'; }).join('') + '</select></label>' : '<input type="hidden" id="ti-team" value="' + esc(selected) + '">';
+    var teamField = ts.length > 1 ? '<label for="ti-team">Team<select id="ti-team" data-nodraft>' + ts.map(function (x) { return '<option value="' + x.id + '"' + (x.id === selected ? ' selected' : '') + '>' + esc(tLabel(x)) + '</option>'; }).join('') + '</select></label>' : '<input type="hidden" id="ti-team" value="' + esc(selected) + '">';
     var rows = results.length ? results.slice().reverse().map(function (r) { return '<tr><td class="num">' + esc(r.date) + '</td><td class="opp">' + esc(r.opponent) + '</td><td>' + esc(r.side) + '</td><td class="num"><strong>' + esc(r.score) + '</strong></td><td>' + esc(r.status) + (r.canRemove ? ' <button type="button" class="btn sm ghost" data-res-del="' + esc(String(r.id)) + '" aria-label="Remove this result">' + ico("x") + "</button>" : "") + '</td></tr>'; }).join('') : '<tr><td colspan="5" class="muted">No results yet.</td></tr>';
     return '<div class="ph-head"><div><h1 class="display">Team editor.</h1><p>Keep your team page current: team information, league source, venue and results. Manual updates are available immediately; live league syncing can be connected once the competition provides an API or approved feed.</p></div></div>' +
-      '<section class="panel"><div class="panel-head"><h2>Team information</h2><span class="muted">' + (can("teamEdit") ? "Saved for everyone" : "View only") + '</span></div><form class="form" id="team-info-form">' + teamField +
+      '<section class="panel"><div class="panel-head"><h2>Team information</h2><span class="muted">' + (can("teamEdit") ? "Saved for everyone" : "View only") + '</span></div><form class="form" id="team-info-form" data-team="' + esc(selected) + '">' + teamField +
         '<label style="grid-column:span 2">Short description · public<textarea id="ti-about" rows="2" placeholder="Who the team is and what the season is about">' + esc(info.about || "") + '</textarea></label>' +
         '<label>Team contact email · public<input id="ti-contact" type="email" value="' + esc(info.contact || "") + '" placeholder="team@esade.edu"></label>' +
         '<p class="form-sub">Training facility</p>' +
@@ -3110,7 +3110,7 @@ export function initSite(backend, tools) {
     if (tif && $("ti-team").tagName === "SELECT") $("ti-team").addEventListener("change", function () { state.teamOpen = $("ti-team").value; render(); });
     if (tif && backend && backend.getTeamInfo) Promise.resolve(backend.getTeamInfo($("ti-team").value)).then(function (r) {
       if (!r || !$("team-info-form")) return;
-      [["ti-about", "about"], ["ti-contact", "contact"], ["ti-venue", "venue"], ["ti-venue-address", "venueAddress"], ["ti-venue-cname", "venueContactName"], ["ti-venue-cemail", "venueContactEmail"], ["ti-venue-cphone", "venueContactPhone"], ["ti-league", "league"], ["ti-league-url", "leagueUrl"], ["ti-league-cname", "leagueContactName"], ["ti-league-cemail", "leagueContactEmail"], ["ti-league-cphone", "leagueContactPhone"]].forEach(function (f) { if ($(f[0]) && r[f[1]]) $(f[0]).value = r[f[1]]; });
+      [["ti-about", "about"], ["ti-contact", "contact"], ["ti-venue", "venue"], ["ti-venue-address", "venueAddress"], ["ti-venue-cname", "venueContactName"], ["ti-venue-cemail", "venueContactEmail"], ["ti-venue-cphone", "venueContactPhone"], ["ti-league", "league"], ["ti-league-url", "leagueUrl"], ["ti-league-cname", "leagueContactName"], ["ti-league-cemail", "leagueContactEmail"], ["ti-league-cphone", "leagueContactPhone"]].forEach(function (f) { if ($(f[0]) && r[f[1]] && !$(f[0]).hasAttribute("data-drafted")) { $(f[0]).value = r[f[1]]; $(f[0]).defaultValue = r[f[1]]; } });
     }, console.error);
     if (tif) tif.addEventListener("submit", function (ev) {
       ev.preventDefault(); var id = $("ti-team").value, v = function (k) { return $(k).value.trim() || undefined; };
@@ -3141,6 +3141,105 @@ export function initSite(backend, tools) {
     });
   }
 
+  // ================= Form drafts =================
+  // Nothing a visitor types is lost: what they change in any form is kept in this browser tab (sessionStorage)
+  // and put back after a re-render, a language switch, a hash change, a link click or a reload.
+  // Cleared when the form is sent. Never stored: passwords, files, ID/passport numbers, hidden or honeypot fields.
+  var DRAFT_KEY = "es-drafts", draftSent = {};
+  var DRAFT_SKIP = /pass|passport|dni|nie\b|id-?num|idnum|iddoc|tn-id|iban|card|code|website/i;
+  // Controls that save or switch the view as soon as they change: never put back from a draft.
+  var DRAFT_NOT = /^(cal-team|p-team-f|demo-as|team-as|ck-team|hi-dept|hi-team|ti-team)$/;
+  var DRAFT_LIVE_ATTRS = ["data-task", "data-pstage", "data-msg", "data-app-stage", "data-inq", "data-bd", "data-key", "data-tn-file", "data-ho-file"];
+  function draftRead() { try { var d = JSON.parse(sessionStorage.getItem(DRAFT_KEY) || "{}"); return d && typeof d === "object" ? d : {}; } catch (e) { return {}; } }
+  function draftWrite(d) { try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify(d)); } catch (e) {} }
+  function draftFormKey(f) {
+    if (f.__dk) return f.__dk; // fixed when the form is first seen, so a hash change does not move its draft
+    var cls = function (x) { return String(x.className || "").split(" ")[0] || "form"; };
+    var area = pub.contains(f) ? "pub" : (location.hash.slice(1) || "home"), sig = f.id || cls(f);
+    Array.prototype.forEach.call(f.attributes, function (a) { if (a.name.indexOf("data-") === 0 && a.name.indexOf("data-o-") !== 0 && a.name !== "data-drafted") sig += "|" + a.name + "=" + a.value; });
+    if (!f.id) { var same = 0, all = document.querySelectorAll("form"); for (var i = 0; i < all.length && all[i] !== f; i++) if (!all[i].id && cls(all[i]) === cls(f)) same++; sig += "#" + same; }
+    return (f.__dk = area + "::" + sig);
+  }
+  function draftFields(f) {
+    return Array.prototype.filter.call(f.elements, function (el) {
+      var t = (el.type || "").toLowerCase(), n = el.id || el.name || el.getAttribute("data-f") || "";
+      if (!n || el.disabled || el.hasAttribute("data-nodraft") || el.closest(".hp") || DRAFT_NOT.test(n)) return false;
+      if (DRAFT_LIVE_ATTRS.some(function (a) { return el.hasAttribute(a); })) return false;
+      if (/^(password|file|hidden|submit|button|reset|image)$/.test(t) || el.tabIndex < 0 || el.getAttribute("autocomplete") === "off" || el.getAttribute("autocomplete") === "one-time-code") return false;
+      return !DRAFT_SKIP.test(n);
+    });
+  }
+  function draftFieldKey(el) { return el.type === "radio" ? "r:" + el.name : (el.id || el.name || "f:" + el.getAttribute("data-f")) + (el.type === "checkbox" && !el.id ? ":" + el.value : ""); }
+  function draftCollect(f) {
+    var out = {}, any = false;
+    draftFields(f).forEach(function (el) {
+      var k = draftFieldKey(el), t = el.type;
+      if (t === "radio") { if (el.checked && !el.defaultChecked) { out[k] = { v: el.value }; any = true; } }
+      else if (t === "checkbox") { if (el.checked !== el.defaultChecked) { out[k] = { c: el.checked }; any = true; } }
+      else if (el.tagName === "SELECT") {
+        var def = 0; Array.prototype.forEach.call(el.options, function (o, i) { if (o.defaultSelected) def = i; });
+        if (el.selectedIndex !== def && el.selectedIndex >= 0) { out[k] = { v: el.value, i: el.selectedIndex }; any = true; }
+      } else if (el.value !== el.defaultValue) { out[k] = { v: el.value }; any = true; }
+    });
+    return any ? out : null;
+  }
+  function draftVisible(f) { return f.isConnected && !f.hidden && !f.closest("[hidden]"); }
+  function draftSave(f, d) {
+    var write = !d; d = d || draftRead();
+    var k = draftFormKey(f);
+    if (draftSent[k]) delete d[k];
+    else if (draftVisible(f)) { var v = draftCollect(f); if (v) d[k] = { t: Date.now(), f: v }; else if (f.__dr) delete d[k]; } // __dr: drafts already put back in this form
+    if (write) draftWrite(d);
+    return d;
+  }
+  function draftSaveAll() { var d = draftRead(); document.querySelectorAll("form").forEach(function (f) { draftSave(f, d); }); draftWrite(d); }
+  function draftRestoreAll() {
+    var d = draftRead(), now = Date.now(), changed = false;
+    Object.keys(d).forEach(function (k) { if (!d[k] || now - d[k].t > 864e5) { delete d[k]; changed = true; } });
+    if (changed) draftWrite(d);
+    document.querySelectorAll("form").forEach(function (f) {
+      var k = draftFormKey(f), e = d[k]; f.__dr = true; if (!e || draftSent[k]) return;
+      draftFields(f).forEach(function (el) {
+        var s = e.f[draftFieldKey(el)], t = el.type, set = false; if (!s) return;
+        if (t === "radio") { if (el.value === s.v && !el.checked) { el.checked = true; set = true; } }
+        else if (t === "checkbox") { if (el.checked !== s.c) { el.checked = s.c; set = true; } }
+        else if (el.tagName === "SELECT") {
+          if (el.value !== s.v) { var before = el.selectedIndex; el.value = s.v; if (el.selectedIndex < 0 || el.value !== s.v) { el.selectedIndex = s.i < el.options.length ? s.i : before; } set = el.selectedIndex !== before; }
+        } else if (el.value !== s.v) { el.value = s.v; set = true; }
+        if (!set) return;
+        el.setAttribute("data-drafted", "");
+        // Let the form update what depends on the field (counters, hidden sections). Fields that save on change are skipped above.
+        el.dispatchEvent(new Event("input", { bubbles: true }));
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    });
+  }
+  function draftOnEdit(e) {
+    var f = e.target && e.target.form; if (!f) return;
+    var k = draftFormKey(f); f.__dr = true; if (e.isTrusted) delete draftSent[k];
+    draftSave(f);
+  }
+  document.addEventListener("input", draftOnEdit, true);
+  document.addEventListener("change", draftOnEdit, true);
+  // Sent: forget the draft so a fresh empty form is not refilled. Typing again in it starts a new draft.
+  document.addEventListener("submit", function (e) { var f = e.target; if (!f || f.tagName !== "FORM") return; var k = draftFormKey(f), d = draftRead(); draftSent[k] = true; delete d[k]; draftWrite(d); }, true);
+  // An explicit Cancel inside a form throws its draft away (clicking outside a dialog keeps it).
+  document.addEventListener("click", function (e) {
+    var c = e.target.closest && e.target.closest("form button[type=button]"); if (!c) return;
+    if (!c.hasAttribute("data-pl-close") && !/^\s*cancel/i.test(c.textContent)) return;
+    var f = c.form || c.closest("form"), k = draftFormKey(f), d = draftRead(); draftSent[k] = true; delete d[k]; draftWrite(d);
+  }, true);
+  window.addEventListener("pagehide", draftSaveAll);
+  document.addEventListener("visibilitychange", function () { if (document.hidden) draftSaveAll(); });
+  // Links inside a form (privacy policy, terms...) open in a new tab, so the form stays as it is.
+  document.addEventListener("click", function (e) {
+    var a = e.target.closest && e.target.closest("form a[href]"); if (!a) return;
+    var href = a.getAttribute("href") || "";
+    if (!href || href === "#" || /^(mailto:|tel:|javascript:)/i.test(href) || a.hasAttribute("download") || a.target) return;
+    for (var i = 0; i < a.attributes.length; i++) if (a.attributes[i].name.indexOf("data-") === 0) return;
+    a.target = "_blank"; a.rel = "noopener";
+  }, true);
+
   function langSwitch() { return '<div class="lang" role="group" aria-label="Language">' + ["en", "ca", "es"].map(function (l) { return '<button type="button" data-lang="' + l + '" aria-pressed="' + (window.__lang === l) + '">' + l.toUpperCase() + "</button>"; }).join("") + "</div>"; }
   // ================= Router =================
   function go(h) { if (location.hash.slice(1) === h) render(); else location.hash = h; }
@@ -3148,7 +3247,9 @@ export function initSite(backend, tools) {
     pub.hidden = which !== "pub"; page.hidden = which !== "page"; hub.hidden = which !== "hub";
     siteHead.hidden = which === "hub"; siteFoot.hidden = which === "hub";
   }
-  function render() {
+  // Every redraw keeps what people typed: save the open forms, redraw, then put the drafts back.
+  function render() { draftSaveAll(); renderView(); draftRestoreAll(); }
+  function renderView() {
     var h = location.hash.slice(1), html = null;
     document.querySelector(".head").classList.remove("open");
     if (h.indexOf("hub-") === 0) {
