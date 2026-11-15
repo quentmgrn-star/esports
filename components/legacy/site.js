@@ -2289,6 +2289,11 @@ export function initSite(backend, tools) {
   // Signed in with Convex: rows come from the database (only what this account may see, kept live).
   // Without Convex (local preview): the example rows saved in this browser.
   var LIVE = { exp: null, ideas: null, checks: {}, unExp: null, unIdeas: null, dirty: false };
+  // Phones: the Hub tabs are one sideways-scrolling row; keep the open tab in view.
+  function showTab() {
+    var nav = hub.querySelector(".rail nav"), a = nav && nav.querySelector('[aria-current="page"]');
+    if (a && nav.scrollWidth > nav.clientWidth) nav.scrollLeft = a.offsetLeft - (nav.clientWidth - a.offsetWidth) / 2;
+  }
   function live() { return !!(backend && backend.watchExpenses && (admin || captain)); }
   function meEmail() { var m = admin || captain; return m ? m.email : ""; }
   function errText(x, d) { var m = String((x && x.data) || (x && x.message) || ""), m2 = m.match(/ConvexError: (.*)/); return (m2 ? m2[1] : x && x.data ? m : "") || d || "Something went wrong. Try again."; }
@@ -3271,7 +3276,7 @@ export function initSite(backend, tools) {
       if (h === "hub-chat" && !can("chat")) h = "hub-overview";
       if (h === "hub-tournament" && !can("tournament")) h = "hub-overview";
       var inner = h === "hub-tournament" ? hubTournament() : h === "hub-handover" ? hubHandover() : h === "hub-chat" ? hubChat() : h === "hub-messages" ? hubMessages() : h === "hub-assoc-apps" ? hubAssocApps() : h === "hub-partners" ? hubPartners() : h === "hub-goals" ? hubGoals() : h === "hub-teams" ? hubTeams() : h === "hub-team-editor" ? hubTeamEditor() : h === "hub-applications" ? hubApplications() : h === "hub-captains" ? hubCaptains() : h === "hub-expenses" ? hubExpenses() : h === "hub-departments" ? hubDepts() : h === "hub-report" || h === "hub-checkups" ? hubCheckups() : h === "hub-ideas" ? hubIdeas() : h === "hub-history" ? hubHistory() : hubOverview();
-      hub.innerHTML = hubShell(h, inner); show("hub"); bindHub(); bindBell(); updateTitle(); return;
+      hub.innerHTML = hubShell(h, inner); show("hub"); bindHub(); bindBell(); updateTitle(); showTab(); return;
     }
     if (h === "signin") html = signinView();
     else if (h === "alumni-signin" || h === "alumni-me" || h === "alumni-verify") { location.replace("#alumni"); return; }

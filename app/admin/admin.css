@@ -140,3 +140,16 @@
 .adm-maillist { margin: 4px 0 0; padding-left: 18px; display: grid; gap: 6px; }
 .adm-maillist .adm-sub { display: block; word-break: break-word; }
 .adm-mailfail { color: #b45309; font-weight: 600; word-break: break-word; }
+
+/* Phones: cards fit narrow screens, chat sized to the visible screen, roomier buttons */
+@media (max-width: 600px) {
+  .adm-main { padding-block: 24px 48px; }
+  .adm-alumni { grid-template-columns: minmax(0, 1fr); }
+  .adm-org-grid { grid-template-columns: minmax(0, 1fr); }
+  .adm-alumni-card dl { grid-template-columns: 84px minmax(0, 1fr); }
+  .adm-chat-list { height: 50dvh; }
+  .adm-chat-channels button { min-height: 40px; }
+  .adm-status button { min-height: 36px; }
+  .adm-table th, .adm-table td { padding: 10px 12px; }
+  .adm-filters { grid-template-columns: minmax(0, 1fr); }
+}

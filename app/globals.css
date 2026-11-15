@@ -1220,3 +1220,51 @@ html.kb-active, html.kb-active * { cursor: grabbing !important; user-select: non
 #hub .tn-table tr.tn-g-yes th { color: var(--ok); } #hub .tn-table tr.tn-g-no th { color: var(--bad); } #hub .tn-table tr.tn-g-none th { color: var(--warn); }
 #hub .bdate { display: flex; gap: 6px; } #hub .bdate select { flex: 1; min-width: 0; }
 #hub .bdate select[data-bd="m"] { flex: 1.6; } #hub .bdate select[data-bd="y"] { flex: 1.3; }
+
+/* ===== Phones and small tablets (≤ 860px): fit the screen, bigger tap targets, no zoom on focus ===== */
+@media (max-width: 860px) {
+  /* iPhones zoom the page when a field under 16px gets focus */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]), select, textarea { font-size: 16px !important; }
+
+  /* Pop-ups: fit between the phone's bars, easy-to-hit close button */
+  .match-modal { padding: 12px; }
+  .match-dialog, #hub .msg-dialog, .adm-dialog { max-height: calc(100dvh - 24px); }
+  .match-close { width: 44px; height: 44px; top: 4px; right: 4px; display: grid; place-items: center; }
+
+  /* Hub: the top bar scrolls away, the tab row stays pinned at the top */
+  #hub .app { grid-template-columns: minmax(0, 1fr); }
+  #hub .rail { display: contents; }
+  #hub .rail .top { background: var(--navy); color: var(--white); padding: 12px max(16px, env(safe-area-inset-right, 0px)) 6px max(16px, env(safe-area-inset-left, 0px)); }
+  #hub .rail nav { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 40; background: var(--navy); margin: 0; max-width: none; padding-inline: max(4px, env(safe-area-inset-left, 0px)) max(4px, env(safe-area-inset-right, 0px)); }
+  #hub .rail nav a { min-height: 44px; }
+  #hub .who { flex-wrap: wrap; row-gap: 4px; width: 100%; }
+  #hub .who .back-site { margin: 0; padding: 10px 4px; }
+  #hub .who button { min-height: 36px; padding: 6px 10px; }
+  #hub .lang button, .nav .lang button { min-width: 40px; min-height: 36px; }
+  #hub .history button { width: 40px; height: 40px; }
+
+  /* Hub content never wider than the screen; wide tables scroll sideways inside their box */
+  #hub .main { grid-template-columns: minmax(0, 1fr); }
+  .banner.demo .demo-as { margin-left: 0; flex-wrap: wrap; max-width: 100%; }
+  #hub .banner.team-bar select { min-width: 0; }
+  .banner.demo select { max-width: 100%; min-height: 40px; }
+  #hub .btn { min-height: 40px; }
+  #hub .btn.sm { min-height: 34px; font-size: 11px; }
+  #hub .chip { min-height: 36px; }
+  #hub .form input, #hub .form select, #hub .tasks select { min-height: 42px; }
+
+  /* Chat: sized to the visible screen so the keyboard does not hide the box */
+  #hub .chat-log { max-height: 55dvh; min-height: 220px; }
+  #hub .chat-form { padding: 10px 12px; position: sticky; bottom: 0; background: var(--panel); }
+
+  /* Public footer links and hero dots: easier to tap */
+  .foot a { display: inline-block; padding-block: 6px; }
+  .slide-dots button { position: relative; }
+  .slide-dots button::after { content: ""; position: absolute; inset: -14px -3px; }
+}
+@media (max-width: 480px) {
+  #hub .form { grid-template-columns: minmax(0, 1fr); }
+  .band h1 { font-size: clamp(36px, 12vw, 48px); }
+  .band .wrap { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 480px) { #hub .stat { padding: 16px 14px 16px 18px; } #hub .stat .v { font-size: 24px; } }
