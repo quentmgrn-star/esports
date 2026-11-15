@@ -1,6 +1,7 @@
 /* eslint-disable */
 // All Esade Sports community events: home Events cards, the "All events" page and the full calendar.
 // price is required on every event: "Free", or the amount / donation (e.g. "Minimum donation €3").
+// keepVisible: true = still listed after its date, until SHOW_PRELAUNCH_SAMPLES is switched off in site.js.
 // example: true = placeholder, shown with an "Example" tag until the real details are confirmed.
 export const EVENTS = [
   {
@@ -11,6 +12,7 @@ export const EVENTS = [
     summary: "A 5K charity run along Barceloneta Beach to raise funds for Esperança Walk.",
     details: "Esperança Walk is a volunteer initiative that prepares and distributes meals to people experiencing homelessness in Barcelona. Every euro raised helps provide more meals. Run it, jog it or walk it: all levels are welcome, so bring your friends.",
     signup: "https://forms.gle/XHEv7HkK4a9jgkLv8", example: false,
+    keepVisible: true, // pre-launch: stays listed after its date while SHOW_PRELAUNCH_SAMPLES is true (site.js)
   },
   {
     id: "world-cup", title: "World Cup", kind: "Football tournament", organiser: "Esade Sports",

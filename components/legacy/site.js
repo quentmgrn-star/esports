@@ -10,6 +10,9 @@ export function initSite(backend, tools) {
   // Made-up presentation content (fictional players, stats, news, example games, events and alumni) stays
   // hidden on the public site. Set to true only for an internal demo. Real data never depends on it.
   var SHOW_EXAMPLES = false;
+  // Pre-launch samples Quentin asked to keep visible until the site is approved (15/11/2026): the Off Track charity
+  // run (events.js, keepVisible) and two "Example profile" alumni (ALUMNI below, preview). Set to false before go-live.
+  var SHOW_PRELAUNCH_SAMPLES = true;
   var GAMES = ALL_GAMES.filter(function (g) { return SHOW_EXAMPLES || !g.example; });
   var EVENTS = ALL_EVENTS.filter(function (e) { return SHOW_EXAMPLES || !e.example; });
   // Line icons (one stroke family, drawn as SVG): no glyph or emoji stand-ins.
@@ -52,7 +55,7 @@ export function initSite(backend, tools) {
   // ================= Events (one source: components/legacy/events.js) =================
   function upcomingEvents() {
     var today = ymd(new Date());
-    return EVENTS.filter(function (e) { return e.date >= today; }).sort(function (a, b) { return (a.date + a.time).localeCompare(b.date + b.time); });
+    return EVENTS.filter(function (e) { return e.date >= today || (SHOW_PRELAUNCH_SAMPLES && e.keepVisible); }).sort(function (a, b) { return (a.date + a.time).localeCompare(b.date + b.time); });
   }
   function eWhen(e) { return gLong(e) + " · " + e.time; }
   function eTitleHtml(e) { var w = e.title.split(" "); return esc(w.length > 1 ? w.slice(0, -1).join(" ") : w[0]) + (w.length > 1 ? "<br>" + esc(w[w.length - 1]) : "") + "."; }
@@ -188,8 +191,8 @@ export function initSite(backend, tools) {
   // ================= Alumni data (examples) =================
   var ALUMNI = [
     { id: "1", first: "Lucía", last: "Ferrer", nationality: "Spanish", programme: "BBA", grad: 2023, exUni: "University of Michigan", exDomain: "umich.edu", exCity: "Ann Arbor, USA", inCo: "Football club", inRole: "Partnerships intern", assos: "Esade Sports", sports: ["Football 7"], linkedin: "linkedin.com/in/example-lucia", interns: [["Sports marketing agency", "Marketing intern", "2021"]], phone: "+34 600 000 001", esade: "lucia.ferrer@esade.example", perso: "lucia.ferrer@example.com", active: false },
-    { id: "2", first: "Marco", last: "Bianchi", nationality: "Italian", programme: "BBA", grad: 2022, exUni: "National University of Singapore", exDomain: "nus.edu.sg", exCity: "Singapore", inCo: "Sports data start-up", inRole: "Business analyst intern", assos: "Esade Sports, Finance club", sports: ["Basketball"], linkedin: "linkedin.com/in/example-marco", interns: [], phone: "+39 300 000 002", esade: "marco.bianchi@esade.example", perso: "marco.b@example.com", active: false },
-    { id: "3", first: "Sophie", last: "Laurent", nationality: "French", programme: "Double degree BBA + Law", grad: 2024, exUni: "McGill University", exDomain: "mcgill.ca", exCity: "Montréal, Canada", inCo: "Sports law firm", inRole: "Legal intern", assos: "Esade Sports", sports: ["Volleyball"], linkedin: "", interns: [["Event agency", "Operations intern", "2022"]], phone: "+33 6 00 00 00 03", esade: "sophie.laurent@esade.example", perso: "sophie.l@example.com", active: true },
+    { id: "2", preview: true, first: "Marco", last: "Bianchi", nationality: "Italian", programme: "BBA", grad: 2022, exUni: "National University of Singapore", exDomain: "nus.edu.sg", exCity: "Singapore", inCo: "Sports data start-up", inRole: "Business analyst intern", assos: "Esade Sports, Finance club", sports: ["Basketball"], linkedin: "linkedin.com/in/example-marco", interns: [], phone: "+39 300 000 002", esade: "marco.bianchi@esade.example", perso: "marco.b@example.com", active: false },
+    { id: "3", preview: true, first: "Sophie", last: "Laurent", nationality: "French", programme: "Double degree BBA + Law", grad: 2024, exUni: "McGill University", exDomain: "mcgill.ca", exCity: "Montréal, Canada", inCo: "Sports law firm", inRole: "Legal intern", assos: "Esade Sports", sports: ["Volleyball"], linkedin: "", interns: [["Event agency", "Operations intern", "2022"]], phone: "+33 6 00 00 00 03", esade: "sophie.laurent@esade.example", perso: "sophie.l@example.com", active: true },
     { id: "4", first: "Daniel", last: "Okafor", nationality: "Nigerian", programme: "BBA", grad: 2021, exUni: "Copenhagen Business School", exDomain: "cbs.dk", exCity: "Copenhagen, Denmark", inCo: "Sportswear brand", inRole: "Brand intern", assos: "Esade Sports", sports: ["Football 7", "Futsal"], linkedin: "linkedin.com/in/example-daniel", interns: [], phone: "+44 7000 000004", esade: "daniel.okafor@esade.example", perso: "d.okafor@example.com", active: false },
     { id: "5", first: "Hannah", last: "Schmidt", nationality: "German", programme: "BBA", grad: 2025, exUni: "University of Sydney", exDomain: "sydney.edu.au", exCity: "Sydney, Australia", inCo: "Tennis tournament organiser", inRole: "Event operations intern", assos: "Esade Sports", sports: ["Padel"], linkedin: "linkedin.com/in/example-hannah", interns: [["Consultancy", "Summer analyst", "2023"]], phone: "+49 150 0000005", esade: "hannah.schmidt@esade.example", perso: "", active: true },
     { id: "6", first: "Javier", last: "Ruiz", nationality: "Spanish", programme: "BBA", grad: 2020, exUni: "Bocconi University", exDomain: "unibocconi.it", exCity: "Milan, Italy", inCo: "Investment bank", inRole: "Summer analyst", assos: "Esade Sports", sports: ["Basketball"], linkedin: "linkedin.com/in/example-javier", interns: [], phone: "+34 600 000 006", esade: "javier.ruiz@esade.example", perso: "jruiz@example.com", active: false },
@@ -202,7 +205,8 @@ export function initSite(backend, tools) {
     a.headline = ["Sports marketing intern · FC Barcelona", "Business analyst · sports data start-up", "Law student · sports regulation", "Brand strategy intern · sportswear", "Event operations intern · tennis circuit", "Investment banking analyst", "Content intern · sports media", "Commercial intern · football league", "Account intern · sponsorship agency"][i] || (a.inRole + " · " + a.inCo);
     a.esadeRole = i === 0 ? "Football 7 · Former player" : i === 2 ? "Volleyball · Active member" : i === 8 ? "Padel · Volleyball · Active member" : "Esade Sports · Former member";
   });
-  if (!SHOW_EXAMPLES) ALUMNI = []; // example profiles: internal demo only
+  // Example profiles: internal demo only, except the two "preview" ones shown before launch (see SHOW_PRELAUNCH_SAMPLES).
+  if (!SHOW_EXAMPLES) ALUMNI = SHOW_PRELAUNCH_SAMPLES ? ALUMNI.filter(function (a) { return a.preview; }) : [];
 
   // ================= State =================
   var state = { user: null, me: null, expenses: null, captains: null, teamApplications: {}, teamInfo: {}, teamResults: {}, tasks: {}, checkups: [], rosters: {}, deckNotes: {}, nextId: 100, al: { q: "", sport: "All", year: "" }, hubFilter: "all", appFilter: "all", teamOpen: null };
