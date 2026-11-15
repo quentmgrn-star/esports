@@ -1291,3 +1291,13 @@ html.kb-active, html.kb-active * { cursor: grabbing !important; user-select: non
 #hub .act-what { overflow-wrap: anywhere; font-size: 14px; }
 #hub .act-what small { display: block; font-size: 12px; margin-top: 2px; }
 @media (max-width: 640px) { #hub .act-list li { grid-template-columns: 1fr; gap: 2px; } }
+#hub .ho-msg { margin: 8px 0 0; font-size: 13px; font-weight: 600; min-height: 1em; }
+#hub .ho-msg:empty { display: none; }
+#hub .ho-msg.ok { color: var(--ok); }
+#hub .ho-msg.bad { color: var(--bad); }
+#hub .ho-msg.busy { color: var(--ink-soft); }
+#hub .ho-save { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+#hub .ho-save .ho-msg { margin: 0; flex-basis: 100%; }
+#hub .ho-unsaved { display: none; font-size: 12px; font-weight: 600; color: var(--warn); }
+#hub .ho-form.dirty .ho-unsaved { display: inline; }
+@media (max-width: 760px) { .toast, #hub .toast { left: 16px; right: 16px; } }

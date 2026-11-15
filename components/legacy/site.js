@@ -2076,7 +2076,7 @@ export function initSite(backend, tools) {
       return '<tr class="tn-' + st + '"><td><b>' + esc(p.first + " " + p.last) + "</b>" + (p.number ? ' <span class="muted">#' + esc(p.number) + "</span>" : "") +
         (p.updatedBy ? '<br><small class="muted" title="' + esc(hist) + '">Changed by ' + esc(p.updatedBy) + " · " + esc(fmtWhen(p.updatedAt)) + "</small>" : "") + "</td><td>" + seg + "</td><td>" + idCell + "</td><td>" +
         (files ? '<ul class="tn-files">' + files + "</ul>" : ed ? "" : '<span class="muted">None</span>') +
-        (ed ? '<label class="btn sm tn-add">+ Add document<input type="file" hidden multiple accept=".pdf,application/pdf,image/jpeg,image/png,image/webp,image/heic" data-tn-file data-team="' + t.team + '" data-key="' + esc(p.key) + '"></label>' : "") + "</td></tr>";
+        (ed ? '<label class="btn sm tn-add">+ Add document<input type="file" hidden multiple accept=".pdf,application/pdf,image/jpeg,image/png,image/webp,image/heic" data-tn-file data-team="' + t.team + '" data-key="' + esc(p.key) + '"></label>' + hoMsgHtml("t:" + t.team + "|" + p.key) : "") + "</td></tr>";
     };
     // Board / Eva view: Attending first, then Not attending, then Not answered. Captains keep their roster order.
     var rows = grouped ? ["yes", "no", "none"].map(function (g) {
@@ -2123,14 +2123,14 @@ export function initSite(backend, tools) {
       i.addEventListener("keydown", function (ev) { if (ev.key === "Enter") { ev.preventDefault(); i.blur(); } });
     });
     hub.querySelectorAll("[data-tn-file]").forEach(function (inp) { inp.addEventListener("change", function () {
-      var files = Array.prototype.slice.call(inp.files || []), team_ = inp.getAttribute("data-team"), key = inp.getAttribute("data-key");
+      var files = Array.prototype.slice.call(inp.files || []), team_ = inp.getAttribute("data-team"), key = inp.getAttribute("data-key"), mk = "t:" + team_ + "|" + key;
       inp.blur();
       inp.value = "";
       files.reduce(function (pr, f) { return pr.then(function () {
-        if (f.size > 10 * 1048576) { toast(f.name + ": too big (max 10 MB)."); return; }
-        toast("Uploading " + f.name + "…");
+        if (f.size > 10 * 1048576) { hoSay(mk, f.name + ": too big (max 10 MB).", "bad"); toast(f.name + ": too big (max 10 MB)."); return; }
+        hoSay(mk, "Uploading " + f.name + "…", "busy");
         return Promise.resolve(backend.uploadFile(f)).then(function (sid) { return backend.run("tnAddFile", { team: team_, key: key, storageId: sid, name: f.name }); })
-          .then(function (r) { toast(r && r.error ? f.name + ": " + r.error : f.name + " added."); }, function (x) { toast(errText(x)); });
+          .then(function (r) { if (r && r.error) { hoSay(mk, f.name + ": " + r.error, "bad"); toast(f.name + ": " + r.error); } else { hoSay(mk, "Added ✓ " + f.name, "ok", 8000); toast(f.name + " added."); } }, function (x) { hoSay(mk, errText(x), "bad"); toast(errText(x)); });
       }); }, Promise.resolve());
     }); });
     hub.querySelectorAll("[data-tn-rm]").forEach(function (b) { b.addEventListener("click", function () {
@@ -2210,9 +2210,7 @@ export function initSite(backend, tools) {
   }
   function hoSection(teamId, s) {
     var ed = s.canEdit && !hRO(), k = teamId + "|" + s.dept;
-    var files = s.files.map(function (f) { return '<li><a href="' + esc(f.url || "#") + '" target="_blank" rel="noopener" title="Added by ' + esc(f.by) + " · " + esc(fmtWhen(f.at)) + '">' + esc(clip(f.name, 48)) + '</a> <small class="muted">' + tnSize(f.size) + " · " + esc(fmtDay(f.at)) + "</small>" + (ed ? ' <button type="button" class="rm" data-ho-rmfile="' + esc(f.id) + '" data-k="' + esc(k) + '" aria-label="Remove ' + esc(f.name) + '">Remove</button>' : "") + "</li>"; }).join("");
-    var filesBlock = '<div class="ho-block"><h3>Files</h3>' + (files ? '<ul class="tn-files">' + files + "</ul>" : '<p class="muted" style="margin:0 0 6px">No files yet.</p>') +
-      (ed ? '<label class="btn sm tn-add">+ Add files<input type="file" hidden multiple accept=".pdf,application/pdf,image/jpeg,image/png,image/webp,image/heic,.xlsx,.docx,.csv" data-ho-file data-k="' + esc(k) + '"></label> <small class="muted">PDF, image, Excel, Word or CSV, max 10 MB each</small>' : "") + "</div>";
+    var filesBlock = hoFiles(k, s, ed);
     var meta = s.updatedBy ? '<small class="muted">Last edited by ' + esc(s.updatedBy) + " · " + esc(fmtWhen(s.updatedAt)) + "</small>" : '<small class="muted">Nothing written yet</small>';
     var top = '<section class="panel ho-panel"><div class="panel-head"><h2>' + esc(s.dept) + "</h2>" + meta + '</div><p class="muted ho-help">' + esc(HO_HELP[s.dept] || "") + "</p>";
     if (!ed) {
@@ -2225,9 +2223,33 @@ export function initSite(backend, tools) {
       '<div class="ho-block"><h3><label for="ho-n-' + esc(k).replace(/[^a-z0-9]/gi, "") + '">Notes</label></h3><textarea id="ho-n-' + esc(k).replace(/[^a-z0-9]/gi, "") + '" name="notes" rows="5" maxlength="8000" placeholder="' + esc(HO_HELP[s.dept] || "") + '">' + esc(s.notes) + "</textarea></div>" +
       '<div class="ho-block"><h3>Contacts</h3><div class="table-wrap"><table class="ho-edit"><tbody data-ho-rows="c">' + (s.contacts.length ? s.contacts : [{}]).map(hoCRow).join("") + '</tbody></table></div><button type="button" class="btn sm" data-ho-add="c">+ Add contact</button></div>' +
       '<div class="ho-block"><h3>Links</h3><div class="table-wrap"><table class="ho-edit"><tbody data-ho-rows="l">' + (s.links.length ? s.links : [{}]).map(hoLRow).join("") + '</tbody></table></div><button type="button" class="btn sm" data-ho-add="l">+ Add link</button></div>' +
-      '<div><button class="btn sm solid" type="submit">Save ' + esc(s.dept) + "</button></div></form>" + filesBlock + "</section>";
+      '<div class="ho-save"><button class="btn sm solid" type="submit">Save ' + esc(s.dept) + '</button><span class="ho-unsaved">Unsaved changes</span>' + hoMsgHtml("s:" + k) + "</div></form>" + filesBlock + "</section>";
   }
-  function hoKey(el) { var p = (el.getAttribute("data-k") || "").split("|"); return { team: p[0], dept: p.slice(1).join("|") }; }
+  // Files list of one section. Re-drawn on its own when the live data changes (hoPatchFiles), so a new file shows
+  // straight away even while someone is typing in the notes above (that blocks a full re-render).
+  function hoFiles(k, s, ed) {
+    var files = s.files.map(function (f) { return '<li><a href="' + esc(f.url || "#") + '" target="_blank" rel="noopener">' + esc(clip(f.name, 48)) + '</a> <small class="muted">' + tnSize(f.size) + " · added by " + esc(f.by) + " · " + esc(fmtWhen(f.at)) + "</small>" + (ed ? ' <button type="button" class="rm" data-ho-rmfile="' + esc(f.id) + '" data-k="' + esc(k) + '" aria-label="Remove ' + esc(f.name) + '">Remove</button>' : "") + "</li>"; }).join("");
+    return '<div class="ho-block" data-ho-files="' + esc(k) + '"><h3>Files' + (s.files.length ? ' <span class="muted">· ' + s.files.length + "</span>" : "") + "</h3>" + (files ? '<ul class="tn-files">' + files + "</ul>" : '<p class="muted" style="margin:0 0 6px">No files yet.</p>') +
+      (ed ? '<label class="btn sm tn-add">+ Add files<input type="file" hidden multiple accept=".pdf,application/pdf,image/jpeg,image/png,image/webp,image/heic,.xlsx,.docx,.csv" data-ho-file data-k="' + esc(k) + '"></label> <small class="muted">PDF, image, Excel, Word or CSV, max 10 MB each</small>' + hoMsgHtml("f:" + k) : "") + "</div>";
+  }
+  // Status line next to a button ("Uploading…", "Added", "Saved", errors). Kept in state so a re-render keeps it.
+  var HO_MSG = {};
+  function hoMsgHtml(key) { var m = HO_MSG[key]; return '<p class="ho-msg' + (m ? " " + m.kind : "") + '" data-ho-msg="' + esc(key) + '" role="status" aria-live="polite">' + (m ? esc(m.text) : "") + "</p>"; }
+  function hoSay(key, text, kind, ms) {
+    var m = { text: text, kind: kind || "" }; HO_MSG[key] = m;
+    hub.querySelectorAll("[data-ho-msg]").forEach(function (el) { if (el.getAttribute("data-ho-msg") === key) { el.className = "ho-msg " + m.kind; el.textContent = text; } });
+    if (ms) setTimeout(function () { if (HO_MSG[key] === m) hoSay(key, "", ""); }, ms);
+  }
+  function hoPatchFiles() {
+    if (!LIVE.handover) return;
+    hub.querySelectorAll("[data-ho-files]").forEach(function (el) {
+      var key = hoKey(el), t = LIVE.handover.teams.filter(function (x) { return x.team === key.team; })[0], s = t && t.sections.filter(function (x) { return x.dept === key.dept; })[0];
+      if (!s) return;
+      var box = document.createElement("div"); box.innerHTML = hoFiles(el.getAttribute("data-ho-files"), s, s.canEdit && !hRO());
+      var nu = box.firstChild; el.parentNode.replaceChild(nu, el); bindHoFiles(nu);
+    });
+  }
+  function hoKey(el) { var p = (el.getAttribute("data-k") || el.getAttribute("data-ho-files") || "").split("|"); return { team: p[0], dept: p.slice(1).join("|") }; }
   function bindHandover() {
     hub.querySelectorAll("[data-ho-open]").forEach(function (r) {
       function op() { var id = r.getAttribute("data-ho-open"); state.hoOpen = state.hoOpen === id ? null : id; render(); }
@@ -2248,25 +2270,32 @@ export function initSite(backend, tools) {
         var contacts = Array.prototype.map.call(f.querySelectorAll("tr.ho-c"), function (tr) { var c = {}; HO_CK.forEach(function (k) { c[k[0]] = val(tr, k[0]); }); return c; })
           .filter(function (c) { return (c.name + c.email + c.phone + c.org + c.role).trim(); });
         var links = Array.prototype.map.call(f.querySelectorAll("tr.ho-l"), function (tr) { return { label: val(tr, "label"), url: val(tr, "url") }; }).filter(function (l) { return l.url.trim(); });
-        bt.disabled = true;
+        bt.disabled = true; hoSay("s:" + f.getAttribute("data-k"), "Saving…", "busy");
         Promise.resolve(backend.run("hoSave", { team: key.team, dept: key.dept, notes: f.elements.notes.value, contacts: contacts, links: links }))
-          .then(function () { f.classList.remove("dirty"); bt.disabled = false; toast(key.dept + " saved."); }, function (x) { bt.disabled = false; toast(errText(x)); });
+          .then(function () { f.classList.remove("dirty"); bt.disabled = false; hoSay("s:" + f.getAttribute("data-k"), "Saved ✓ " + key.dept + " is up to date.", "ok", 8000); toast(key.dept + " saved."); },
+            function (x) { bt.disabled = false; hoSay("s:" + f.getAttribute("data-k"), "Not saved: " + errText(x), "bad"); toast(errText(x)); });
       });
     });
-    hub.querySelectorAll("[data-ho-file]").forEach(function (inp) { inp.addEventListener("change", function () {
-      var files = Array.prototype.slice.call(inp.files || []), key = hoKey(inp);
+    bindHoFiles(hub);
+  }
+  function bindHoFiles(root) {
+    root.querySelectorAll("[data-ho-file]").forEach(function (inp) { inp.addEventListener("change", function () {
+      var files = Array.prototype.slice.call(inp.files || []), key = hoKey(inp), mk = "f:" + inp.getAttribute("data-k"), ok = 0, bad = [];
       inp.blur();
       inp.value = "";
-      files.reduce(function (pr, f) { return pr.then(function () {
-        if (f.size > 10 * 1048576) { toast(f.name + ": too big (max 10 MB)."); return; }
-        toast("Uploading " + f.name + "…");
+      files.reduce(function (pr, f, i) { return pr.then(function () {
+        if (f.size > 10 * 1048576) { bad.push(f.name + ": too big (max 10 MB)"); return; }
+        hoSay(mk, "Uploading " + f.name + (files.length > 1 ? " (" + (i + 1) + " of " + files.length + ")" : "") + "…", "busy");
         return Promise.resolve(backend.uploadFile(f)).then(function (sid) { return backend.run("hoAddFile", { team: key.team, dept: key.dept, storageId: sid, name: f.name }); })
-          .then(function (r) { toast(r && r.error ? f.name + ": " + r.error : f.name + " added."); }, function (x) { toast(errText(x)); });
-      }); }, Promise.resolve());
+          .then(function (r) { if (r && r.error) bad.push(f.name + ": " + r.error); else ok++; }, function (x) { bad.push(f.name + ": " + errText(x)); });
+      }); }, Promise.resolve()).then(function () {
+        if (bad.length) { hoSay(mk, (ok ? ok + " added. " : "") + "Not added: " + bad.join("; "), "bad"); toast("Not added: " + bad[0]); }
+        else if (ok) { hoSay(mk, (ok === 1 ? "Added ✓ " + files[0].name : "Added ✓ " + ok + " files") + " (saved, it's in the list above).", "ok", 8000); toast(ok === 1 ? files[0].name + " added." : ok + " files added."); }
+      });
     }); });
-    hub.querySelectorAll("[data-ho-rmfile]").forEach(function (b) { b.addEventListener("click", function () {
-      var key = hoKey(b); b.disabled = true;
-      Promise.resolve(backend.run("hoRemoveFile", { team: key.team, dept: key.dept, storageId: b.getAttribute("data-ho-rmfile") })).then(function () { toast("File removed."); }, function (x) { b.disabled = false; toast(errText(x)); });
+    root.querySelectorAll("[data-ho-rmfile]").forEach(function (b) { b.addEventListener("click", function () {
+      var key = hoKey(b), mk = "f:" + b.getAttribute("data-k"); b.disabled = true;
+      Promise.resolve(backend.run("hoRemoveFile", { team: key.team, dept: key.dept, storageId: b.getAttribute("data-ho-rmfile") })).then(function () { hoSay(mk, "File removed.", "ok", 5000); }, function (x) { b.disabled = false; hoSay(mk, errText(x), "bad"); });
     }); });
   }
   function hubTeams() {
@@ -2328,7 +2357,7 @@ export function initSite(backend, tools) {
       LIVE.subs = [];
       applyPeople(); applyBudgets();
       if (backend.watch) [["tasks", "tasks"], ["budgets", "budgets"], ["results", "results"], ["people", "people"], ["partners", "partners"], ["inbox", "inbox"], ["tournament", "tournament"], ["handover", "handover"], ["tryouts", "tryouts"]].forEach(function (x) {
-        LIVE.subs.push(backend.watch(x[0], function (d) { if (d === undefined) return; LIVE[x[1]] = d; if (x[1] === "people") applyPeople(); if (x[1] === "budgets") applyBudgets(); hubRefresh(); }));
+        LIVE.subs.push(backend.watch(x[0], function (d) { if (d === undefined) return; LIVE[x[1]] = d; if (x[1] === "handover") hoPatchFiles(); if (x[1] === "people") applyPeople(); if (x[1] === "budgets") applyBudgets(); hubRefresh(); }));
       });
       if (backend.watch && boardAccount()) [["messages", "messages"], ["assocApps", "assocApps"], ["emailProblems", "emailProblems"]].forEach(function (x) {
         LIVE.subs.push(backend.watch(x[0], function (d) { if (d === undefined) return; LIVE[x[1]] = d || []; hubRefresh(); }));
