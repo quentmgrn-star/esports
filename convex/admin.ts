@@ -4,7 +4,7 @@ import type { Id } from "./_generated/dataModel";
 import { authComponent, isAdminEmail } from "./auth";
 import { stageValidator, TEAM_STATUSES } from "./stages";
 import { canEdit, canSee, getAccess, isExecEditor, requireAccess, type Access, type Resource } from "./roles";
-import { TEAMS } from "./teamList";
+import { TEAMS, teamLabel } from "./teamList";
 import { internal } from "./_generated/api";
 
 // Every rule below goes through canSee / canEdit in convex/roles.ts.
@@ -234,5 +234,35 @@ export const deleteAlumniProfile = mutation({
   handler: async (ctx, { id }) => {
     await requireExecEdit(ctx);
     await ctx.db.delete(id);
+  },
+});
+
+// ---------- Emails that did not go out (admin + Board) ----------
+// Every public form sends a confirmation email (convex/mail.ts) and stores the result as `confirmEmail`.
+// This lists the ones that failed or were skipped, so a missing confirmation is never silent.
+export type EmailProblem = { at: number; form: string; name: string; email: string; about: string; why: string };
+const notSent = (s?: string) => !!s && s !== "sent";
+export const emailProblems = query({
+  args: {},
+  handler: async (ctx): Promise<EmailProblem[]> => {
+    const a = await getAccess(ctx);
+    if (!a || !(a.full || a.board)) return [];
+    const out: EmailProblem[] = [];
+    for (const x of await ctx.db.query("associationApplications").collect())
+      if (notSent(x.confirmEmail)) out.push({ at: x._creationTime, form: "Association application", name: `${x.firstName} ${x.lastName}`, email: x.email, about: [x.pref1, x.pref2].filter(Boolean).join(", "), why: x.confirmEmail! });
+    for (const x of await ctx.db.query("teamApplications").collect())
+      if (notSent(x.confirmEmail))
+        out.push({ at: x._creationTime, form: x.kind === "coach" ? "Coach application" : x.track === "social" ? "Just for fun sign-up" : "Try-out sign-up", name: `${x.firstName} ${x.lastName}`, email: x.email, about: teamLabel(x.teamSlug), why: x.confirmEmail! });
+    for (const x of await ctx.db.query("alumniProfiles").collect())
+      if (notSent(x.confirmEmail)) out.push({ at: x._creationTime, form: "Alumni profile", name: `${x.first} ${x.last}`, email: x.email, about: "", why: x.confirmEmail! });
+    for (const x of await ctx.db.query("members").collect())
+      if (notSent(x.confirmEmail)) out.push({ at: x._creationTime, form: "Hub access request", name: x.name, email: x.email, about: x.role === "captain" ? "Captain" : `${x.department ?? ""} associate`, why: x.confirmEmail! });
+    for (const x of await ctx.db.query("partnerInquiries").collect())
+      if (notSent(x.confirmEmail)) out.push({ at: x._creationTime, form: "Partner enquiry", name: x.name, email: x.email, about: x.company, why: x.confirmEmail! });
+    for (const x of await ctx.db.query("contactMessages").collect()) {
+      if (notSent(x.confirmEmail)) out.push({ at: x._creationTime, form: "Contact message", name: x.name, email: x.email, about: x.subject, why: x.confirmEmail! });
+      if (x.emailStatus?.startsWith("failed")) out.push({ at: x._creationTime, form: "Contact message (copy to captains/admins)", name: x.name, email: x.email, about: x.subject, why: x.emailStatus });
+    }
+    return out.sort((p, q) => q.at - p.at).slice(0, 100);
   },
 });

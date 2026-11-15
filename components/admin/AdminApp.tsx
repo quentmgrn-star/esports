@@ -28,6 +28,7 @@ type Application = {
   stage?: Stage;
   stageChangedAt?: number;
   notes?: string;
+  confirmEmail?: string;
 };
 
 // Recruitment pipeline (same values as convex/stages.ts).
@@ -430,6 +431,49 @@ const SECTION_TITLE: Record<Section, string> = {
   alumni: "Alumni profiles",
 };
 
+// Confirmation email to the person who filled in the form (convex/mail.ts stores "sent" or why not).
+// Older submissions (before 15 Nov 2026) have no status.
+function ConfirmEmail({ status }: { status?: string }) {
+  if (!status) return <>Not recorded</>;
+  if (status === "sent") return <>Sent</>;
+  return <span className="adm-mailfail" title={status}>Email not sent · {status}</span>;
+}
+
+// Warning box at the top of /admin: confirmation emails that did not reach the person.
+function EmailProblems() {
+  const rows = useQuery(api.admin.emailProblems, {}) as
+    | { at: number; form: string; name: string; email: string; about: string; why: string }[]
+    | undefined;
+  const [open, setOpen] = useState(false);
+  if (!rows?.length) return null;
+  return (
+    <section className="adm-mailwarn" role="alert">
+      <strong>
+        Email not sent to {rows.length} {rows.length === 1 ? "person" : "people"}
+      </strong>
+      <p className="adm-p">
+        These people filled in a form, and their form was saved, but they did not get their confirmation email. Write to them by hand
+        if needed. Most likely reason: the website can only email the Resend account owner until a sending domain is verified in
+        Resend.
+      </p>
+      <button type="button" className="btn btn-ghost-navy" onClick={() => setOpen(!open)}>
+        {open ? "Hide the list" : "Show who"}
+      </button>
+      {open && (
+        <ul className="adm-maillist">
+          {rows.map((r, i) => (
+            <li key={i}>
+              <strong>{r.name}</strong> · <a href={`mailto:${r.email}`}>{r.email}</a> · {r.form}
+              {r.about ? ` (${r.about})` : ""} · {new Date(r.at).toLocaleString("en-GB")}
+              <span className="adm-sub">{r.why}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 function Dashboard({ me }: { me: NonNullable<Me> }) {
   const d = deptsOf(me);
   const seesTryouts = me.full || me.teams.length > 0 || d.includes("Operations");
@@ -480,6 +524,7 @@ function Dashboard({ me }: { me: NonNullable<Me> }) {
             </button>
           ))}
       </nav>
+      {(me.full || me.board) && <EmailProblems />}
       {me.readOnly && (
         <p className="adm-p adm-readonly">View-only access: you can see everything, but not change anything.</p>
       )}
@@ -693,6 +738,7 @@ function Applications({ canMove }: { canMove: boolean }) {
 }
 
 type ContactMessage = {
+  confirmEmail?: string;
   _id: string;
   _creationTime: number;
   topic: string;
@@ -870,6 +916,12 @@ function MessageDetail({
             <dt>Email copy</dt>
             <dd>{m.emailStatus ?? "Pending"}</dd>
           </div>
+          <div>
+            <dt>Confirmation to sender</dt>
+            <dd>
+              <ConfirmEmail status={m.confirmEmail} />
+            </dd>
+          </div>
         </dl>
         <h3 className="adm-h3">Message</h3>
         <p className="adm-motivation">{m.message}</p>
@@ -946,6 +998,7 @@ function Detail({ app, onClose }: { app: Application; onClose: () => void }) {
     ["Accepts redirection", app.acceptsRedirect ? "Yes" : "No"],
     ["Confirms accuracy", app.confirmsAccuracy ? "Yes" : "No"],
     ["Submitted", new Date(app._creationTime).toLocaleString("en-GB")],
+    ["Confirmation email", <ConfirmEmail status={app.confirmEmail} />],
   ];
 
   return (
@@ -1027,6 +1080,7 @@ function Notes({ value, save }: { value?: string; save: (notes: string) => Promi
 
 // ---------- Try-outs & coaches (teamApplications) ----------
 type TeamApp = {
+  confirmEmail?: string;
   _id: string;
   _creationTime: number;
   teamSlug: string;
@@ -1269,6 +1323,7 @@ function TeamAppDetail({ app, onClose }: { app: TeamApp; onClose: () => void }) 
     ["Level", app.level || "—"],
     ["Wants to play", app.kind === "coach" ? "—" : app.track === "social" ? "Just for fun (no try-out)" : "Competitive squad (try-outs)"],
     ["Submitted", new Date(app._creationTime).toLocaleString("en-GB")],
+    ["Confirmation email", <ConfirmEmail status={app.confirmEmail} />],
   ];
   return (
     <div className="match-modal">
@@ -1428,6 +1483,7 @@ function Captains() {
 
 type AlumniStatus = "pending" | "approved" | "rejected";
 type AlumniProfile = {
+  confirmEmail?: string;
   _id: string;
   _creationTime: number;
   first: string;
@@ -1498,6 +1554,14 @@ function AlumniProfiles() {
                 </div>
               </header>
               <dl>
+                {r.confirmEmail && r.confirmEmail !== "sent" && (
+                  <>
+                    <dt>Confirmation</dt>
+                    <dd>
+                      <ConfirmEmail status={r.confirmEmail} />
+                    </dd>
+                  </>
+                )}
                 <dt>Sports</dt>
                 <dd>{r.sports.join(", ")}{r.esadeRole ? ` · ${r.esadeRole}` : ""}</dd>
                 {r.headline && (

@@ -133,3 +133,10 @@
 .adm .kb-col.kb-over { background: var(--stg-bg); }
 .adm .kb-card { border: 1px solid var(--line); border-left: 4px solid var(--stg); box-shadow: none; }
 .adm .kb-bar { margin-bottom: 12px; }
+
+/* Confirmation emails that did not go out (convex/admin.ts emailProblems). */
+.adm-mailwarn { background: #fff4e5; border-left: 4px solid #d97706; padding: 14px 16px; margin: 0 0 18px; display: grid; gap: 8px; justify-items: start; }
+.adm-mailwarn strong { color: #8a4b00; }
+.adm-maillist { margin: 4px 0 0; padding-left: 18px; display: grid; gap: 6px; }
+.adm-maillist .adm-sub { display: block; word-break: break-word; }
+.adm-mailfail { color: #b45309; font-weight: 600; word-break: break-word; }

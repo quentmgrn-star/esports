@@ -1,9 +1,13 @@
 import { v } from "convex/values";
-import { internalAction } from "./_generated/server";
+import { internalAction, internalMutation } from "./_generated/server";
+import { internal } from "./_generated/api";
+import type { TableNames } from "./_generated/dataModel";
 
 // Confirmation emails after the public forms ("we got it, here is what happens next").
 // Sent with Resend (https://resend.com) when RESEND_API_KEY and MAIL_FROM are set on Convex.
 // Without them nothing is sent and nothing breaks: the form is saved as usual.
+// The result ("sent", or why it was not sent) is stored on the submission as `confirmEmail`,
+// so admins see an "Email not sent" warning in /admin and the Hub instead of a silent failure.
 type Lang = "en" | "ca" | "es";
 type Kind = "tryout" | "social" | "coach" | "association" | "alumni" | "access" | "contact" | "partner";
 const T: Record<Kind, Record<Lang, [string, string]>> = {
@@ -98,26 +102,58 @@ const BYE: Record<Lang, string> = {
   es: "Esade Sports\n\n(Esta es una confirmación automática. Puedes responder a este correo si tienes alguna pregunta.)",
 };
 
+// Tables whose rows get a confirmation email (each has an optional `confirmEmail` field).
+const TABLES = ["teamApplications", "partnerInquiries", "associationApplications", "contactMessages", "alumniProfiles", "members"];
+
+export const setConfirmStatus = internalMutation({
+  args: { table: v.string(), id: v.string(), status: v.string() },
+  handler: async (ctx, { table, id, status }): Promise<null> => {
+    if (!TABLES.includes(table)) return null;
+    const doc = ctx.db.normalizeId(table as TableNames, id);
+    if (doc && (await ctx.db.get(doc))) await ctx.db.patch(doc, { confirmEmail: status.slice(0, 300) } as never);
+    return null;
+  },
+});
+
 export const confirm = internalAction({
-  args: { to: v.string(), name: v.optional(v.string()), kind: v.string(), about: v.optional(v.string()), lang: v.optional(v.string()) },
-  handler: async (_ctx, x): Promise<null> => {
+  args: {
+    to: v.string(),
+    name: v.optional(v.string()),
+    kind: v.string(),
+    about: v.optional(v.string()),
+    lang: v.optional(v.string()),
+    // The submission this email confirms, to store whether it was sent.
+    table: v.optional(v.string()),
+    id: v.optional(v.string()),
+  },
+  handler: async (ctx, x): Promise<null> => {
+    const record = async (status: string): Promise<null> => {
+      if (x.table && x.id) await ctx.runMutation(internal.mail.setConfirmStatus, { table: x.table, id: x.id, status });
+      return null;
+    };
     const key = process.env.RESEND_API_KEY, from = process.env.MAIL_FROM;
-    if (!key || !from) return null; // email not set up yet: skip quietly
+    if (!key || !from) return record("not sent: email sending is not set up (RESEND_API_KEY / MAIL_FROM)");
     const t = T[x.kind as Kind];
-    if (!t || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x.to)) return null;
+    if (!t) return record(`not sent: unknown email type "${x.kind}"`);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x.to)) return record("not sent: the email address is not valid");
     const lang: Lang = x.lang === "ca" || x.lang === "es" ? x.lang : "en";
     const [subject, body] = t[lang];
-    const text = `${HELLO[lang]}${x.name ? " " + x.name : ""},\n\n${body.replace("{team}", x.about ?? "Esade Sports")}\n\n${CLOSE[x.kind as Kind][lang]}\n${BYE[lang]}`;
+    const text = `${HELLO[lang]}${x.name ? " " + x.name : ""},\n\n${body.replace("{team}", x.about || "Esade Sports")}\n\n${CLOSE[x.kind as Kind][lang]}\n${BYE[lang]}`;
     try {
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
         body: JSON.stringify({ from, to: [x.to], subject: `Esade Sports · ${subject}`, text }),
       });
-      if (!res.ok) console.error("Confirmation email failed", res.status, (await res.text()).slice(0, 200));
+      if (!res.ok) {
+        const why = (await res.text()).slice(0, 220);
+        console.error("Confirmation email failed", x.kind, res.status, why);
+        return record(`failed: ${res.status} ${why}`);
+      }
+      return record("sent");
     } catch (e) {
-      console.error("Confirmation email failed", e);
+      console.error("Confirmation email failed", x.kind, e);
+      return record(`failed: ${e instanceof Error ? e.message : String(e)}`);
     }
-    return null;
   },
 });

@@ -71,9 +71,9 @@ export const requestAccess = mutation({
     if (mine.filter((r) => r.status === "requested").length >= 3) throw new ConvexError("You already have requests waiting. Please wait for an answer.");
     if (mine.some((r) => r.status === "requested" && r.role === m.role && r.department === m.department && (r.teams ?? []).join() === (m.teams ?? []).join()))
       throw new ConvexError("This request is already waiting for approval.");
-    await ctx.db.insert("members", { ...m, note: args.note?.trim().slice(0, 500) || undefined, status: "requested", requestedAt: Date.now() });
+    const id = await ctx.db.insert("members", { ...m, note: args.note?.trim().slice(0, 500) || undefined, status: "requested", requestedAt: Date.now() });
     const as = m.role === "captain" ? "captain" : `${m.department} associate`;
-    await ctx.scheduler.runAfter(0, internal.mail.confirm, { to: m.email, name: m.name.split(" ")[0], kind: "access", about: as, lang: args.lang });
+    await ctx.scheduler.runAfter(0, internal.mail.confirm, { to: m.email, name: m.name.split(" ")[0], kind: "access", about: as, lang: args.lang, table: "members", id });
     return true;
   },
 });

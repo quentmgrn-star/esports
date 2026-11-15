@@ -29,13 +29,14 @@ export const submitTeamApplication = mutation({
       teamSlug: clean(args.teamSlug, 60),
       firstName: clean(args.firstName, 100),
       lastName: clean(args.lastName, 100),
-      email: clean(args.email, 200),
+      email: clean(args.email, 200).toLowerCase(),
       phone: clean(args.phone, 50),
       programme: clean(args.programme, 150) || undefined,
       level: clean(args.level, 100) || undefined,
       coachingExperience: clean(args.coachingExperience, 3000) || undefined,
     };
     if (!a.teamSlug || !a.firstName || !a.lastName || !a.email || !a.phone) throw new ConvexError("Missing required fields.");
+    if (!EMAIL_RE.test(a.email)) throw new ConvexError("Please enter a valid email address.");
     const track = a.kind === "tryout" ? a.track ?? "competitive" : undefined;
     const id = await ctx.db.insert("teamApplications", { ...a, track, status: "New", statusChangedAt: Date.now() });
     await ctx.scheduler.runAfter(0, internal.mail.confirm, {
@@ -44,6 +45,8 @@ export const submitTeamApplication = mutation({
       kind: a.kind === "coach" ? "coach" : track === "social" ? "social" : "tryout",
       about: teamLabel(a.teamSlug),
       lang,
+      table: "teamApplications",
+      id,
     });
     return id;
   },
@@ -68,7 +71,7 @@ export const submitPartnerInquiry = mutation({
     };
     if (!a.company || !a.name || !EMAIL_RE.test(a.email)) throw new ConvexError("Please fill in the company, your name and a valid email.");
     const id = await ctx.db.insert("partnerInquiries", { ...a, status: "new" });
-    await ctx.scheduler.runAfter(0, internal.mail.confirm, { to: a.email, name: a.name.split(" ")[0], kind: "partner", about: a.company, lang });
+    await ctx.scheduler.runAfter(0, internal.mail.confirm, { to: a.email, name: a.name.split(" ")[0], kind: "partner", about: a.company, lang, table: "partnerInquiries", id });
     return id;
   },
 });
@@ -105,7 +108,7 @@ export const submitAssociationApplication = mutation({
       ...args,
       firstName: clean(args.firstName, 100),
       lastName: clean(args.lastName, 100),
-      email: clean(args.email, 200),
+      email: clean(args.email, 200).toLowerCase(),
       phone: clean(args.phone, 50),
       programme: clean(args.programme, 100),
       year: clean(args.year, 50),
@@ -116,12 +119,13 @@ export const submitAssociationApplication = mutation({
     if (!a.firstName || !a.lastName || !a.email || !a.phone || !a.programme || !a.year || !a.motivation) {
       throw new ConvexError("Missing required fields.");
     }
+    if (!EMAIL_RE.test(a.email)) throw new ConvexError("Please enter a valid email address.");
     if (!DEPARTMENTS.includes(a.pref1) || (a.pref2 && (!DEPARTMENTS.includes(a.pref2) || a.pref2 === a.pref1))) {
       throw new ConvexError("Invalid department preferences.");
     }
     if (!a.acceptsRedirect || !a.confirmsAccuracy) throw new ConvexError("Both acknowledgements are required.");
     const id = await ctx.db.insert("associationApplications", { ...a, stage: "applied", stageChangedAt: Date.now() });
-    await ctx.scheduler.runAfter(0, internal.mail.confirm, { to: a.email, name: a.firstName, kind: "association", about: [a.pref1, a.pref2].filter(Boolean).join(", "), lang });
+    await ctx.scheduler.runAfter(0, internal.mail.confirm, { to: a.email, name: a.firstName, kind: "association", about: [a.pref1, a.pref2].filter(Boolean).join(", "), lang, table: "associationApplications", id });
     return id;
   },
 });
@@ -174,7 +178,7 @@ export const submitContactMessage = mutation({
     const id = await ctx.db.insert("contactMessages", { topic: args.topic, name, email, subject, message, sport, phone, status: "new" });
     // Email a copy to the right people after saving; a failed email never loses the message.
     await ctx.scheduler.runAfter(0, internal.notify.emailContactMessage, { id });
-    await ctx.scheduler.runAfter(0, internal.mail.confirm, { to: email, name: name.split(" ")[0], kind: "contact", about: subject, lang: args.lang });
+    await ctx.scheduler.runAfter(0, internal.mail.confirm, { to: email, name: name.split(" ")[0], kind: "contact", about: subject, lang: args.lang, table: "contactMessages", id });
     return id;
   },
 });
@@ -257,7 +261,7 @@ export const submitAlumniProfile = mutation({
       .collect();
     if (recent.length >= 3) throw new ConvexError("You have sent several profiles in a short time. Please wait a few minutes.");
     const id = await ctx.db.insert("alumniProfiles", { ...p, status: "pending" });
-    await ctx.scheduler.runAfter(0, internal.mail.confirm, { to: email, name: p.first, kind: "alumni", lang: a.lang });
+    await ctx.scheduler.runAfter(0, internal.mail.confirm, { to: email, name: p.first, kind: "alumni", lang: a.lang, table: "alumniProfiles", id });
     return id;
   },
 });

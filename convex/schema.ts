@@ -86,6 +86,7 @@ export default defineSchema({
   // Roles and who sees what: see convex/roles.ts and the permissions table in README.md.
   // viewer = read-only on everything (Student Council, Eva Morta), added by an admin only.
   members: defineTable({
+    confirmEmail: v.optional(v.string()), // confirmation email to the person: "sent" or why not (convex/mail.ts)
     email: v.string(), // lowercase
     name: v.string(),
     role: v.union(v.literal("board"), v.literal("associate"), v.literal("captain"), v.literal("viewer")),
@@ -143,6 +144,7 @@ export default defineSchema({
   // Profiles sent from the Alumni corner (no login). Shown on the website only once an admin approves them.
   // email and phone stay private: only admins see them in /admin; the public query never returns them.
   alumniProfiles: defineTable({
+    confirmEmail: v.optional(v.string()), // confirmation email to the person: "sent" or why not (convex/mail.ts)
     first: v.string(),
     last: v.string(),
     nationality: v.string(),
@@ -170,6 +172,7 @@ export default defineSchema({
 
   // Try-outs and "join as coach" (open to Esade students and outsiders).
   teamApplications: defineTable({
+    confirmEmail: v.optional(v.string()), // confirmation email to the person: "sent" or why not (convex/mail.ts)
     teamSlug: v.string(),
     kind: v.union(v.literal("tryout"), v.literal("coach")),
     firstName: v.string(),
@@ -189,6 +192,7 @@ export default defineSchema({
 
   // "Apply to the association" form (associate in a department). Files live in Convex storage.
   associationApplications: defineTable({
+    confirmEmail: v.optional(v.string()), // confirmation email to the person: "sent" or why not (convex/mail.ts)
     firstName: v.string(),
     lastName: v.string(),
     email: v.string(),
@@ -210,6 +214,7 @@ export default defineSchema({
   }),
 
   partnerInquiries: defineTable({
+    confirmEmail: v.optional(v.string()), // confirmation email to the person: "sent" or why not (convex/mail.ts)
     company: v.string(),
     name: v.string(),
     email: v.string(),
@@ -229,6 +234,7 @@ export default defineSchema({
 
   // Footer "Contact" form. Public insert only (forms.submitContactMessage); read and status changes are admin-only.
   contactMessages: defineTable({
+    confirmEmail: v.optional(v.string()), // confirmation email to the person: "sent" or why not (convex/mail.ts)
     topic: v.string(), // one of CONTACT_TOPICS in convex/forms.ts
     name: v.string(),
     email: v.string(),

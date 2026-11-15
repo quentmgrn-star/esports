@@ -21,6 +21,7 @@ const WATCH: Record<string, FunctionReference<"query">> = {
   inbox: api.inbox.counts,
   messages: api.admin.listContactMessages,
   assocApps: api.admin.listAssociationApplications,
+  emailProblems: api.admin.emailProblems,
   chats: api.hubChat.overview,
   chatMsgs: api.hubChat.messages,
   tournament: api.tournament.overview,
