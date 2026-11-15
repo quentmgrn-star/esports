@@ -1123,7 +1123,7 @@ export function initSite(backend, tools) {
       out.push({ role: "admin" }, { role: "exec" });
       DEPTS.forEach(function (d) { if (d.id !== "board") out.push({ role: "head", dept: d.id }); });
       DEPTS.forEach(function (d) { if (d.id !== "board") out.push({ role: "associate", dept: d.id, teams: [TEAMS[0].id] }); });
-      out.push({ role: "captain", teams: [TEAMS[0].id] }, { role: "viewer" });
+      out.push({ role: "captain", teams: ["basketball-men"] }, { role: "viewer" });
       return out;
     }
     if (!sc) return out;
@@ -1149,7 +1149,7 @@ export function initSite(backend, tools) {
     ["assoc-med", "3 · Associate: Marketing, Basketball Women", { role: "associate", dept: "med", teams: ["basketball-women"] }],
     ["assoc-par", "3 · Associate: Partnerships, Basketball Women", { role: "associate", dept: "par", teams: ["basketball-women"] }],
     ["assoc-it", "3 · Associate: IT", { role: "associate", dept: "it", teams: ["basketball-women"] }],
-    ["captain", "4 · Captain: Basketball Women", { role: "captain", teams: ["basketball-women"] }],
+    ["captain", "4 · Captain: Basketball Men", { role: "captain", teams: ["basketball-men"] }],
     ["viewer", "Student Council (Eva Morta), view only", { role: "viewer" }],
     ["admin", "Admin (back to full access)", { role: "admin" }]
   ];
@@ -1699,7 +1699,6 @@ export function initSite(backend, tools) {
   var PL_FIELDS = [["first", "First name", "text"], ["last", "Last name", "text"], ["shirt", "Shirt size", "shirt"], ["number", "Jersey number", "num"], ["idDoc", "DNI / NIE", "text"], ["nationality", "Nationality", "text"], ["birth", "Birth date", "date"], ["email", "Email", "email"], ["phone", "Phone (+prefix)", "tel"], ["program", "Program (bachelor / master)", "program"], ["year", "Year", "year"], ["notes", "Allergies / notes", "text"]];
   function canRoster(id) { var u = hv(); return !hRO() && (u.role === "admin" || u.role === "exec" || (u.role === "captain" && (u.teams || []).indexOf(id) > -1)); }
   function rosterOf(id) {
-    if (state.rosterDraft && state.rosterDraft[id]) return state.rosterDraft[id];
     if (live()) {
       if (ROSTER[id] === undefined && backend.getRoster) {
         ROSTER[id] = null;
@@ -1726,27 +1725,65 @@ export function initSite(backend, tools) {
     return '<section class="panel"><div class="panel-head"><h2>Team information</h2>' + (can("teamEdit") ? '<a class="btn sm" href="#hub-team-editor">Edit</a>' : "") + "</div>" +
       (rows.length ? '<dl class="facts">' + rows.map(function (r) { return "<div><dt>" + r[0] + "</dt><dd>" + esc(r[1]) + "</dd></div>"; }).join("") + "</dl>" : '<p class="empty">Not filled in yet. ' + (can("teamEdit") ? 'Use <a href="#hub-team-editor">Team editor</a> to add the facility, league and contacts.' : "") + "</p>") + "</section>";
   }
+  // Roster as a table (like the captain's Google Sheet). "Add team member" and a click on a row open the player form in a dialog.
+  function rDate(d) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d || ""); return m ? m[3] + "/" + m[2] + "/" + m[1] : d || ""; }
   function rosterPanel(id) {
     if (!canRoster(id)) return "";
     var pl = rosterOf(id);
     if (pl === null) return '<section class="panel"><div class="panel-head"><h2>Team roster</h2></div><p class="empty">Loading…</p></section>';
-    var rows = pl.length ? pl : [{}];
+    var cols = PL_FIELDS.map(function (f) { return f[0] === "number" ? "No." : f[0] === "program" ? "Program" : f[0] === "notes" ? "Allergies" : f[1]; });
+    var table = pl.length ? '<div class="table-wrap"><table class="roster-sheet"><thead><tr><th class="r">#</th>' + cols.map(function (c) { return "<th>" + c + "</th>"; }).join("") + "<th></th></tr></thead><tbody>" +
+      pl.map(function (p, i) { return '<tr class="click" data-pl-edit="' + i + '" data-team="' + id + '" tabindex="0" title="Edit this player"><td class="r num muted">' + (i + 1) + "</td>" +
+        PL_FIELDS.map(function (f) { var v = f[0] === "birth" ? rDate(p.birth) : p[f[0]]; return '<td class="rc-' + f[0] + '">' + (v ? esc(v) : '<span class="muted">—</span>') + "</td>"; }).join("") +
+        '<td><button type="button" class="btn sm ghost" data-pl-edit="' + i + '" data-team="' + id + '">Edit</button></td></tr>'; }).join("") + "</tbody></table></div>"
+      : '<p class="empty">No players yet. Use <b>Add team member</b>, or paste the rows from your team sheet.</p>';
+    var sizes = sizeSummary(pl);
     return '<section class="panel roster-panel"><div class="panel-head"><h2>Team roster <span class="muted" style="font-weight:600">· ' + pl.length + " player" + (pl.length === 1 ? "" : "s") + "</span></h2>" +
       '<span class="pill">Private: captain and Board only</span></div>' +
-      (sizeSummary(pl) ? '<p class="muted" style="margin:0;font-size:13px">Shirt sizes: <b>' + esc(sizeSummary(pl)) + "</b></p>" : "") +
-      '<div class="pl-cards" data-roster="' + id + '">' +
-      rows.map(function (p, i) { return '<div class="pl-card" data-pl="' + i + '"><div class="pl-head"><strong>' + (p.first || p.last ? esc((p.first || "") + " " + (p.last || "")) : "Player " + (i + 1)) + "</strong>" + (p.number ? '<span class="pill">#' + esc(p.number) + "</span>" : "") + '<button type="button" class="btn sm ghost" data-pl-del="' + i + '" aria-label="Remove player ' + (i + 1) + '">' + ico("x") + " Remove</button></div>" +
-        '<div class="pl-grid">' + PL_FIELDS.map(function (f) { return '<label class="pl-f pl-' + f[0] + '"><span>' + f[1] + "</span>" + plInput(f, p[f[0]], i) + "</label>"; }).join("") + "</div></div>"; }).join("") +
-      '</div><div class="roster-actions"><button type="button" class="btn sm" data-pl-add="' + id + '">+ Add player</button><button type="button" class="btn sm solid" data-pl-save="' + id + '">Save roster</button>' +
-      (live() && ROSTER[id] && ROSTER[id].updatedBy ? '<small class="muted">Last saved by ' + esc(ROSTER[id].updatedBy) + " · " + esc(fmtWhen(ROSTER[id].updatedAt)) + "</small>" : "") + "</div></section>";
+      '<div class="roster-actions"><button type="button" class="btn sm solid" data-pl-add="' + id + '">+ Add team member</button><button type="button" class="btn sm" data-pl-paste="' + id + '">Paste from Google Sheets</button>' +
+      (sizes ? '<span class="muted" style="font-size:13px">Shirt sizes: <b>' + esc(sizes) + "</b></span>" : "") + "</div>" + table +
+      (live() && ROSTER[id] && ROSTER[id].updatedBy ? '<small class="muted">Last saved by ' + esc(ROSTER[id].updatedBy) + " · " + esc(fmtWhen(ROSTER[id].updatedAt)) + "</small>" : "") +
+      rosterDialog(id, pl) + "</section>";
   }
-  function readRoster(id) {
-    var out = [];
-    hub.querySelectorAll('[data-roster="' + id + '"] .pl-card').forEach(function (tr) {
-      var p = {}; tr.querySelectorAll("[data-f]").forEach(function (el) { var v = el.value.trim(); if (v) p[el.getAttribute("data-f")] = v; });
-      out.push(p);
+  function rosterDialog(id, pl) {
+    var e = state.rosterEdit;
+    if (!e || e.team !== id) return "";
+    var head = '<div class="match-modal"><div class="match-backdrop" data-pl-close></div><section class="match-dialog msg-dialog roster-dialog" role="dialog" aria-modal="true" aria-labelledby="pl-title">' +
+      '<button class="match-close" type="button" data-pl-close aria-label="Close">×</button>';
+    if (e.paste) return head + '<h2 id="pl-title">Paste from your sheet</h2>' +
+      '<p class="muted" style="margin:0 0 12px">In Google Sheets, select the player rows (from First name to Allergies, without the header row), copy, and paste them here. Players already in the roster (same first and last name) are skipped.</p>' +
+      '<form id="pl-paste-form" data-team="' + id + '"><textarea id="pl-paste" rows="8" style="width:100%;padding:10px;border:1.5px solid var(--navy);font:inherit;font-size:13px" placeholder="Diego&#9;Weis&#9;L&#9;11&#9;…"></textarea>' +
+      '<div class="msg-actions"><button class="btn solid" type="submit">Add players</button><button class="btn" type="button" data-pl-close>Cancel</button></div></form></section></div>';
+    var isNew = e.i < 0, p = isNew ? {} : pl[e.i] || {};
+    return head + '<h2 id="pl-title">' + (isNew ? "Add team member" : esc(((p.first || "") + " " + (p.last || "")).trim() || "Player " + (e.i + 1))) + "</h2>" +
+      '<form id="pl-form" data-team="' + id + '" data-i="' + e.i + '"><div class="pl-grid">' +
+      PL_FIELDS.map(function (f) { return '<label class="pl-f pl-' + f[0] + '"><span>' + f[1] + "</span>" + plInput(f, p[f[0]], 0) + "</label>"; }).join("") + "</div>" +
+      '<div class="msg-actions"><button class="btn solid" type="submit">' + (isNew ? "Add to roster" : "Save changes") + '</button><button class="btn" type="button" data-pl-close>Cancel</button>' +
+      (isNew ? "" : '<button class="btn ghost" type="button" data-pl-del style="margin-left:auto">' + ico("x") + " Remove player</button>") + "</div></form></section></div>";
+  }
+  // Rows copied from Google Sheets arrive tab-separated, in the sheet's column order (same as PL_FIELDS).
+  function parseSheetRows(text) {
+    var NAT = { francia: "France", "francés": "France", "españa": "Spain", espana: "Spain", alemania: "Germany", italia: "Italy" };
+    return text.split(/\r?\n/).map(function (line) { return line.split("\t"); }).filter(function (c) { return c.length > 1 && (c[0] || c[1] || "").trim(); }).map(function (c) {
+      var p = {};
+      PL_FIELDS.forEach(function (f, k) { var v = (c[k] || "").trim(); if (v && v !== "/" && v !== "-") p[f[0]] = v; });
+      if (p.number && !/^\d{1,3}$/.test(p.number)) delete p.number;
+      if (p.shirt) p.shirt = p.shirt.toUpperCase();
+      if (p.nationality && NAT[p.nationality.toLowerCase()]) p.nationality = NAT[p.nationality.toLowerCase()];
+      var d = /^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})$/.exec(p.birth || "");
+      if (d) p.birth = d[3] + "-" + ("0" + d[2]).slice(-2) + "-" + ("0" + d[1]).slice(-2);
+      if (p.phone && /^\d/.test(p.phone)) p.phone = "+" + p.phone.replace(/\s+/g, " ");
+      if (p.year && /^master/i.test(p.year)) p.year = "Masters";
+      return p;
     });
-    return out;
+  }
+  function saveRosterList(id, rows, msg, btn) {
+    rows = rows.filter(function (p) { return p.first || p.last; });
+    if (rows.some(function (p) { return p.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email); })) { toast("Check the email addresses."); return; }
+    function done() { state.rosterEdit = null; render(); toast(msg); }
+    if (!live()) { state.rosters[id] = { players: rows }; save(); done(); return; }
+    if (btn) btn.disabled = true;
+    Promise.resolve(backend.saveRoster({ team: id, players: rows })).then(function () { ROSTER[id] = undefined; ROSTER_ALL = null; done(); }, function (x) { if (btn) btn.disabled = false; toast(errText(x)); });
   }
   // Board overview: every team's roster size and shirt sizes (President, VPs, admins).
   function rostersOverview() {
@@ -2356,16 +2393,36 @@ export function initSite(backend, tools) {
     hub.querySelectorAll("[data-ck-off]").forEach(function (b) { b.addEventListener("click", function () { var d = +b.getAttribute("data-ck-off"); state.ck.off = d ? (state.ck.off || 0) + d : 0; render(); }); });
     hub.querySelectorAll("[data-make-req]").forEach(function (b) { b.addEventListener("click", function () { state.focusReq = true; }); });
     if (state.focusReq && $("r-item")) { state.focusReq = false; var rf = $("req"); if (rf) rf.scrollIntoView({ block: "start" }); $("r-item").focus(); }
-    hub.querySelectorAll("[data-pl-add]").forEach(function (b) { b.addEventListener("click", function () { var id = b.getAttribute("data-pl-add"); state.rosterDraft = state.rosterDraft || {}; state.rosterDraft[id] = readRoster(id).concat([{}]); render(); var rows = hub.querySelectorAll('[data-roster="' + id + '"] .pl-card'); var last = rows[rows.length - 1]; if (last) { last.scrollIntoView({ block: "center" }); last.querySelector("input").focus(); } }); });
-    hub.querySelectorAll("[data-pl-del]").forEach(function (b) { b.addEventListener("click", function () { var t = b.closest("[data-roster]"), id = t.getAttribute("data-roster"), i = +b.getAttribute("data-pl-del"), rows = readRoster(id); rows.splice(i, 1); state.rosterDraft = state.rosterDraft || {}; state.rosterDraft[id] = rows; render(); }); });
-    hub.querySelectorAll("[data-pl-save]").forEach(function (b) { b.addEventListener("click", function () {
-      var id = b.getAttribute("data-pl-save"), rows = readRoster(id).filter(function (p) { return p.first || p.last; });
-      if (rows.some(function (p) { return p.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email); })) { toast("Check the email addresses."); return; }
-      function done() { if (state.rosterDraft) delete state.rosterDraft[id]; render(); toast("Roster saved."); }
-      if (!live()) { state.rosters[id] = { players: rows }; save(); done(); return; }
-      b.disabled = true;
-      Promise.resolve(backend.saveRoster({ team: id, players: rows })).then(function () { ROSTER[id] = undefined; ROSTER_ALL = null; done(); }, function (x) { b.disabled = false; toast(errText(x)); });
-    }); });
+    function plOpen(e) { state.rosterEdit = e; render(); var f = hub.querySelector("#pl-form input, #pl-paste"); if (f) f.focus(); }
+    hub.querySelectorAll("[data-pl-add]").forEach(function (b) { b.addEventListener("click", function () { plOpen({ team: b.getAttribute("data-pl-add"), i: -1 }); }); });
+    hub.querySelectorAll("[data-pl-paste]").forEach(function (b) { b.addEventListener("click", function () { plOpen({ team: b.getAttribute("data-pl-paste"), paste: true }); }); });
+    hub.querySelectorAll("[data-pl-edit]").forEach(function (el) {
+      function go(ev) { if (ev && ev.target.closest("button") && ev.target.closest("button") !== el) return; plOpen({ team: el.getAttribute("data-team"), i: +el.getAttribute("data-pl-edit") }); }
+      el.addEventListener("click", function (ev) { ev.stopPropagation(); go(ev); });
+      if (el.tagName === "TR") el.addEventListener("keydown", function (ev) { if ((ev.key === "Enter" || ev.key === " ") && ev.target === el) { ev.preventDefault(); go(); } });
+    });
+    hub.querySelectorAll("[data-pl-close]").forEach(function (b) { b.addEventListener("click", function () { state.rosterEdit = null; render(); }); });
+    var plf = $("pl-form"); if (plf) {
+      var plId = plf.getAttribute("data-team"), plI = +plf.getAttribute("data-i");
+      plf.addEventListener("submit", function (ev) {
+        ev.preventDefault();
+        var p = {}; plf.querySelectorAll("[data-f]").forEach(function (el) { var v = el.value.trim(); if (v) p[el.getAttribute("data-f")] = v; });
+        if (!p.first && !p.last) { toast("Add at least a first or last name."); return; }
+        var rows = rosterOf(plId).slice(); if (plI < 0) rows.push(p); else rows[plI] = p;
+        saveRosterList(plId, rows, plI < 0 ? "Player added." : "Player updated.", plf.querySelector("[type=submit]"));
+      });
+      var del = plf.querySelector("[data-pl-del]"); if (del) del.addEventListener("click", function () {
+        if (del.getAttribute("data-sure") !== "1") { del.setAttribute("data-sure", "1"); del.textContent = "Click again to remove"; return; }
+        var rows = rosterOf(plId).slice(); rows.splice(plI, 1); saveRosterList(plId, rows, "Player removed.", del);
+      });
+    }
+    var plp = $("pl-paste-form"); if (plp) plp.addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      var id = plp.getAttribute("data-team"), cur = rosterOf(id).slice(), key = function (p) { return ((p.first || "") + "|" + (p.last || "")).toLowerCase(); }, have = cur.map(key);
+      var add = parseSheetRows($("pl-paste").value).filter(function (p) { return have.indexOf(key(p)) < 0; });
+      if (!add.length) { toast("No new players found in the pasted rows."); return; }
+      saveRosterList(id, cur.concat(add), add.length + " player" + (add.length === 1 ? "" : "s") + " added.", plp.querySelector("[type=submit]"));
+    });
     var dn = $("deck-notes"); if (dn) dn.addEventListener("input", function () { var p = ckPeriod(); state.deckNotes = state.deckNotes || {}; state.deckNotes[p.kind + "|" + p.key] = dn.value; save(); });
     var ckt = $("ck-team"); if (ckt) ckt.addEventListener("change", function () { state.ck.team = ckt.value; });
     var ckf = $("ck-form"); if (ckf) ckf.addEventListener("submit", function (ev) {
@@ -2717,6 +2774,7 @@ export function initSite(backend, tools) {
     var row = e.target.closest && e.target.closest("[data-match-id]");
     if (row && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openMatch(row.getAttribute("data-match-id")); }
     if (e.key === "Escape") closeMatch();
+    if (e.key === "Escape" && state.rosterEdit) { state.rosterEdit = null; render(); }
     if (e.key === "Escape" && state.msgOpen && location.hash === "#hub-messages") { state.msgOpen = null; render(); }
   });
   var pf = $("partner-form");

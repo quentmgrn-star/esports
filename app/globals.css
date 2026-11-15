@@ -897,6 +897,11 @@ a { color: inherit; }
 #hub .roster-t input.n { min-width: 44px; width: 52px; }
 #hub .roster-t input[type=email] { min-width: 190px; }
 #hub .roster-t th { white-space: nowrap; }
+#hub .roster-sheet th, #hub .roster-sheet td { white-space: nowrap; font-size: 13px; }
+#hub .roster-sheet td.rc-notes { white-space: normal; min-width: 120px; }
+#hub .roster-dialog { width: min(920px, 100%); }
+#hub .roster-dialog .pl-grid { margin-bottom: 8px; }
+#hub .roster-dialog h2 { margin: 0 0 18px; }
 #hub .roster-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 #hub dl.facts { margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
 #hub dl.facts div { background: var(--mist); padding: 10px 12px; }
