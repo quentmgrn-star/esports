@@ -931,9 +931,9 @@ a { text-underline-offset: .18em; text-decoration-thickness: 1.5px; }
 #hub .pl-f > span { font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); }
 #hub .pl-f input, #hub .pl-f select { width: 100%; min-width: 0; font: inherit; font-size: 14px; padding: 7px 9px; border: 1px solid var(--line); background: var(--white); color: var(--navy); }
 #hub .pl-f input:focus, #hub .pl-f select:focus { border-color: var(--blue); }
-#hub .pl-email, #hub .pl-notes { grid-column: span 2; }
+#hub .pl-email, #hub .pl-notes, #hub .pl-birth { grid-column: span 2; }
 @media (max-width: 900px) { #hub .pl-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 520px) { #hub .pl-grid { grid-template-columns: 1fr; } #hub .pl-email, #hub .pl-notes { grid-column: auto; } }
+@media (max-width: 520px) { #hub .pl-grid { grid-template-columns: 1fr; } #hub .pl-email, #hub .pl-notes, #hub .pl-birth { grid-column: auto; } }
 #hub .idea-btns { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; grid-column: 1 / -1; }
 #hub .concerns { flex-direction: column; align-items: flex-start; gap: 6px; }
 #hub .concerns label { white-space: normal; }
@@ -1197,3 +1197,10 @@ html.kb-active, html.kb-active * { cursor: grabbing !important; user-select: non
 #hub .ho-edit .rm, #hub .ho-panel .tn-files .rm { font-size: 11px; padding: 1px 6px; }
 #hub .ho-links { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
 #hub .ho-form.dirty button[type="submit"] { box-shadow: 0 0 0 3px var(--warn-bg); }
+#hub .tn-team { color: var(--navy); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+#hub .tn-team:hover { color: var(--blue); }
+#hub .tn-back { margin: 0; }
+#hub .tn-table tr.tn-group th { text-align: left; padding: 14px 12px 8px; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; background: var(--mist); }
+#hub .tn-table tr.tn-g-yes th { color: var(--ok); } #hub .tn-table tr.tn-g-no th { color: var(--bad); } #hub .tn-table tr.tn-g-none th { color: var(--warn); }
+#hub .bdate { display: flex; gap: 6px; } #hub .bdate select { flex: 1; min-width: 0; }
+#hub .bdate select[data-bd="m"] { flex: 1.6; } #hub .bdate select[data-bd="y"] { flex: 1.3; }

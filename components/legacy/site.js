@@ -1811,7 +1811,23 @@ export function initSite(backend, tools) {
     if (f[2] === "shirt") return sel(SHIRTS);
     if (f[2] === "program") return sel(PROGRAMS);
     if (f[2] === "year") return sel(PYEARS);
+    if (f[2] === "date") return dateSelects(f, val);
     return "<input " + name + ' type="' + (f[2] === "num" ? "text" : f[2]) + '" value="' + v + '"' + (f[2] === "num" ? ' inputmode="numeric" maxlength="3" class="n"' : "") + ">";
+  }
+  // Birth date as three drop-downs: a calendar opens on today and needs 20 years of scrolling to reach a birth year.
+  function dateSelects(f, val) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(val || "") || [], y0 = new Date().getFullYear() - 14, yrs = [], days = [], k;
+    for (k = y0; k >= 1950; k--) yrs.push(String(k));
+    for (k = 1; k <= 31; k++) days.push(("0" + k).slice(-2));
+    function sel(part, label, opts, cur, names) { return '<select data-bd="' + part + '" aria-label="' + label + '"><option value="">' + label + "</option>" + opts.map(function (o, i) { return '<option value="' + o + '"' + (o === cur ? " selected" : "") + ">" + (names ? names[i] : +o) + "</option>"; }).join("") + "</select>"; }
+    return '<span class="bdate">' + sel("d", "Day", days, m[3]) + sel("m", "Month", ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"], m[2], MONTHS) + sel("y", "Year", yrs, m[1]) +
+      '<input type="hidden" data-f="' + f[0] + '" value="' + esc(val || "") + '"></span>';
+  }
+  function bindDateSelects(root) {
+    root.querySelectorAll(".bdate").forEach(function (w) {
+      var g = function (k) { return w.querySelector('[data-bd="' + k + '"]').value; }, out = w.querySelector("input");
+      w.addEventListener("change", function () { out.value = g("y") && g("m") && g("d") ? g("y") + "-" + g("m") + "-" + g("d") : ""; });
+    });
   }
   function teamInfoPanel(id) {
     var i = teamInfoFor(id), rows = [["About", i.about], ["Training facility", [i.venue, i.venueAddress].filter(Boolean).join(", ")], ["League", i.league], ["League page", i.leagueUrl], ["Team contact", i.contact]].filter(function (r) { return r[1]; });
@@ -1941,18 +1957,19 @@ export function initSite(backend, tools) {
     if (tnMine()) {
       body = ts.length ? ts.map(function (t) { return tnTeamPanel(t); }).join("") : '<section class="panel"><p class="empty">No team linked to your account yet.</p></section>';
     } else {
-      var open = state.tnOpen;
+      var open = state.tnOpen, ot = ts.filter(function (t) { return t.team === open; })[0];
+      if (ot) return head(d.event) + '<p class="tn-back"><button type="button" class="btn sm" data-tn-back>← All teams</button></p>' + tnTeamPanel(ot, true) + tnConfirmed([ot]);
       body = '<section class="panel"><div class="panel-head"><h2>Every team</h2><button type="button" class="btn sm solid" data-tn-csv' + (c.yes ? "" : " disabled") + '>Download confirmed players (CSV)</button></div><div class="table-wrap"><table><thead><tr><th>Team</th><th class="r">Attending</th><th class="r">Not attending</th><th class="r">Not answered</th><th class="r">ID missing</th><th class="r">No documents</th><th class="r">Roster</th></tr></thead><tbody>' +
         ts.map(function (t) { var k = tnCount(t.players), tm = team(t.team);
-          return '<tr class="click" data-tn-open="' + t.team + '" tabindex="0"' + (open === t.team ? ' aria-current="true"' : "") + '><td class="tname">' + esc(tm ? tLabel(tm) : t.team) + '</td><td class="r num"><b class="tn-n ok">' + k.yes + '</b></td><td class="r num">' + k.no + '</td><td class="r num">' + (k.none ? '<span class="tn-n warn">' + k.none + "</span>" : "0") + '</td><td class="r num">' + (k.noId ? '<span class="tn-n bad">' + k.noId + "</span>" : "0") + '</td><td class="r num">' + k.noDoc + '</td><td class="r num muted">' + t.players.length + "</td></tr>"; }).join("") +
-        '</tbody></table></div><p class="muted" style="margin:0;font-size:12px">Select a team to see its players. A team with an empty roster has not added its players yet.</p></section>' +
-        (open ? ts.filter(function (t) { return t.team === open; }).map(function (t) { return tnTeamPanel(t); }).join("") : "") + tnConfirmed(ts);
+          return '<tr class="click" data-tn-open="' + t.team + '" tabindex="0"' + (open === t.team ? ' aria-current="true"' : "") + '><td class="tname"><a href="#hub-tournament" class="tn-team" data-tn-link="' + t.team + '">' + esc(tm ? tLabel(tm) : t.team) + '</a></td><td class="r num"><b class="tn-n ok">' + k.yes + '</b></td><td class="r num">' + k.no + '</td><td class="r num">' + (k.none ? '<span class="tn-n warn">' + k.none + "</span>" : "0") + '</td><td class="r num">' + (k.noId ? '<span class="tn-n bad">' + k.noId + "</span>" : "0") + '</td><td class="r num">' + k.noDoc + '</td><td class="r num muted">' + t.players.length + "</td></tr>"; }).join("") +
+        '</tbody></table></div><p class="muted" style="margin:0;font-size:12px">Click a team to see its players. A team with an empty roster has not added its players yet.</p></section>' +
+        tnConfirmed(ts);
     }
     return head(d.event) + stats + body + (d.canEditEvent && !hRO() && (hv().role === "admin" || hv().role === "exec") ? tnEventForm(d.event) : "");
   }
-  function tnTeamPanel(t) {
+  function tnTeamPanel(t, grouped) {
     var tm = team(t.team), ed = tnEditable(t), k = tnCount(t.players);
-    var rows = t.players.map(function (p) {
+    var row = function (p) {
       var st = p.status || "none", idv = tnId(p);
       var seg = ed ? '<div class="tn-seg" role="group" aria-label="Attendance">' + ["yes", "no", "none"].map(function (x) { return '<button type="button" class="' + TN_ST[x][0] + '" data-tn-st="' + x + '" data-team="' + t.team + '" data-key="' + esc(p.key) + '" aria-pressed="' + (st === x) + '">' + TN_ST[x][1] + "</button>"; }).join("") + "</div>" : '<span class="pill ' + TN_ST[st][0] + '">' + TN_ST[st][1] + "</span>";
       var idCell = ed ? '<input class="tn-id" type="text" maxlength="30" autocomplete="off" data-team="' + t.team + '" data-key="' + esc(p.key) + '" value="' + esc(p.idNumber || "") + '" placeholder="' + esc(p.rosterId ? p.rosterId + " (roster)" : "ID / passport no.") + '" aria-label="ID or passport number">' : idv ? esc(idv) : '<span class="muted">—</span>';
@@ -1962,7 +1979,12 @@ export function initSite(backend, tools) {
         (p.updatedBy ? '<br><small class="muted" title="' + esc(hist) + '">Changed by ' + esc(p.updatedBy) + " · " + esc(fmtWhen(p.updatedAt)) + "</small>" : "") + "</td><td>" + seg + "</td><td>" + idCell + "</td><td>" +
         (files ? '<ul class="tn-files">' + files + "</ul>" : ed ? "" : '<span class="muted">None</span>') +
         (ed ? '<label class="btn sm tn-add">+ Add document<input type="file" hidden multiple accept=".pdf,application/pdf,image/jpeg,image/png,image/webp,image/heic" data-tn-file data-team="' + t.team + '" data-key="' + esc(p.key) + '"></label>' : "") + "</td></tr>";
-    }).join("");
+    };
+    // Board / Eva view: Attending first, then Not attending, then Not answered. Captains keep their roster order.
+    var rows = grouped ? ["yes", "no", "none"].map(function (g) {
+      var ps = t.players.filter(function (p) { return (p.status || "none") === g; });
+      return '<tr class="tn-group tn-g-' + g + '"><th colspan="4">' + TN_ST[g][1] + " · " + ps.length + "</th></tr>" + (ps.length ? ps.map(row).join("") : '<tr><td colspan="4" class="muted">Nobody.</td></tr>');
+    }).join("") : t.players.map(row).join("");
     return '<section class="panel tn-panel"><div class="panel-head"><h2>' + esc(tm ? tLabel(tm) : t.team) + ' <span class="muted" style="font-weight:600">· ' + k.yes + " attending, " + k.none + " not answered</span></h2>" +
       '<span class="pill">' + (ed ? "Private: your team, the Board and Eva Morta" : "View only") + "</span></div>" +
       (t.players.length ? '<div class="table-wrap"><table class="tn-table"><thead><tr><th>Player</th><th>Attendance</th><th>ID / passport</th><th>Documents (PDF or image, max 10 MB)</th></tr></thead><tbody>' + rows + "</tbody></table></div>"
@@ -2017,8 +2039,10 @@ export function initSite(backend, tools) {
       b.disabled = true;
       Promise.resolve(backend.run("tnRemoveFile", { team: b.getAttribute("data-team"), key: b.getAttribute("data-key"), storageId: b.getAttribute("data-tn-rm") })).then(function () { toast("Document removed."); }, function (x) { b.disabled = false; toast(errText(x)); });
     }); });
+    hub.querySelectorAll("[data-tn-link]").forEach(function (a) { a.addEventListener("click", function (ev) { ev.preventDefault(); ev.stopPropagation(); state.tnOpen = a.getAttribute("data-tn-link"); render(); window.scrollTo(0, 0); }); });
+    hub.querySelectorAll("[data-tn-back]").forEach(function (b) { b.addEventListener("click", function () { state.tnOpen = null; render(); window.scrollTo(0, 0); }); });
     hub.querySelectorAll("[data-tn-open]").forEach(function (r) {
-      function op() { var id = r.getAttribute("data-tn-open"); state.tnOpen = state.tnOpen === id ? null : id; render(); }
+      function op() { state.tnOpen = r.getAttribute("data-tn-open"); render(); window.scrollTo(0, 0); }
       r.addEventListener("click", op);
       r.addEventListener("keydown", function (ev) { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); op(); } });
     });
@@ -2181,7 +2205,10 @@ export function initSite(backend, tools) {
       history: r.history || [], example: r.isExample, sv: { d: r.canDecide, p: r.canPay, r: r.canReconsider, e: r.canEsade } };
   }
   function hubBusy() { var a = document.activeElement; if (hub.querySelector("form.dirty[data-ho-form]")) return true; return !!(a && hub.contains(a) && (a.tagName === "TEXTAREA" || (a.tagName === "INPUT" && a.type !== "button" && a.type !== "submit") || a.tagName === "SELECT")); }
-  function hubRefresh() { if (location.hash.indexOf("#hub-") !== 0) { updateTitle(); return; } if (hubBusy()) { LIVE.dirty = true; bellPatch(); return; } LIVE.dirty = false; render(); }
+  // Live updates often arrive in bursts (a dozen queries at sign-in): redraw the Hub at most once per frame.
+  var refreshQueued = false;
+  function hubRefresh() { if (refreshQueued) return; refreshQueued = true; requestAnimationFrame(function () { refreshQueued = false; hubRefreshNow(); }); }
+  function hubRefreshNow() { if (location.hash.indexOf("#hub-") !== 0) { updateTitle(); return; } if (hubBusy()) { LIVE.dirty = true; bellPatch(); return; } LIVE.dirty = false; render(); }
   function startLive() {
     if (!backend || !backend.watchExpenses) return;
     var on = !!(admin || captain);
@@ -2745,6 +2772,7 @@ export function initSite(backend, tools) {
     });
     hub.querySelectorAll("[data-pl-close]").forEach(function (b) { b.addEventListener("click", function () { state.rosterEdit = null; render(); }); });
     var plf = $("pl-form"); if (plf) {
+      bindDateSelects(plf);
       var plId = plf.getAttribute("data-team"), plI = +plf.getAttribute("data-i");
       plf.addEventListener("submit", function (ev) {
         ev.preventDefault();
@@ -3204,7 +3232,7 @@ export function initSite(backend, tools) {
     }, { rootMargin: "-45% 0px -50% 0px" });
     secs.forEach(function (sct) { if (sct.id) spy.observe(sct); });
   })();
-  window.addEventListener("hashchange", function () { state.teamOpen = null; bellOpen = false; render(); updateTitle(); });
+  window.addEventListener("hashchange", function () { state.teamOpen = null; state.tnOpen = null; bellOpen = false; render(); updateTitle(); });
   // A live update that arrived while someone was typing in the Hub is shown once they leave the field.
   hub.addEventListener("focusout", function () { if (LIVE.dirty) setTimeout(function () { if (LIVE.dirty && !hubBusy()) { LIVE.dirty = false; render(); } }, 400); });
   renderAcct(); render(); loadAlumni(); loadTeamInfo(); loadResults();

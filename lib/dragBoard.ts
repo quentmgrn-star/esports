@@ -17,6 +17,25 @@ export function enableBoardDrag(root: HTMLElement, onDrop: (id: string, col: str
     document.documentElement.classList.remove("kb-active");
     card = ghost = over = null;
     pid = -1;
+    track(false);
+  };
+  // Move listeners are only attached while a card is pressed: a page-wide non-passive touchmove / pointermove
+  // listener would make the browser check every scroll gesture with the page script (slower scrolling everywhere).
+  let tracking = false;
+  const track = (on: boolean) => {
+    if (on === tracking) return;
+    tracking = on;
+    if (on) {
+      window.addEventListener("pointermove", move, { passive: false });
+      window.addEventListener("pointerup", up);
+      window.addEventListener("pointercancel", cancel);
+      document.addEventListener("touchmove", touchMove, { passive: false });
+    } else {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", cancel);
+      document.removeEventListener("touchmove", touchMove);
+    }
   };
   const start = () => {
     if (!card) return;
@@ -36,6 +55,7 @@ export function enableBoardDrag(root: HTMLElement, onDrop: (id: string, col: str
     if (t.closest("a, button, select, input, textarea, summary, label")) return;
     const c = t.closest<HTMLElement>("[data-card]");
     if (!c || !root.contains(c)) return;
+    track(true);
     card = c; sx = e.clientX; sy = e.clientY; pid = e.pointerId; touch = e.pointerType !== "mouse"; ready = false; moved = false;
     if (touch) {
       c.classList.add("kb-hold");
@@ -78,19 +98,11 @@ export function enableBoardDrag(root: HTMLElement, onDrop: (id: string, col: str
   const key = (e: KeyboardEvent) => { if (e.key === "Escape" && card) reset(); };
 
   root.addEventListener("pointerdown", down);
-  window.addEventListener("pointermove", move, { passive: false });
-  window.addEventListener("pointerup", up);
-  window.addEventListener("pointercancel", cancel);
-  document.addEventListener("touchmove", touchMove, { passive: false });
   root.addEventListener("contextmenu", ctx);
   document.addEventListener("keydown", key);
   return () => {
     reset();
     root.removeEventListener("pointerdown", down);
-    window.removeEventListener("pointermove", move);
-    window.removeEventListener("pointerup", up);
-    window.removeEventListener("pointercancel", cancel);
-    document.removeEventListener("touchmove", touchMove);
     root.removeEventListener("contextmenu", ctx);
     document.removeEventListener("keydown", key);
   };
