@@ -39,6 +39,10 @@ export const SPORTS = [
   {
     "slug": "tennis",
     "name": "Tennis"
+  },
+  {
+    "slug": "cheerleading",
+    "name": "Cheerleading"
   }
 ];
 export const TEAMS: SeedTeam[] = [
@@ -203,6 +207,15 @@ export const TEAMS: SeedTeam[] = [
     "squad": "Open",
     "dataStatus": "example",
     "note": "New team. League, captain, roster and results to be added by the club."
+  },
+  // Added 15/11/2026: one open squad. Placeholder only.
+  {
+    "slug": "cheerleading",
+    "sport": "cheerleading",
+    "name": "Cheerleading",
+    "squad": "Open",
+    "dataStatus": "example",
+    "note": "New team. Competitions, captain, roster and results to be added by the club."
   }
 ];
 export const PLAYERS: SeedPlayer[] = [

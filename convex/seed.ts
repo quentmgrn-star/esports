@@ -6,7 +6,7 @@ type Squad = "Men" | "Women" | "Mixed" | "Open";
 /**
  * Fills the database with the prototype data. Safe to run again:
  * - empty database: inserts everything (season, sports, teams, players, matches, standings, alumni);
- * - already seeded: only adds the sports and teams that are missing (e.g. Rugby and Tennis), nothing else changes.
+ * - already seeded: only adds the sports and teams that are missing (e.g. Rugby, Tennis, Cheerleading), nothing else changes.
  * Run it from the Convex dashboard (Functions > seed:run > Run) or with `npx convex run seed:run --prod`.
  */
 export const run = internalMutation({

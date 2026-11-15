@@ -191,16 +191,19 @@ export function initSite(backend, tools) {
     { id: "padel-women", name: "Padel", squad: "Women", sport: "Padel", budget: 2000, status: "review" },
     // New sports (13/11/2026): one open squad each until the club decides on men's/women's teams. No budget, roster or results yet.
     { id: "rugby", name: "Rugby", squad: "Open", sport: "Rugby", budget: 0, status: "draft" },
-    { id: "tennis", name: "Tennis", squad: "Open", sport: "Tennis", budget: 0, status: "draft" }
+    { id: "tennis", name: "Tennis", squad: "Open", sport: "Tennis", budget: 0, status: "draft" },
+    // Added 15/11/2026: one open squad. No budget, roster, results or news yet.
+    { id: "cheerleading", name: "Cheerleading", squad: "Open", sport: "Cheerleading", budget: 0, status: "draft" }
   ];
-  var SPORTS = ["Football 7", "Futsal", "Basketball", "Volleyball", "Padel", "Rugby", "Tennis"];
+  var SPORTS = ["Football 7", "Futsal", "Basketball", "Volleyball", "Padel", "Rugby", "Tennis", "Cheerleading"];
   var POS = { "Football 7": ["Goalkeeper", "Defender", "Defender", "Midfielder", "Midfielder", "Forward", "Forward", "Midfielder"],
     Futsal: ["Goalkeeper", "Defender", "Winger", "Winger", "Pivot", "Defender", "Winger", "Pivot"],
     Basketball: ["Guard", "Guard", "Forward", "Forward", "Center", "Guard", "Forward", "Center"],
     Volleyball: ["Setter", "Outside hitter", "Outside hitter", "Middle blocker", "Middle blocker", "Opposite", "Libero", "Setter"],
     Padel: ["Right side", "Left side", "Right side", "Left side", "Right side", "Left side", "Right side", "Left side"],
     Rugby: ["Prop", "Hooker", "Lock", "Flanker", "Number 8", "Scrum-half", "Fly-half", "Centre", "Wing", "Full-back"],
-    Tennis: ["Singles", "Doubles", "Singles", "Doubles", "Singles", "Doubles", "Singles", "Doubles"] };
+    Tennis: ["Singles", "Doubles", "Singles", "Doubles", "Singles", "Doubles", "Singles", "Doubles"],
+    Cheerleading: ["Flyer", "Base", "Base", "Back spot", "Front spot", "Tumbler", "Flyer", "Base"] };
   function team(id) { for (var i = 0; i < TEAMS.length; i++) if (TEAMS[i].id === id) return TEAMS[i]; }
   function tLabel(t) { return t.name + " · " + t.squad; }
   function tSquad(t) { return t.squad === "Men" ? "Men's team" : t.squad === "Women" ? "Women's team" : t.squad === "Open" ? "Open team" : "Mixed team"; }
@@ -521,7 +524,8 @@ export function initSite(backend, tools) {
     Volleyball: ["GP", "Sets", "Points", "Aces", "Blocks"],
     Padel: ["Matches", "Won", "Lost", "Sets won"],
     Rugby: ["GP", "Tries", "Conversions", "Penalties", "Points"],
-    Tennis: ["Matches", "Won", "Lost", "Sets won"]
+    Tennis: ["Matches", "Won", "Lost", "Sets won"],
+    Cheerleading: ["Competitions", "Best placing", "Best score"]
   };
   var TEAM_TABS = [["home", "Overview"], ["roster", "Roster"], ["staff", "Staff"], ["schedule", "Schedule"], ["stats", "Stats"], ["news", "News"], ["join", "Join"]];
   var TEAM_MORE = [["archives", "Season archives"], ["records", "Record book"]];
@@ -797,7 +801,7 @@ export function initSite(backend, tools) {
   function gradYears() { var out = [], top = new Date().getFullYear() + 1; for (var y = top; y >= 1991; y--) out.push(y); return out; }
   // LinkedIn-style logo tiles. Organisation logos load from our own /api/logo route (by website
   // domain); if there is no domain or no logo, the tile shows the organisation's initials.
-  var SPORT_ICON = { "Football 7": "⚽", Futsal: "⚽", Basketball: "🏀", Volleyball: "🏐", Padel: "🎾", Rugby: "🏉", Tennis: "🎾" };
+  var SPORT_ICON = { "Football 7": "⚽", Futsal: "⚽", Basketball: "🏀", Volleyball: "🏐", Padel: "🎾", Rugby: "🏉", Tennis: "🎾", Cheerleading: "📣" };
   function cleanDomain(d) { return String(d || "").trim().toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").split(/[\/?#\s]/)[0]; }
   function orgInitials(n) { var w = String(n || "?").replace(/[^\p{L}\p{N} ]/gu, " ").split(/\s+/).filter(function (x) { return x && !/^(of|the|de|la|el|and|at|y|i|du|des)$/i.test(x); }); return esc(((w[0] || "?").charAt(0) + (w[1] ? w[1].charAt(0) : "")).toUpperCase()); }
   function logo(name, domain) {
@@ -1034,7 +1038,7 @@ export function initSite(backend, tools) {
   var DEPTS = [
     { id: "board", name: "Board", head: "President + Vice-Presidents", size: "3", remit: "Oversees the association and owns the Student Council relationship.", tasks: [["Monthly check-in with the Student Council", "done"], ["Captains' meeting, all teams", "doing"], ["Semester budget report sign-off", "todo"]] },
     { id: "fin", name: "Finance", head: "Head of Finance", size: "2–3", remit: "Holds each team's budget, split between Operations and Marketing. Validates and pays expenses, researches prices to negotiate costs, prepares the reports.", tasks: [["Agree each team's budget split (Operations / Marketing)", "doing"], ["Negotiate court-hire prices for the spring", "todo"], ["Pay validated expenses", "doing"], ["Draft semester report for the Council", "todo"]] },
-    { id: "med", name: "Media & Marketing", head: "Head of Media & Marketing", size: "5–6", remit: "Runs every team's media accounts, and the communication and promotion of games and events.", tasks: [["Match-day posts for every home game", "doing"], ["Promote the spring tournament", "todo"], ["Team intro reels (12 teams)", "todo"], ["Rebuild the Linktree", "done"]] },
+    { id: "med", name: "Media & Marketing", head: "Head of Media & Marketing", size: "5–6", remit: "Runs every team's media accounts, and the communication and promotion of games and events.", tasks: [["Match-day posts for every home game", "doing"], ["Promote the spring tournament", "todo"], ["Team intro reels (13 teams)", "todo"], ["Rebuild the Linktree", "done"]] },
     { id: "ops", name: "Operations", head: "Head of Operations", size: "5–6", remit: "Works with the captains: captains suggest, Operations researches and organises. Tournaments, friendlies, jerseys, logistics, training and league facilities.", tasks: [["Research a friendly for Basketball Men (captain's idea)", "doing"], ["Order jerseys for Volleyball Mixed", "doing"], ["Book spring try-out slots", "todo"], ["Tournament travel plan", "todo"]] },
     { id: "par", name: "Partnerships", head: "Head of Partnerships", size: "4–5", remit: "Sponsors for the teams first, partners for business events, Industry Platform.", tasks: [["Shortlist kit sponsors", "doing"], ["First sports-business talk: speaker", "todo"], ["Industry Platform: partner list", "todo"]] },
     { id: "it", name: "IT", head: "Head of IT", size: "2–3", remit: "The website, the Hub, member accounts, data and the tools every department uses.", tasks: [["Keep team pages and results up to date", "doing"], ["Excel and PowerPoint exports for check-ups", "done"], ["Back up the data at the end of each semester", "todo"]] }
@@ -1046,9 +1050,9 @@ export function initSite(backend, tools) {
   var ALL_IDS = TEAMS.map(function (t) { return t.id; });
   var DEPT_PEOPLE = {
     board: { head: "Alex Moreau", headRole: "President", associates: [["Clara Vidal", ALL_IDS, "Vice-president"], ["Tom Becker", ALL_IDS, "Vice-president"]] },
-    fin: { head: "Laura Gómez", associates: [["Pablo Ruiz", ["football7-men", "futsal-men", "futsal-women", "basketball-men"]], ["Nina Weber", ["basketball-women", "volleyball-men", "volleyball-women", "volleyball-mixed"]], ["Omar Haddad", ["padel-men", "padel-women", "rugby", "tennis"]]] },
-    med: { head: "Julia Rossi", associates: [["Lucas Martin", ["football7-men", "futsal-men", "futsal-women"]], ["Mia Novak", ["basketball-men", "basketball-women", "rugby"]], ["Sara Lindqvist", ["volleyball-men", "volleyball-women", "volleyball-mixed"]], ["Diego Alves", ["padel-men", "padel-women", "tennis"]]] },
-    ops: { head: "Marc Puig", associates: [["Elena Costa", ["football7-men", "futsal-men", "futsal-women"]], ["Hugo Petit", ["basketball-men", "basketball-women", "rugby"]], ["Aisha Khan", ["volleyball-men", "volleyball-women", "volleyball-mixed"]], ["Leo Fischer", ["padel-men", "padel-women", "tennis"]]] },
+    fin: { head: "Laura Gómez", associates: [["Pablo Ruiz", ["football7-men", "futsal-men", "futsal-women", "basketball-men"]], ["Nina Weber", ["basketball-women", "volleyball-men", "volleyball-women", "volleyball-mixed"]], ["Omar Haddad", ["padel-men", "padel-women", "rugby", "tennis", "cheerleading"]]] },
+    med: { head: "Julia Rossi", associates: [["Lucas Martin", ["football7-men", "futsal-men", "futsal-women"]], ["Mia Novak", ["basketball-men", "basketball-women", "rugby"]], ["Sara Lindqvist", ["volleyball-men", "volleyball-women", "volleyball-mixed"]], ["Diego Alves", ["padel-men", "padel-women", "tennis", "cheerleading"]]] },
+    ops: { head: "Marc Puig", associates: [["Elena Costa", ["football7-men", "futsal-men", "futsal-women"]], ["Hugo Petit", ["basketball-men", "basketball-women", "rugby"]], ["Aisha Khan", ["volleyball-men", "volleyball-women", "volleyball-mixed"]], ["Leo Fischer", ["padel-men", "padel-women", "tennis", "cheerleading"]]] },
     par: { head: "Sofia Bianco", associates: [["Ivan Horvat", ALL_IDS], ["Chloé Dubois", ALL_IDS], ["Noah Smith", ALL_IDS]] },
     it: { head: "Daniel Kim", associates: [["Marta Soler", ALL_IDS], ["Yuki Tanaka", ALL_IDS]] }
   };
@@ -1194,9 +1198,31 @@ export function initSite(backend, tools) {
     state.user = JSON.parse(JSON.stringify(d[2])); state.teamOpen = null; save(); renderAcct();
     if (location.hash === "#hub-overview") render(); else go("hub-overview");
   }
+  // Captain pages of any team: admins and the President / Vice-presidents open, read and edit every team's
+  // captain pages (My team, roster, tournament, handover, ideas, expenses). Convex already lets them edit every team.
+  function opensAnyTeam() { return !!admin || !!(captain && captain.scope && captain.scope.exec); }
+  function onTeamPages(u) { return opensAnyTeam() && u.role === "captain" && (u.teams || []).length === 1; }
+  function teamBar(u) {
+    if (!opensAnyTeam()) return "";
+    var cur = onTeamPages(u) ? u.teams[0] : "", t = cur ? team(cur) : null;
+    var sel = '<label class="demo-as">' + (t ? "Switch team" : "Open a team") + '<select id="team-as">' + (t ? "" : '<option value="" selected>Choose a team…</option>') +
+      TEAMS.map(function (x) { return '<option value="' + x.id + '"' + (x.id === cur ? " selected" : "") + ">" + esc(tLabel(x)) + "</option>"; }).join("") + "</select></label>";
+    return t
+      ? '<div class="banner demo team-bar on"><b>Captain pages</b><span>You are on the captain pages of <strong>' + esc(tLabel(t)) + "</strong>, as its captain sees them. You can read and change everything here.</span>" + sel + '<button type="button" class="btn sm" data-team-exit>Back to my view</button></div>'
+      : '<div class="banner demo team-bar"><b>Captain pages</b><span>Open any team’s captain pages: My team, roster, tournament, handover, ideas and expenses.</span>' + sel + "</div>";
+  }
+  function setTeamView(id) {
+    if (!opensAnyTeam()) return;
+    if (id && !team(id)) return;
+    state.user = id ? { role: "captain", teams: [id] } : admin ? { role: "admin" } : { role: "exec" };
+    state.teamOpen = null; save(); renderAcct();
+    var h = location.hash.slice(1);
+    if (h.indexOf("hub-") === 0 && h !== "hub-overview") render(); else go(id ? "hub-teams" : "hub-overview");
+  }
   function viewAllowed(u) {
     if (!u || !HUB_ROLES[u.role]) return false;
     if (admin) return true;
+    if (opensAnyTeam() && u.role === "captain" && (u.teams || []).length === 1 && team(u.teams[0])) return true;
     return allowedViews().some(function (v) { return v.role === u.role && v.dept === u.dept && (v.teams || []).join() === (u.teams || []).join(); });
   }
   function totals(id) { var o = { paid: 0, pending: 0 }; allExp().forEach(function (e) { if (e.team !== id) return; if (e.status === "paid") o.paid += e.amount; else if (e.status !== "rejected") o.pending += e.amount; }); return o; }
@@ -1249,7 +1275,7 @@ export function initSite(backend, tools) {
     return '<div class="app"><aside class="rail"><div class="top"><a class="lock" href="#home" aria-label="Back to Esade Sports home">' + mono(38) + '<span>ESADE SPORTS<br>HUB</span></a><div class="history" aria-label="Page navigation"><button type="button" data-history="back" aria-label="Go back">' + ico("left") + '</button><button type="button" data-history="forward" aria-label="Go forward">' + ico("right") + '</button>' + (live() ? bellHtml() : "") + '</div>' +
       '<div class="who"><p class="eyebrow">Signed in' + (admin ? " as admin" : "") + '</p><strong>' + esc(me.email) + "</strong><small>Viewing as " + esc(viewLabel(u)) + (hRO() ? " · read-only" : "") + "</small>" + (multi ? '<a class="back-site" href="#signin">Change view</a>' : "") + '<a class="back-site" href="/admin">Requests &amp; applications</a><a class="back-site" href="#home">← Public site</a><button type="button" data-signout>Sign out</button>' + langSwitch() + '</div></div>' +
       '<nav aria-label="Hub">' + nav + "</nav></aside>" +
-      '<main class="main">' + (admin ? demoBar(u) : live() ? "" : '<div class="banner"><b>Prototype</b><span>Example figures and tasks, saved in this browser only.</span></div>') + inner + "</main></div>";
+      '<main class="main">' + teamBar(u) + (admin && !onTeamPages(u) ? demoBar(u) : admin || opensAnyTeam() || live() ? "" : '<div class="banner"><b>Prototype</b><span>Example figures and tasks, saved in this browser only.</span></div>') + inner + "</main></div>";
   }
   // People responsible for a team in each department (captain view, team detail).
   function teamContacts(teamId) {
@@ -2753,6 +2779,8 @@ export function initSite(backend, tools) {
     bindTournament();
     bindHandover();
     var da = $("demo-as"); if (da) da.addEventListener("change", function () { setDemo(da.value); });
+    var ta = $("team-as"); if (ta) ta.addEventListener("change", function () { if (ta.value) setTeamView(ta.value); });
+    hub.querySelectorAll("[data-team-exit]").forEach(function (b) { b.addEventListener("click", function () { setTeamView(""); }); });
     hub.querySelectorAll("[data-demo]").forEach(function (b) { b.addEventListener("click", function () { setDemo(b.getAttribute("data-demo")); }); });
     hub.querySelectorAll("[data-history]").forEach(function (b) { b.addEventListener("click", function () {
       if (b.getAttribute("data-history") === "back") history.back(); else history.forward();

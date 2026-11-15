@@ -13,6 +13,7 @@ export const TEAMS: { id: string; sport: string; squad: string }[] = [
   { id: "padel-women", sport: "Padel", squad: "Women" },
   { id: "rugby", sport: "Rugby", squad: "Open" },
   { id: "tennis", sport: "Tennis", squad: "Open" },
+  { id: "cheerleading", sport: "Cheerleading", squad: "Open" },
 ];
 export const teamLabel = (id: string) => {
   const t = TEAMS.find((x) => x.id === id);

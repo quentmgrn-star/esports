@@ -674,7 +674,7 @@ a { color: inherit; }
 .rail .lang button { color: var(--on-navy-soft); }
 .rail .lang button[aria-pressed="true"] { background: var(--white); color: var(--navy); }
 @media (max-width: 860px) { .nav .lang { margin-top: 14px; align-self: flex-start; } }
-.teams { grid-template-columns: repeat(4, minmax(0, 1fr)); } /* 12 teams = 3 rows of 4 */
+.teams { grid-template-columns: repeat(4, minmax(0, 1fr)); } /* 13 teams in rows of 4 */
 @media (max-width: 1000px) { .teams { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 /* Photos (Unsplash placeholders) */
@@ -838,6 +838,9 @@ a { color: inherit; }
 .banner.demo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
 .banner.demo .demo-as { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; margin-left: auto; }
 .banner.demo select { font: 600 13px var(--font); padding: 6px 8px; border: 1.5px solid var(--navy); background: #fff; color: var(--navy); max-width: 100%; }
+#hub .banner.team-bar { margin-bottom: 8px; }
+#hub .banner.team-bar.on { background: var(--blue); color: var(--white); }
+#hub .banner.team-bar.on .btn { background: var(--white); color: var(--navy); border-color: var(--white); }
 
 /* Team page facts (league, venue, contact) and Team editor sub-headings */
 .tfacts { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px 24px; margin: 12px 0 0; }

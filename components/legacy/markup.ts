@@ -281,7 +281,7 @@ export const SITE_MARKUP = `
           <h2 class="h2">Partner with Esade Sports</h2>
         </div>
       </div>
-      <p class="lede" style="margin-bottom:28px">Twelve student teams, tournaments open to the whole school, and a growing sports-business programme. Partners help the teams first, and meet Esade students who want to work in sport.</p>
+      <p class="lede" style="margin-bottom:28px">Thirteen student teams, tournaments open to the whole school, and a growing sports-business programme. Partners help the teams first, and meet Esade students who want to work in sport.</p>
       <div class="ptypes">
         <article class="ptype"><h3>Team sponsor</h3><p>Your logo on a team's kit and on its social media, and visibility at every game.</p></article>
         <article class="ptype"><h3>Event partner</h3><p>Co-host a tournament or a sports-business talk, panel or workshop with our students.</p></article>
