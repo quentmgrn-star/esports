@@ -211,7 +211,7 @@ export const SITE_MARKUP = `
         </div>
         <a class="link-arrow" href="#alumni">Open the Alumni corner →</a>
       </div>
-      <p class="alumni-teaser-text">Our community goes beyond sport. Former players, captains and associates keep a profile and stay in touch, as part of an Esade alumni network ranked #6 by the Financial Times. Find alumni from your sport, see what they do now and reach out.</p>
+      <p class="alumni-teaser-text">Our community goes beyond sport. Former players, captains and associates keep a profile and stay in touch, as part of an Esade alumni network ranked #6 in Europe by the <a href="https://rankings.ft.com/rankings/3006/mba-2026" target="_blank" rel="noopener">Financial Times</a>. Find alumni from your sport, see what they do now and reach out.</p>
     </div>
   </section>
 
@@ -221,14 +221,13 @@ export const SITE_MARKUP = `
         <div style="display:grid;gap:14px">
           <h2 class="display">Build it<br>with us.</h2>
         </div>
-        <p>Join a team through try-outs or as a volunteer coach, or join the association as an associate in Finance, Media &amp; Marketing, Operations, Partnerships or IT. Recruitment is in English and open to every Esade student, whatever their nationality or language.</p>
+        <p>Join a team through try-outs or as a volunteer coach, or join the association as an associate in Finance, Media &amp; Marketing, Operations, Partnerships or IT. Recruitment is in English and open to every Esade student.</p>
       </div>
       <ol class="steps" aria-label="How recruitment works">
-        <li><span class="k">STEP 1</span><strong>Open call</strong><p>Published on every channel, in English.</p></li>
-        <li><span class="k">STEP 2</span><strong>Apply</strong><p>CV, cover letter and a short video, through this website.</p></li>
-        <li><span class="k">STEP 3</span><strong>Review</strong><p>Chosen by the Board: executive board and Heads.</p></li>
-        <li><span class="k">STEP 4</span><strong>Interview</strong><p>Formal, with set questions and a code of conduct.</p></li>
-        <li><span class="k">STEP 5</span><strong>Offer</strong><p>Offer and onboarding into your department.</p></li>
+        <li><span class="k">STEP 1</span><strong>Apply</strong><p>CV, cover letter and a short video, through this website.</p></li>
+        <li><span class="k">STEP 2</span><strong>Review</strong><p>Chosen by the Board: executive board and Heads.</p></li>
+        <li><span class="k">STEP 3</span><strong>Interview</strong><p>Formal, with set questions and a code of conduct.</p></li>
+        <li><span class="k">STEP 4</span><strong>Offer</strong><p>Offer and onboarding into your department.</p></li>
       </ol>
       <div class="ctas">
         <a class="btn btn-solid-white" href="#apply-associate">Apply to the association</a>
@@ -246,15 +245,18 @@ export const SITE_MARKUP = `
       </div>
       <p class="lede" style="margin-bottom:28px">Twelve student teams, tournaments open to the whole school, and a growing sports-business programme. Partners help the teams first, and meet Esade students who want to work in sport.</p>
       <div class="ptypes">
-        <article class="ptype"><h3>Team sponsor</h3><p>Your logo on a team's kit and on its social media, and visibility at every home game.</p></article>
+        <article class="ptype"><h3>Team sponsor</h3><p>Your logo on a team's kit and on its social media, and visibility at every game.</p></article>
         <article class="ptype"><h3>Event partner</h3><p>Co-host a tournament or a sports-business talk, panel or workshop with our students.</p></article>
         <article class="ptype"><h3>Industry Platform partner</h3><p>Meet Esade students interested in sport, share internships and jobs, and access the CV book.</p></article>
       </div>
       <div class="pgrid">
         <div class="plogos">
-          <ul>
-            <li>[Partner logo]</li><li>[Partner logo]</li><li>[Partner logo]</li><li>[Partner logo]</li>
-          </ul>
+          <div class="marquee" aria-label="Partners">
+            <ul class="marquee-track">
+              <li>[Partner logo]</li><li>[Partner logo]</li><li>[Partner logo]</li><li>[Partner logo]</li><li>[Partner logo]</li>
+              <li aria-hidden="true">[Partner logo]</li><li aria-hidden="true">[Partner logo]</li><li aria-hidden="true">[Partner logo]</li><li aria-hidden="true">[Partner logo]</li><li aria-hidden="true">[Partner logo]</li>
+            </ul>
+          </div>
           <p class="muted" style="margin:0;font-size:13px">Our first partners will appear here.</p>
         </div>
         <form class="pform-c" id="partner-form" novalidate>

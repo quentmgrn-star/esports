@@ -996,3 +996,21 @@ a { text-underline-offset: .18em; text-decoration-thickness: 1.5px; }
 #hub small.esade.bad { color: #b42318; font-weight: 600; }
 #hub .esade-box { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; margin-bottom: 6px; }
 #hub .btn[disabled] { opacity: .45; cursor: not-allowed; }
+
+/* Recruitment: four steps (Apply, Review, Interview, Offer) */
+.steps { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 760px) { .steps { grid-template-columns: 1fr; } }
+
+/* Partner logos: a slow moving strip that pauses on hover and stays still for reduced motion */
+.plogos .marquee { overflow: hidden; -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
+.plogos .marquee-track { display: flex; gap: 12px; width: max-content; animation: es-marquee 28s linear infinite; }
+.plogos .marquee-track li { flex: 0 0 180px; aspect-ratio: 3 / 2; }
+.plogos .marquee:hover .marquee-track, .plogos .marquee:focus-within .marquee-track { animation-play-state: paused; }
+@keyframes es-marquee { from { transform: translateX(0); } to { transform: translateX(calc(-50% - 6px)); } }
+@media (prefers-reduced-motion: reduce) {
+  .plogos .marquee { -webkit-mask-image: none; mask-image: none; }
+  .plogos .marquee-track { animation: none; width: auto; display: grid; grid-template-columns: 1fr 1fr; }
+  .plogos .marquee-track li[aria-hidden="true"], .plogos .marquee-track li:nth-child(5) { display: none; }
+  .plogos .marquee-track li { flex: none; }
+}
+.alumni-teaser-text a, .band p a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }

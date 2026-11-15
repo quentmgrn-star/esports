@@ -627,7 +627,7 @@ export function initSite(backend, tools) {
     var opts = DEPTS.filter(function (d) { return d.id !== "board"; }).map(function (d) { return '<option value="' + d.id + '">' + esc(d.name) + '</option>'; }).join('');
     return '<section class="band"><div class="wrap"><h1 class="display">Join the<br>association.</h1><p>Apply to up to two departments. Rank your preferences, tell us what motivates you and share the work that helps us understand how you could contribute.</p></div></section>' +
       '<section class="al"><div class="wrap body"><form class="pform" id="assoc-form" novalidate>' +
-      '<div class="fsec"><h2>Personal information</h2><div class="fgrid">' + fieldI("as-first", "First name", "", "required autocomplete=\"given-name\"") + fieldI("as-last", "Last name", "", "required autocomplete=\"family-name\"") + fieldI("as-email", "Esade email", "", 'type="email" required autocomplete="email"') + phoneField("as-phone", "Phone number", true) + fieldI("as-programme", "Programme", "", 'required list="as-progs" placeholder="BBA"') + '<datalist id="as-progs"><option value="BBA"><option value="Double degree BBA + Law"><option value="MSc"><option value="MBA"></datalist>' + '<label class="field" for="as-year">Year<select id="as-year" required><option value="">Choose your year</option>' + YEARS.map(function (y) { return '<option value="' + y + '">' + y + '</option>'; }).join('') + '</select></label>' + fieldI("as-linkedin", "LinkedIn profile", "", 'type="url" placeholder="https://linkedin.com/in/..."') + '</div></div>' +
+      '<div class="fsec"><h2>Personal information</h2><div class="fgrid">' + fieldI("as-first", "First name", "", "required autocomplete=\"given-name\"") + fieldI("as-last", "Last name", "", "required autocomplete=\"family-name\"") + fieldI("as-email", "Esade email", "", 'type="email" required autocomplete="email"') + phoneField("as-phone", "Phone number", true) + progSelect("as-programme", "Programme", "") + '<label class="field" for="as-year">Year<select id="as-year" required><option value="">Choose your year</option>' + YEARS.map(function (y) { return '<option value="' + y + '">' + y + '</option>'; }).join('') + '</select></label>' + fieldI("as-linkedin", "LinkedIn profile", "", 'type="url" placeholder="https://linkedin.com/in/..."') + '</div></div>' +
       '<div class="fsec"><h2>Department preferences</h2><p class="muted" style="margin:0">You may apply to a maximum of two departments. Preference 1 is your strongest choice.</p><div class="fgrid"><label class="field" for="as-pref1">Preference 1<select id="as-pref1" required><option value="">Choose a department</option>' + opts + '</select></label><label class="field" for="as-pref2">Preference 2 <small>(optional)</small><select id="as-pref2"><option value="">No second preference</option>' + opts + '</select></label></div><label class="field full" for="as-motivation">Why do you want to join Esade Sports and why these departments?<textarea id="as-motivation" rows="6" required placeholder="Tell us what motivates you, what you could contribute and why you ranked these departments."></textarea></label></div>' +
       '<div class="fsec"><h2>Application materials</h2><div class="fgrid"><label class="field" for="as-cv">CV <small>(PDF required)</small><input id="as-cv" type="file" accept="application/pdf,.pdf" required></label><label class="field" for="as-video">Motivation video <small>(optional)</small><input id="as-video" type="file" accept="video/mp4,video/quicktime,.mp4,.mov"></label></div><p class="muted" style="margin:10px 0 0;font-size:13px">Video: MP4 or MOV, around 60–90 seconds. Explain who you are, why Esade Sports interests you and why your department preferences fit you.</p></div>' +
       '<div class="fsec"><label class="consent" for="as-redirect"><input type="checkbox" id="as-redirect" required><span>I understand that the Board may redirect my application to another department if it is a better fit for my profile and the association’s needs.</span></label><label class="consent" for="as-consent"><input type="checkbox" id="as-consent" required><span>I confirm that the information and documents submitted are accurate and may be reviewed by the Esade Sports recruitment team.</span></label></div>' +
@@ -753,7 +753,7 @@ export function initSite(backend, tools) {
   function initials(a) { return esc((a.first || "?").charAt(0) + (a.last || "").charAt(0)); }
   function avatar(a) { return '<div class="av">' + (a.photo ? '<img src="' + a.photo + '" alt="">' : initials(a)) + "</div>"; }
   function alumniBand(extra) {
-    return '<section class="band"><div class="wrap"><h1 class="display">A community<br>beyond sports.</h1><p>Part of an Esade alumni network ranked #6 by the Financial Times. Search the Esade Sports alumni network like a professional directory. Anyone can browse profiles. Alumni add their own profile, and it appears once the Esade Sports team has checked it.</p>' + (extra || "") + "</div></section>";
+    return '<section class="band"><div class="wrap"><h1 class="display">A community<br>beyond sports.</h1><p>Part of an Esade alumni network ranked #6 in Europe by the <a href="https://rankings.ft.com/rankings/3006/mba-2026" target="_blank" rel="noopener">Financial Times</a>. Search the Esade Sports alumni network like a professional directory. Anyone can browse profiles. Alumni add their own profile, and it appears once the Esade Sports team has checked it.</p>' + (extra || "") + "</div></section>";
   }
   // Graduation years: 1991 up to next year's class, newest first.
   function gradYears() { var out = [], top = new Date().getFullYear() + 1; for (var y = top; y >= 1991; y--) out.push(y); return out; }
@@ -829,7 +829,7 @@ export function initSite(backend, tools) {
     return '<div class="field phone-field"><label for="' + id + '-num">' + label + (required ? "" : " (optional)") + '</label><div class="phone-row">' +
       '<select id="' + id + '-cc" aria-label="Country code">' + COUNTRIES.map(function (c) { return '<option value="' + c[0] + '">' + flag(c[0]) + " " + esc(c[1]) + " +" + c[2] + "</option>"; }).join("") + "</select>" +
       '<input id="' + id + '-num" type="tel" inputmode="tel" autocomplete="tel-national" placeholder="600 000 000"' + (required ? " required" : "") + "></div>" +
-      '<small class="hint">If we contact you by phone, it will be via WhatsApp.</small></div>';
+      '<small class="hint">Contact via WhatsApp only.</small></div>';
   }
   // Returns { value: "+34600000000" | "", error: "" | message }.
   function phoneValue(id, required) {
@@ -843,6 +843,13 @@ export function initSite(backend, tools) {
     digits = digits.replace(/\D/g, "");
     if (digits.length < 8 || digits.length > 15) return { value: "", error: "Please enter a valid phone number." };
     return { value: "+" + digits, error: "" };
+  }
+  // Esade programmes in Barcelona (application forms, alumni profiles, roster).
+  var PROGRAMMES = [["Undergraduate", ["BBA · Business Administration", "Bachelor in Law", "Business & Artificial Intelligence (BAI)", "Global Governance", "Economics & Legal Order", "Transformational Leadership & Social Impact (BITLASI)", "Double degree · BBA + Law", "Double degree · other"]],
+    ["Postgraduate", ["MSc (Master of Science)", "Law Masters", "Full-Time MBA", "Executive MBA (EMBA)", "Executive Education", "PhD / Research"]], ["Other", ["Other"]]];
+  function progSelect(id, label, val) {
+    return '<label class="field" for="' + id + '">' + label + '<select id="' + id + '" required><option value="">Choose your programme</option>' + PROGRAMMES.map(function (g) {
+      return '<optgroup label="' + g[0] + '">' + g[1].map(function (p) { return '<option' + (p === val ? " selected" : "") + ">" + esc(p) + "</option>"; }).join("") + "</optgroup>"; }).join("") + "</select></label>";
   }
   function fieldI(id, label, val, attrs, full) { return '<label class="field' + (full ? " full" : "") + '" for="' + id + '">' + label + '<input id="' + id + '" value="' + esc(val || "") + '" ' + (attrs || "") + "></label>"; }
   function internRow(x, i) {
@@ -859,7 +866,7 @@ export function initSite(backend, tools) {
       '<div class="fsec"><h2>About you</h2><div class="photo-row"><div class="av" id="ph-prev">?</div><label class="field" for="f-photo">Profile photo <small>(optional)</small><input id="f-photo" type="file" accept="image/*"></label></div>' +
       '<div class="fgrid">' + fieldI("f-first", "First name", "", "required autocomplete=\"given-name\"") + fieldI("f-last", "Last name", "", "required autocomplete=\"family-name\"") + fieldI("f-nat", "Nationality", "", "required") +
       fieldI("f-headline", "What you do now <small>(optional)</small>", "", 'placeholder="Brand manager · sportswear company"') + "</div></div>" +
-      '<div class="fsec"><h2>At Esade</h2><div class="fgrid">' + fieldI("f-prog", "Programme studied", m.programme, 'required list="progs"') + '<datalist id="progs"><option>BBA</option><option>Double degree BBA + Law</option><option>MSc</option><option>MBA</option></datalist>' +
+      '<div class="fsec"><h2>At Esade</h2><div class="fgrid">' + fieldI("f-prog", "Programme studied", m.programme, 'required list="progs"') + '<datalist id="progs">' + PROGRAMMES.map(function (g) { return g[1].map(function (p) { return "<option>" + esc(p) + "</option>"; }).join(""); }).join("") + '</datalist>' +
       '<label class="field" for="f-grad">Graduation year<select id="f-grad" required><option value="">Choose a year</option>' + gradYears().map(function (y) { return "<option>" + y + "</option>"; }).join("") + "</select></label>" +
       fieldI("f-role", "Your role at Esade Sports <small>(optional)</small>", "", 'placeholder="Captain, Football 7"', true) +
       fieldI("f-exuni", "Exchange university", "", 'required placeholder="University of Michigan"') + fieldI("f-excity", "Exchange city and country", "", "required") +
@@ -1330,7 +1337,7 @@ export function initSite(backend, tools) {
   // ---- Team information and roster (captain's team sheet) --------------------------------------
   // The roster holds personal data: only the team's captain and the President / VPs / admins see it (checked in Convex).
   var ROSTER = {}, ROSTER_ALL = null;
-  var SHIRTS = ["XS", "S", "M", "L", "XL", "XXL"], PROGRAMS = ["BBA", "BAIB", "GEL", "Double degree", "Masters", "Other"], PYEARS = ["1", "2", "3", "4", "5", "Masters"];
+  var SHIRTS = ["XS", "S", "M", "L", "XL", "XXL"], PROGRAMS = ["BBA", "Law", "BAI", "Global Governance", "Economics & Legal Order", "BITLASI", "Double degree", "MSc", "Law Masters", "MBA", "Executive Education", "PhD", "Other"], PYEARS = ["1", "2", "3", "4", "5", "Masters"];
   var PL_FIELDS = [["first", "First name", "text"], ["last", "Last name", "text"], ["shirt", "Shirt size", "shirt"], ["number", "Jersey number", "num"], ["idDoc", "DNI / NIE", "text"], ["nationality", "Nationality", "text"], ["birth", "Birth date", "date"], ["email", "Email", "email"], ["phone", "Phone (+prefix)", "tel"], ["program", "Program (bachelor / master)", "program"], ["year", "Year", "year"], ["notes", "Allergies / notes", "text"]];
   function canRoster(id) { var u = hv(); return !hRO() && (u.role === "admin" || u.role === "exec" || (u.role === "captain" && (u.teams || []).indexOf(id) > -1)); }
   function rosterOf(id) {
@@ -1350,7 +1357,7 @@ export function initSite(backend, tools) {
   }
   function plInput(f, val, i) {
     var name = 'data-f="' + f[0] + '" aria-label="' + esc(f[1]) + " " + (i + 1) + '"', v = esc(val || "");
-    function sel(opts) { return "<select " + name + '><option value=""></option>' + opts.map(function (o) { return '<option' + (o === val ? " selected" : "") + ">" + o + "</option>"; }).join("") + "</select>"; }
+    function sel(opts) { if (val && opts.indexOf(val) < 0) opts = opts.concat([val]); return "<select " + name + '><option value=""></option>' + opts.map(function (o) { return '<option' + (o === val ? " selected" : "") + ">" + o + "</option>"; }).join("") + "</select>"; }
     if (f[2] === "shirt") return sel(SHIRTS);
     if (f[2] === "program") return sel(PROGRAMS);
     if (f[2] === "year") return sel(PYEARS);
