@@ -3,6 +3,7 @@ import { SPORT_IMAGES } from "@/lib/images";
 import { BOARD_BLOCK } from "./markup";
 import { GAMES as ALL_GAMES } from "./games";
 import { EVENTS as ALL_EVENTS } from "./events";
+import { enableBoardDrag } from "@/lib/dragBoard";
 // Ported from the original prototype script. Runs once on the client after the markup mounts.
 export function initSite(backend, tools) {
 
@@ -16,7 +17,7 @@ export function initSite(backend, tools) {
   var GAMES = ALL_GAMES.filter(function (g) { return SHOW_EXAMPLES || !g.example; });
   var EVENTS = ALL_EVENTS.filter(function (e) { return SHOW_EXAMPLES || !e.example; });
   // Line icons (one stroke family, drawn as SVG): no glyph or emoji stand-ins.
-  var ICONS = { left: "M15 6l-6 6 6 6", right: "M9 6l6 6-6 6", down: "M12 4v12M6 11l6 6 6-6M5 20h14", x: "M6 6l12 12M18 6L6 18", out: "M7 17L17 7M9 7h8v8" };
+  var ICONS = { left: "M15 6l-6 6 6 6", right: "M9 6l6 6-6 6", down: "M12 4v12M6 11l6 6 6-6M5 20h14", x: "M6 6l12 12M18 6L6 18", out: "M7 17L17 7M9 7h8v8", bell: "M6 9a6 6 0 0 1 12 0c0 6 2.5 8 2.5 8h-17S6 15 6 9M10 20.5a2.2 2.2 0 0 0 4 0" };
   function ico(k) { return '<svg class="ico" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"><path d="' + ICONS[k] + '" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'; }
   var EUR = new Intl.NumberFormat("en-IE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
   var $ = function (id) { return document.getElementById(id); };
@@ -1215,12 +1216,13 @@ export function initSite(backend, tools) {
   var HUBV = [["hub-overview", "Overview"], ["hub-chat", "Chat"], ["hub-teams", "Teams"], ["hub-team-editor", "Team editor"], ["hub-applications", "Sports applications"], ["hub-assoc-apps", "Association applications"], ["hub-messages", "Messages"], ["hub-captains", "Captains"], ["hub-ideas", "Ideas & logistics"], ["hub-expenses", "Expenses ledger"], ["hub-partners", "Partnerships"], ["hub-departments", "Departments"], ["hub-goals", "Goals"], ["hub-history", "History"], ["hub-report", "Reports"]];
 
   function hubShell(view, inner) {
+    var partnerBadge = ((LIVE.inbox || {}).inquiries || 0) + partnerDueCount(), taskBadge = hRO() ? 0 : newTaskCount();
     var pending = visExp().filter(canDecideE).length, newIdeas = can("ideas") ? visIdeas().filter(function (i) { return (i.status === "new" && canRunIdea(i)) || canApproveIdea(i) || canCommIdea(i); }).length : 0;
     var nav = HUBV.filter(function (v) { return (v[0] !== "hub-expenses" || can("expenses")) && (v[0] !== "hub-departments" || can("depts")) && (v[0] !== "hub-report" || can("reports")) && (v[0] !== "hub-captains" || can("captains")) && (v[0] !== "hub-team-editor" || can("teamEdit")) && (v[0] !== "hub-applications" || can("applications")) && (v[0] !== "hub-ideas" || can("ideas")) && (v[0] !== "hub-partners" || can("partners")) && (v[0] !== "hub-goals" || can("goals")) && ((v[0] !== "hub-messages" && v[0] !== "hub-assoc-apps") || can("board")) && (v[0] !== "hub-chat" || can("chat")); }).map(function (v) {
-      return '<a href="#' + v[0] + '"' + (v[0] === view ? ' aria-current="page"' : "") + ">" + (v[0] === "hub-teams" && !can("all") ? "My team" : v[1]) + (v[0] === "hub-expenses" && pending ? '<span class="count num">' + pending + "</span>" : "") + (v[0] === "hub-overview" && unreadCount() ? '<span class="count num" title="New notifications">' + unreadCount() + "</span>" : "") + (v[0] === "hub-ideas" && newIdeas ? '<span class="count num">' + newIdeas + "</span>" : "") + (v[0] === "hub-applications" && tryoutCount() ? '<span class="count num">' + tryoutCount() + "</span>" : "") + (v[0] === "hub-chat" && chatUnread() ? '<span class="count num" title="Unread chat messages">' + chatUnread() + "</span>" : "") + (v[0] === "hub-messages" && newMsgCount() ? '<span class="count num" title="New messages">' + newMsgCount() + "</span>" : "") + (v[0] === "hub-assoc-apps" && newAppCount() ? '<span class="count num" title="New applications">' + newAppCount() + "</span>" : "") + (v[0] === "hub-partners" && (LIVE.inbox || {}).inquiries ? '<span class="count num" title="New partner inquiries">' + LIVE.inbox.inquiries + "</span>" : "") + "</a>";
+      return '<a href="#' + v[0] + '"' + (v[0] === view ? ' aria-current="page"' : "") + ">" + (v[0] === "hub-teams" && !can("all") ? "My team" : v[1]) + (v[0] === "hub-expenses" && pending ? '<span class="count num">' + pending + "</span>" : "") + (v[0] === "hub-overview" && unreadCount() ? '<span class="count num" title="New notifications">' + unreadCount() + "</span>" : "") + (v[0] === "hub-ideas" && newIdeas ? '<span class="count num">' + newIdeas + "</span>" : "") + (v[0] === "hub-applications" && tryoutCount() ? '<span class="count num">' + tryoutCount() + "</span>" : "") + (v[0] === "hub-chat" && chatUnread() ? '<span class="count num" title="Unread chat messages">' + chatUnread() + "</span>" : "") + (v[0] === "hub-messages" && newMsgCount() ? '<span class="count num" title="New messages">' + newMsgCount() + "</span>" : "") + (v[0] === "hub-assoc-apps" && newAppCount() ? '<span class="count num" title="New applications">' + newAppCount() + "</span>" : "") + (v[0] === "hub-partners" && partnerBadge ? '<span class="count num" title="New partner inquiries and follow-ups due this week">' + partnerBadge + "</span>" : "") + (v[0] === "hub-departments" && taskBadge ? '<span class="count num" title="New tasks assigned to you">' + taskBadge + "</span>" : "") + "</a>";
     }).join("");
     var u = state.user, me = admin || captain, multi = !!admin || allowedViews().length > 1;
-    return '<div class="app"><aside class="rail"><div class="top"><a class="lock" href="#home" aria-label="Back to Esade Sports home">' + mono(38) + '<span>ESADE SPORTS<br>HUB</span></a><div class="history" aria-label="Page navigation"><button type="button" data-history="back" aria-label="Go back">' + ico("left") + '</button><button type="button" data-history="forward" aria-label="Go forward">' + ico("right") + '</button></div>' +
+    return '<div class="app"><aside class="rail"><div class="top"><a class="lock" href="#home" aria-label="Back to Esade Sports home">' + mono(38) + '<span>ESADE SPORTS<br>HUB</span></a><div class="history" aria-label="Page navigation"><button type="button" data-history="back" aria-label="Go back">' + ico("left") + '</button><button type="button" data-history="forward" aria-label="Go forward">' + ico("right") + '</button>' + (live() ? bellHtml() : "") + '</div>' +
       '<div class="who"><p class="eyebrow">Signed in' + (admin ? " as admin" : "") + '</p><strong>' + esc(me.email) + "</strong><small>Viewing as " + esc(viewLabel(u)) + (hRO() ? " · read-only" : "") + "</small>" + (multi ? '<a class="back-site" href="#signin">Change view</a>' : "") + '<a class="back-site" href="/admin">Requests &amp; applications</a><a class="back-site" href="#home">← Public site</a><button type="button" data-signout>Sign out</button>' + langSwitch() + '</div></div>' +
       '<nav aria-label="Hub">' + nav + "</nav></aside>" +
       '<main class="main">' + (admin ? demoBar(u) : live() ? "" : '<div class="banner"><b>Prototype</b><span>Example figures and tasks, saved in this browser only.</span></div>') + inner + "</main></div>";
@@ -1381,10 +1383,12 @@ export function initSite(backend, tools) {
     var out = []; DEPTS.forEach(function (d) { deptTasks(d).forEach(function (t) { if (t.mine && t.status !== "done") out.push({ t: t, d: d }); }); });
     return out;
   }
-  function todoPanel() {
-    if (hRO()) return "";
+  // Everything waiting for the signed-in person, as { n, text, href }: shown in "Waiting for you" and in the bell.
+  // Each count follows the same access rules as the page it links to (associates: their department and teams).
+  function waitingItems() {
+    if (hRO()) return [];
     var u = hv(), ib = live() ? LIVE.inbox || {} : {}, items = [];
-    function add(n, text, href) { if (n) items.push('<li><a href="' + href + '"><b class="num">' + n + "</b><span>" + text + "</span>" + ico("right") + "</a></li>"); }
+    function add(n, text, href) { if (n) items.push({ n: n, text: text, href: href }); }
     var exD = visExp().filter(canDecideE).length, exP = visExp().filter(canPayE).length;
     var ideas = can("ideas") ? visIdeas().filter(function (i) { return (i.status === "new" && canRunIdea(i)) || canApproveIdea(i) || canCommIdea(i); }).length : 0;
     add(exD, exD === 1 ? "expense request to decide" : "expense requests to decide", "#hub-expenses");
@@ -1396,11 +1400,58 @@ export function initSite(backend, tools) {
     if (approver) add(ib.messages, ib.messages === 1 ? "new message from the website" : "new messages from the website", "#hub-messages");
     add(ib.tryouts, ib.tryouts === 1 ? "new try-out or coach sign-up" : "new try-out or coach sign-ups", u.role === "captain" || u.dept === "ops" || hFull() ? "/admin" : "#hub-applications");
     if (can("partners")) {
-      var me = meEmail(), soon = ((LIVE.partners || {}).partners || []).filter(function (p) { return p.nextDate && p.nextDate <= todayYmd(7) && p.stage !== "signed" && p.stage !== "lost" && (u.role !== "associate" || p.ownerEmail === me || !p.ownerEmail); }).length;
+      var soon = partnerDueCount();
       add(ib.inquiries, ib.inquiries === 1 ? "new partner inquiry from the website" : "new partner inquiries from the website", "#hub-partners");
       add(soon, soon === 1 ? "partner follow-up due this week" : "partner follow-ups due this week", "#hub-partners");
     }
     if (u.role === "head" && live()) { var d0 = DEPTS.filter(function (d) { return d.id === u.dept; })[0], un = d0 ? deptTasks(d0).filter(function (t) { return t.status !== "done" && !t.owner; }).length : 0; add(un, un === 1 ? "open task with nobody assigned" : "open tasks with nobody assigned", "#hub-departments"); }
+    return items;
+  }
+  // Tasks assigned to me that I have not started yet (they leave the count once set to "In progress").
+  function newTaskCount() { return myOpenTasks().filter(function (x) { return x.t.status === "todo"; }).length; }
+  function partnerDueCount() {
+    if (!can("partners") || !live()) return 0;
+    var u = hv(), me = meEmail();
+    return ((LIVE.partners || {}).partners || []).filter(function (p) { return p.nextDate && p.nextDate <= todayYmd(7) && p.stage !== "signed" && p.stage !== "lost" && (u.role !== "associate" || p.ownerEmail === me || !p.ownerEmail); }).length;
+  }
+  // The bell in the Hub: unread chat, new notifications, new tasks for me, then everything in waitingItems().
+  var bellOpen = false, BASE_TITLE = document.title || "Esade Sports";
+  function bellItems() {
+    var out = [], c = chatUnread(), nt = unreadCount(), tk = hRO() ? 0 : newTaskCount();
+    if (c) out.push({ n: c, text: c === 1 ? "unread chat message" : "unread chat messages", href: "#hub-chat" });
+    if (nt) out.push({ n: nt, text: nt === 1 ? "new notification" : "new notifications", href: "#hub-overview" });
+    if (tk) out.push({ n: tk, text: tk === 1 ? "new task assigned to you" : "new tasks assigned to you", href: can("depts") ? "#hub-departments" : "#hub-overview" });
+    return out.concat(waitingItems());
+  }
+  function bellTotal(items) { return (items || bellItems()).reduce(function (n, x) { return n + x.n; }, 0); }
+  function bellMenu(items) {
+    return '<div class="bell-menu" id="bell-menu"' + (bellOpen ? "" : " hidden") + '><h2>Waiting for you</h2>' +
+      (items.length ? "<ul>" + items.map(function (x) { return '<li><a href="' + esc(x.href) + '" data-bell-go><b class="num">' + x.n + "</b><span>" + esc(x.text) + "</span>" + ico("right") + "</a></li>"; }).join("") + "</ul>" : '<p class="empty">You are all caught up.</p>') + "</div>";
+  }
+  function bellHtml() {
+    var items = bellItems(), n = bellTotal(items);
+    return '<span class="bell-wrap"><button type="button" class="bell" data-bell aria-haspopup="true" aria-expanded="' + bellOpen + '" aria-controls="bell-menu" aria-label="Notifications' + (n ? ", " + n + " waiting" : "") + '">' + ico("bell") + (n ? '<span class="bell-n num">' + (n > 99 ? "99+" : n) + "</span>" : "") + "</button>" + bellMenu(items) + "</span>";
+  }
+  // Browser tab title "(3) Esade Sports Hub" and the bell, updated in place (also while someone is typing).
+  function updateTitle() {
+    var n = 0; try { if ((admin || captain) && live()) n = bellTotal(); } catch (e) {}
+    document.title = (n ? "(" + n + ") " : "") + (location.hash.indexOf("#hub-") === 0 ? "Esade Sports Hub" : BASE_TITLE);
+  }
+  function bellPatch() {
+    updateTitle();
+    var w = hub.querySelector(".bell-wrap"); if (!w) return;
+    var tmp = document.createElement("div"); tmp.innerHTML = bellHtml(); w.replaceWith(tmp.firstChild); bindBell();
+  }
+  function bindBell() {
+    var b = hub.querySelector("[data-bell]"); if (!b) return;
+    b.addEventListener("click", function (e) { e.stopPropagation(); bellOpen = !bellOpen; var m = $("bell-menu"); if (m) m.hidden = !bellOpen; b.setAttribute("aria-expanded", String(bellOpen)); if (bellOpen) { var f = m && m.querySelector("a"); if (f) f.focus(); } });
+    hub.querySelectorAll("[data-bell-go]").forEach(function (a) { a.addEventListener("click", function () { bellOpen = false; }); });
+  }
+  document.addEventListener("click", function (e) { if (bellOpen && !(e.target.closest && e.target.closest(".bell-wrap"))) { bellOpen = false; var m = $("bell-menu"); if (m) m.hidden = true; var b = hub.querySelector("[data-bell]"); if (b) b.setAttribute("aria-expanded", "false"); } });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && bellOpen) { bellOpen = false; var m = $("bell-menu"); if (m) m.hidden = true; var b = hub.querySelector("[data-bell]"); if (b) { b.setAttribute("aria-expanded", "false"); b.focus(); } } });
+  function todoPanel() {
+    if (hRO()) return "";
+    var u = hv(), items = waitingItems().map(function (x) { return '<li><a href="' + x.href + '"><b class="num">' + x.n + "</b><span>" + x.text + "</span>" + ico("right") + "</a></li>"; });
     var mine = myOpenTasks(), assoc = u.role === "associate";
     var title = assoc ? "My week" : u.role === "head" ? "Needs your approval" : "Waiting for you";
     var sub = assoc ? '<p class="muted" style="margin:0 0 8px;font-size:13px">Your teams: ' + esc(teamsText(u.teams) || "none yet") + " · " + esc(deptName(u.dept)) + "</p>" : "";
@@ -1528,25 +1579,66 @@ export function initSite(backend, tools) {
         '<div class="msg-actions"><button type="submit" class="btn solid">Send reply</button><a class="btn" href="' + mailto + '">Reply in my email app</a><button type="button" class="btn ghost" data-msg-unread="' + esc(m._id) + '">Mark as unread</button></div></form>') +
       "</section></div>";
   }
+  // Board view (default): one column per stage, colour-coded; drag a card into another column to change its stage.
+  // "Decision" groups Offer / Accepted / Declined / Rejected: dropping there sends an offer, the drop-down sets the rest.
+  var APP_COLS = [["applied", "Applied"], ["review", "Under review"], ["interview", "Interview"], ["case", "Case interview"], ["decision", "Decision"]];
+  function appCol(a) { var st = a.stage || "applied"; return ["offer", "accepted", "declined", "rejected"].indexOf(st) > -1 ? "decision" : st; }
+  function appStageSelect(a) {
+    var st = a.stage || "applied", name = a.firstName + " " + a.lastName;
+    return '<select class="stg-sel stg-' + st + '" data-app-stage="' + esc(a._id) + '" aria-label="Stage of ' + esc(name) + '">' + Object.keys(APP_STAGE).map(function (k) { return '<option value="' + k + '"' + (k === st ? " selected" : "") + ">" + APP_STAGE[k] + "</option>"; }).join("") + "</select>";
+  }
+  function stageChip(st) { return '<span class="stg-chip stg-' + st + '">' + esc(APP_STAGE[st] || st) + "</span>"; }
+  function appCard(a) {
+    var st = a.stage || "applied", name = a.firstName + " " + a.lastName, ro = hRO();
+    var links = ['<a href="mailto:' + esc(a.email) + '">Email</a>'];
+    if (a.cvUrl) links.push('<a href="' + esc(a.cvUrl) + '" target="_blank" rel="noopener">CV</a>');
+    if (a.videoUrl) links.push('<a href="' + esc(a.videoUrl) + '" target="_blank" rel="noopener">Video</a>');
+    if (a.linkedin) links.push('<a href="' + esc(a.linkedin) + '" target="_blank" rel="noopener">LinkedIn</a>');
+    return '<article class="kb-card stg-' + st + '"' + (ro ? "" : ' data-card="' + esc(a._id) + '" data-col="' + appCol(a) + '" title="Drag to another column to change the stage"') + ">" +
+      "<strong>" + esc(name) + "</strong><small>" + esc(a.programme) + " · " + esc(a.year) + "</small><small>" + esc(a.pref1) + (a.pref2 ? " · then " + esc(a.pref2) : "") + "</small>" +
+      '<div class="kb-foot">' + stageChip(st) + '<small class="num">' + esc(fmtDay(a._creationTime)) + "</small></div>" +
+      '<div class="kb-foot"><span>' + links.join(" · ") + "</span>" + (ro ? "" : appStageSelect(a)) + "</div>" +
+      (a.motivation ? '<details><summary><small class="muted">Motivation</small></summary><p style="white-space:pre-wrap;margin:6px 0 0;font-size:12px">' + esc(a.motivation) + "</p></details>" : "") + "</article>";
+  }
+  function appBoard(all) {
+    return '<div class="kb" data-kb="assoc">' + APP_COLS.map(function (c) {
+      var list = all.filter(function (a) { return appCol(a) === c[0]; });
+      return '<section class="kb-col stg-' + c[0] + '" data-drop="' + c[0] + '" aria-label="' + esc(c[1]) + '"><h3>' + esc(c[1]) + "<b>" + list.length + '</b></h3><div class="kb-list">' +
+        (list.length ? list.map(appCard).join("") : '<p class="kb-empty">' + (hRO() ? "Nobody here" : "Drop an applicant here") + "</p>") + "</div></section>";
+    }).join("") + "</div>";
+  }
   function hubAssocApps() {
     var head = '<div class="ph-head"><div><h1 class="display">Association applications.</h1><p>Students applying to join a department. Heads see the applicants who chose their department; the President, VPs and admins see everyone. Notes stay in <a href="/admin">Requests &amp; applications</a>.</p></div></div>';
     if (!live()) return head + '<section class="panel"><p class="empty">Applications show once you are signed in.</p></section>';
     if (LIVE.assocApps == null) return head + '<section class="panel"><p class="empty">Loading…</p></section>';
-    var all = visApps(), f = state.aFilter || "all";
+    var all = visApps(), f = state.aFilter || "all", board = state.aView !== "table";
     var inTab = function (a, t) { var st = a.stage || "applied"; return t === "all" || (t === "decision" ? ["offer", "accepted", "declined", "rejected"].indexOf(st) > -1 : st === t); };
     var rows = all.filter(function (a) { return inTab(a, f); });
-    return head + '<section class="panel"><div class="chips" role="group" aria-label="Stage">' + APP_TABS.map(function (x) { var n = all.filter(function (a) { return inTab(a, x[0]); }).length; return '<button class="chip" data-af="' + x[0] + '" aria-pressed="' + (f === x[0]) + '">' + x[1] + " (" + n + ")</button>"; }).join("") + "</div>" +
+    var bar = '<div class="kb-bar"><div class="kb-switch" role="group" aria-label="Layout"><button type="button" data-aview="board" aria-pressed="' + board + '">Board</button><button type="button" data-aview="table" aria-pressed="' + !board + '">Table</button></div>' +
+      (board ? '<p class="kb-hint">' + (hRO() ? "View only." : "Drag a card into another column to move the applicant to that stage (on a phone: press and hold, then drag).") + "</p>" : "") + "</div>";
+    if (board) return head + '<section class="panel">' + bar + (all.length ? appBoard(all) : '<p class="empty">No applications yet.</p>') + "</section>";
+    return head + '<section class="panel">' + bar + '<div class="chips" role="group" aria-label="Stage">' + APP_TABS.map(function (x) { var n = all.filter(function (a) { return inTab(a, x[0]); }).length; return '<button class="chip" data-af="' + x[0] + '" aria-pressed="' + (f === x[0]) + '">' + x[1] + " (" + n + ")</button>"; }).join("") + "</div>" +
       (rows.length ? '<div class="table-wrap"><table><thead><tr><th>Applicant</th><th>Studies</th><th>Departments</th><th>Motivation</th><th>Files</th><th>Received</th><th>Stage</th></tr></thead><tbody>' + rows.map(function (a) {
         var st = a.stage || "applied", name = a.firstName + " " + a.lastName;
-        return "<tr><td><strong>" + esc(name) + '</strong><br><small><a href="mailto:' + esc(a.email) + '">' + esc(a.email) + "</a><br>" + esc(a.phone) + (a.linkedin ? '<br><a href="' + esc(a.linkedin) + '" target="_blank" rel="noopener">LinkedIn</a>' : "") + "</small></td>" +
+        return '<tr class="stg-row stg-' + st + '"><td><strong>' + esc(name) + '</strong><br><small><a href="mailto:' + esc(a.email) + '">' + esc(a.email) + "</a><br>" + esc(a.phone) + (a.linkedin ? '<br><a href="' + esc(a.linkedin) + '" target="_blank" rel="noopener">LinkedIn</a>' : "") + "</small></td>" +
           "<td>" + esc(a.programme) + '<br><small class="muted">' + esc(a.year) + "</small></td>" +
           "<td>" + esc(a.pref1) + (a.pref2 ? '<br><small class="muted">then ' + esc(a.pref2) + "</small>" : "") + "</td>" +
           '<td>' + (a.motivation.length > 120 ? '<details><summary><small class="muted">' + esc(clip(a.motivation, 120)) + '</small></summary><p style="white-space:pre-wrap;margin:6px 0 0">' + esc(a.motivation) + "</p></details>" : '<small class="muted" style="white-space:pre-wrap">' + esc(a.motivation) + "</small>") + "</td>" +
           "<td>" + (a.cvUrl ? '<a href="' + esc(a.cvUrl) + '" target="_blank" rel="noopener">CV</a>' : "") + (a.videoUrl ? '<br><a href="' + esc(a.videoUrl) + '" target="_blank" rel="noopener">Video</a>' : "") + "</td>" +
           '<td class="num muted">' + esc(fmtDay(a._creationTime)) + "</td>" +
-          "<td>" + (hRO() ? esc(APP_STAGE[st] || st) : '<select data-app-stage="' + esc(a._id) + '" aria-label="Stage of ' + esc(name) + '">' + Object.keys(APP_STAGE).map(function (k) { return '<option value="' + k + '"' + (k === st ? " selected" : "") + ">" + APP_STAGE[k] + "</option>"; }).join("") + "</select>") + "</td></tr>";
+          "<td>" + (hRO() ? stageChip(st) : appStageSelect(a)) + "</td></tr>";
       }).join("") + "</tbody></table></div>" : '<p class="empty">' + (all.length ? "No application at this stage." : "No applications yet.") + "</p>") + "</section>";
   }
+  // Dropping a card: move it right away, then save (the live data re-draws the board; on an error it snaps back).
+  enableBoardDrag(hub, function (id, col, card, column) {
+    if (!card.closest('[data-kb="assoc"]') || hRO()) return;
+    var cur = (LIVE.assocApps || []).filter(function (a) { return a._id === id; })[0];
+    var stage = col === "decision" ? (cur && appCol(cur) === "decision" ? cur.stage : "offer") : col;
+    var list = column.querySelector(".kb-list"), empty = list && list.querySelector(".kb-empty");
+    if (empty) empty.remove();
+    if (list) list.insertBefore(card, list.firstChild);
+    Promise.resolve(backend.run("setAppStage", { id: id, stage: stage })).then(function () { toast("Moved to " + APP_STAGE[stage] + "."); }, function (x) { toast(errText(x)); render(); });
+  });
 
   // ---- Chat: the association's group chats and direct messages (convex/hubChat.ts) -------------
   // Board chat (Board + admins), one chat per department (its head and associates, plus President / VPs / admins)
@@ -1841,7 +1933,7 @@ export function initSite(backend, tools) {
       history: r.history || [], example: r.isExample, sv: { d: r.canDecide, p: r.canPay, r: r.canReconsider, e: r.canEsade } };
   }
   function hubBusy() { var a = document.activeElement; return !!(a && hub.contains(a) && (a.tagName === "TEXTAREA" || (a.tagName === "INPUT" && a.type !== "button" && a.type !== "submit") || a.tagName === "SELECT")); }
-  function hubRefresh() { if (location.hash.indexOf("#hub-") !== 0) return; if (hubBusy()) { LIVE.dirty = true; return; } LIVE.dirty = false; render(); }
+  function hubRefresh() { if (location.hash.indexOf("#hub-") !== 0) { updateTitle(); return; } if (hubBusy()) { LIVE.dirty = true; bellPatch(); return; } LIVE.dirty = false; render(); }
   function startLive() {
     if (!backend || !backend.watchExpenses) return;
     var on = !!(admin || captain);
@@ -1860,7 +1952,7 @@ export function initSite(backend, tools) {
       if (backend.watch && boardAccount()) [["messages", "messages"], ["assocApps", "assocApps"]].forEach(function (x) {
         LIVE.subs.push(backend.watch(x[0], function (d) { if (d === undefined) return; LIVE[x[1]] = d || []; hubRefresh(); }));
       });
-      if (backend.watch && chatAccount()) LIVE.subs.push(backend.watch("chats", function (d) { if (d === undefined) return; LIVE.chats = d; chatPatch() || hubRefresh(); }));
+      if (backend.watch && chatAccount()) LIVE.subs.push(backend.watch("chats", function (d) { if (d === undefined) return; LIVE.chats = d; if (chatPatch()) bellPatch(); else hubRefresh(); }));
       watchGoals(goalTerm());
     } else if (!on && LIVE.unExp) {
       if (LIVE.unChat) LIVE.unChat(); LIVE.unChat = null; LIVE.chatOpen = null; LIVE.chatMsgs = null;
@@ -2582,6 +2674,7 @@ export function initSite(backend, tools) {
     bindChat();
     hub.querySelectorAll("[data-mf]").forEach(function (b) { b.addEventListener("click", function () { state.mFilter = b.getAttribute("data-mf"); render(); }); });
     hub.querySelectorAll("[data-af]").forEach(function (b) { b.addEventListener("click", function () { state.aFilter = b.getAttribute("data-af"); render(); }); });
+    hub.querySelectorAll("[data-aview]").forEach(function (b) { b.addEventListener("click", function () { state.aView = b.getAttribute("data-aview"); save(); render(); }); });
     hub.querySelectorAll("[data-msg]").forEach(function (sel) {
       sel.addEventListener("click", function (e) { e.stopPropagation(); });
       sel.addEventListener("change", function () { pRun("setMessage", { id: sel.getAttribute("data-msg"), status: sel.value }, "Status updated."); });
@@ -2703,7 +2796,7 @@ export function initSite(backend, tools) {
       if ((h === "hub-messages" || h === "hub-assoc-apps") && !can("board")) h = "hub-overview";
       if (h === "hub-chat" && !can("chat")) h = "hub-overview";
       var inner = h === "hub-chat" ? hubChat() : h === "hub-messages" ? hubMessages() : h === "hub-assoc-apps" ? hubAssocApps() : h === "hub-partners" ? hubPartners() : h === "hub-goals" ? hubGoals() : h === "hub-teams" ? hubTeams() : h === "hub-team-editor" ? hubTeamEditor() : h === "hub-applications" ? hubApplications() : h === "hub-captains" ? hubCaptains() : h === "hub-expenses" ? hubExpenses() : h === "hub-departments" ? hubDepts() : h === "hub-report" || h === "hub-checkups" ? hubCheckups() : h === "hub-ideas" ? hubIdeas() : h === "hub-history" ? hubHistory() : hubOverview();
-      hub.innerHTML = hubShell(h, inner); show("hub"); bindHub(); return;
+      hub.innerHTML = hubShell(h, inner); show("hub"); bindHub(); bindBell(); updateTitle(); return;
     }
     if (h === "signin") html = signinView();
     else if (h === "alumni-signin" || h === "alumni-me" || h === "alumni-verify") { location.replace("#alumni"); return; }
@@ -2860,7 +2953,7 @@ export function initSite(backend, tools) {
     }, { rootMargin: "-45% 0px -50% 0px" });
     secs.forEach(function (sct) { if (sct.id) spy.observe(sct); });
   })();
-  window.addEventListener("hashchange", function () { state.teamOpen = null; render(); });
+  window.addEventListener("hashchange", function () { state.teamOpen = null; bellOpen = false; render(); updateTitle(); });
   // A live update that arrived while someone was typing in the Hub is shown once they leave the field.
   hub.addEventListener("focusout", function () { if (LIVE.dirty) setTimeout(function () { if (LIVE.dirty && !hubBusy()) { LIVE.dirty = false; render(); } }, 400); });
   renderAcct(); render(); loadAlumni(); loadTeamInfo(); loadResults();

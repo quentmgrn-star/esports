@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { authClient } from "@/lib/auth-client";
 import { convex } from "@/components/ConvexClientProvider";
 import { TEAMS, teamLabel } from "@/lib/teams";
+import { enableBoardDrag } from "@/lib/dragBoard";
 
 type Application = {
   _id: string;
@@ -61,7 +62,7 @@ function StageSelect({ app }: { app: Application }) {
   const [busy, setBusy] = useState(false);
   return (
     <select
-      className={`adm-stage adm-stage-${stageOf(app)}`}
+      className={`adm-stage stg-sel stg-${stageOf(app)}`}
       value={stageOf(app)}
       disabled={busy}
       aria-label={`Stage for ${app.firstName} ${app.lastName}`}
@@ -85,6 +86,91 @@ function StageSelect({ app }: { app: Application }) {
     </select>
   );
 }
+
+// ---- Kanban board: one colour-coded column per stage; drag a card into another column to change it ----
+// Mouse: drag. Phone: press and hold, then drag. The drop-down on each card stays as a fallback.
+type KbCol = { id: string; label: string };
+function Kanban<T extends { _id: string }>(props: {
+  cols: KbCol[];
+  items: T[];
+  colOf: (it: T) => string;
+  cardClass: (it: T, col: string) => string;
+  canMove: boolean;
+  onMove: (it: T, col: string) => Promise<unknown>;
+  onOpen: (it: T) => void;
+  children: (it: T) => ReactNode;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [moved, setMoved] = useState<Record<string, string>>({});
+  const latest = useRef(props);
+  latest.current = props;
+  useEffect(() => {
+    if (!ref.current || !props.canMove) return;
+    return enableBoardDrag(ref.current, (id, col) => {
+      const it = latest.current.items.find((x) => x._id === id);
+      if (!it) return;
+      setMoved((m) => ({ ...m, [id]: col }));
+      latest.current
+        .onMove(it, col)
+        .catch((err) => alert(`Could not move it: ${err instanceof Error ? err.message : String(err)}`))
+        .finally(() => setMoved((m) => { const n = { ...m }; delete n[id]; return n; }));
+    });
+  }, [props.canMove]);
+  const where = (it: T) => moved[it._id] ?? props.colOf(it);
+  return (
+    <div className="kb" ref={ref}>
+      {props.cols.map((c) => {
+        const list = props.items.filter((it) => where(it) === c.id);
+        return (
+          <section key={c.id} className={`kb-col stg-${c.id}`} data-drop={c.id} aria-label={c.label}>
+            <h3>
+              {c.label}
+              <b>{list.length}</b>
+            </h3>
+            <div className="kb-list">
+              {list.length ? (
+                list.map((it) => (
+                  <article
+                    key={it._id}
+                    className={`kb-card stg-${props.cardClass(it, where(it))}`}
+                    data-card={props.canMove ? it._id : undefined}
+                    data-col={where(it)}
+                    tabIndex={0}
+                    title={props.canMove ? "Drag to another column, or click to open" : "Click to open"}
+                    onClick={() => props.onOpen(it)}
+                    onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && e.target === e.currentTarget && (e.preventDefault(), props.onOpen(it))}
+                  >
+                    {props.children(it)}
+                  </article>
+                ))
+              ) : (
+                <p className="kb-empty">{props.canMove ? "Drop here" : "Nobody here"}</p>
+              )}
+            </div>
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+function ViewSwitch({ view, setView, hint }: { view: "board" | "table"; setView: (v: "board" | "table") => void; hint?: string }) {
+  return (
+    <div className="kb-bar">
+      <div className="kb-switch" role="group" aria-label="Layout">
+        <button type="button" aria-pressed={view === "board"} onClick={() => setView("board")}>
+          Board
+        </button>
+        <button type="button" aria-pressed={view === "table"} onClick={() => setView("table")}>
+          Table
+        </button>
+      </div>
+      {view === "board" && hint && <p className="kb-hint">{hint}</p>}
+    </div>
+  );
+}
+const DRAG_HINT = "Drag a card into another column to change its stage (on a phone: press and hold, then drag). Click a card to open it.";
+const statusSlug = (s: string) => s.replace(/\s+/g, "-").toLowerCase();
 
 type Me = {
   name: string;
@@ -398,9 +484,9 @@ function Dashboard({ me }: { me: NonNullable<Me> }) {
         <p className="adm-p adm-readonly">View-only access: you can see everything, but not change anything.</p>
       )}
       {section === "applications" && seesApplications ? (
-        <Applications />
+        <Applications canMove={!me.readOnly} />
       ) : section === "tryouts" && seesTryouts ? (
-        <Tryouts me={me} />
+        <Tryouts me={me} canMove={!me.readOnly} />
       ) : section === "messages" && seesMessages ? (
         <Messages messages={messages} />
       ) : section === "requests" && approves ? (
@@ -418,8 +504,19 @@ function Dashboard({ me }: { me: NonNullable<Me> }) {
   );
 }
 
-function Applications() {
+const APP_COLS: KbCol[] = [
+  { id: "applied", label: "Applied" },
+  { id: "review", label: "Under review" },
+  { id: "interview", label: "Interview" },
+  { id: "case", label: "Case interview" },
+  { id: "decision", label: "Decision" },
+];
+const appCol = (a: Application) => (DECISION.includes(stageOf(a)) ? "decision" : stageOf(a));
+
+function Applications({ canMove }: { canMove: boolean }) {
   const apps = useQuery(api.admin.listAssociationApplications, {}) as Application[] | undefined;
+  const setStage = useMutation(api.admin.setApplicationStage);
+  const [view, setView] = useState<"board" | "table">("board");
   const [first, setFirst] = useState("");
   const [programme, setProgramme] = useState("");
   const [year, setYear] = useState("");
@@ -448,6 +545,8 @@ function Applications() {
 
   return (
     <>
+      <ViewSwitch view={view} setView={setView} hint={canMove ? DRAG_HINT : undefined} />
+      {view === "table" && (
       <div className="adm-tabs" role="tablist" aria-label="Recruitment stage">
         {TABS.map(([id, label]) => (
           <button
@@ -462,6 +561,7 @@ function Applications() {
           </button>
         ))}
       </div>
+      )}
 
       <div className="adm-filters">
         <label className="field">
@@ -500,9 +600,44 @@ function Applications() {
       <p className="adm-count">
         {apps === undefined
           ? "Loading…"
-          : `${shown.length} shown · ${list.length} application${list.length === 1 ? "" : "s"} in total`}
+          : `${view === "board" ? filtered.length : shown.length} shown · ${list.length} application${list.length === 1 ? "" : "s"} in total`}
       </p>
 
+      {view === "board" ? (
+        <Kanban
+          cols={APP_COLS}
+          items={filtered}
+          colOf={appCol}
+          cardClass={(a, col) => (col === appCol(a) ? stageOf(a) : col === "decision" ? "offer" : col)}
+          canMove={canMove}
+          onMove={(a, col) => setStage({ id: a._id, stage: col === "decision" ? (DECISION.includes(stageOf(a)) ? stageOf(a) : "offer") : col })}
+          onOpen={(a) => setOpenId(a._id)}
+        >
+          {(a) => (
+            <>
+              <strong>
+                {a.firstName} {a.lastName}
+              </strong>
+              <small>
+                {a.programme} · {a.year}
+              </small>
+              <small>
+                {a.pref1}
+                {a.pref2 ? ` · then ${a.pref2}` : ""}
+              </small>
+              <div className="kb-foot">
+                <span className={`stg-chip stg-${stageOf(a)}`}>{STAGE_LABEL[stageOf(a)]}</span>
+                <small>{fmtDate(a._creationTime)}</small>
+              </div>
+              {canMove && (
+                <div className="kb-foot">
+                  <StageSelect app={a} />
+                </div>
+              )}
+            </>
+          )}
+        </Kanban>
+      ) : (
       <div className="adm-table-wrap">
         <table className="adm-table">
           <thead>
@@ -520,6 +655,7 @@ function Applications() {
             {shown.map((a) => (
               <tr
                 key={a._id}
+                className={`stg-row stg-${stageOf(a)}`}
                 tabIndex={0}
                 onClick={() => setOpenId(a._id)}
                 onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), setOpenId(a._id))}
@@ -549,6 +685,7 @@ function Applications() {
           </tbody>
         </table>
       </div>
+      )}
 
       {open && <Detail app={open} onClose={() => setOpenId(null)} />}
     </>
@@ -915,7 +1052,7 @@ function TeamStatusSelect({ app }: { app: TeamApp }) {
   const [busy, setBusy] = useState(false);
   return (
     <select
-      className={`adm-stage adm-tstatus-${app.status.replace(/\s+/g, "-").toLowerCase()}`}
+      className={`adm-stage stg-sel stg-${statusSlug(app.status)}`}
       value={app.status}
       disabled={busy}
       aria-label={`Status for ${app.firstName} ${app.lastName}`}
@@ -938,7 +1075,11 @@ function TeamStatusSelect({ app }: { app: TeamApp }) {
   );
 }
 
-function Tryouts({ me }: { me: NonNullable<Me> }) {
+const TRY_COLS: KbCol[] = TEAM_STATUSES.map((st) => ({ id: st, label: st }));
+
+function Tryouts({ me, canMove }: { me: NonNullable<Me>; canMove: boolean }) {
+  const setTeamStatus = useMutation(api.admin.setTeamApplicationStatus);
+  const [view, setView] = useState<"board" | "table">("board");
   const opsTeams = me.assoc.filter((x) => x.department === "Operations").flatMap((x) => x.teams);
   const myTeams = me.full || me.heads.includes("Operations") ? TEAMS : TEAMS.filter((t) => me.teams.includes(t.id) || opsTeams.includes(t.id));
   const apps = useQuery(api.admin.listTeamApplications, {}) as TeamApp[] | undefined;
@@ -966,6 +1107,7 @@ function Tryouts({ me }: { me: NonNullable<Me> }) {
 
   return (
     <>
+      <ViewSwitch view={view} setView={setView} hint={canMove ? DRAG_HINT : undefined} />
       <div className="adm-teams" role="group" aria-label="Team">
         <button type="button" aria-pressed={team === ""} onClick={() => setTeam("")}>
           <strong>All teams</strong>
@@ -1027,6 +1169,36 @@ function Tryouts({ me }: { me: NonNullable<Me> }) {
           : `${team ? teamLabel(team) + " · " : ""}${shown.length} shown · ${list.length} sign-up${list.length === 1 ? "" : "s"} in total`}
       </p>
 
+      {view === "board" ? (
+        <Kanban
+          cols={TRY_COLS}
+          items={shown}
+          colOf={(a) => (TEAM_STATUSES.includes(a.status) ? a.status : "New")}
+          cardClass={(_a, col) => statusSlug(col)}
+          canMove={canMove}
+          onMove={(a, col) => setTeamStatus({ id: a._id, status: col })}
+          onOpen={(a) => setOpenId(a._id)}
+        >
+          {(a) => (
+            <>
+              <strong>
+                {a.firstName} {a.lastName}
+              </strong>
+              <small>
+                {teamLabel(a.teamSlug)} · {kindLabel(a.kind)}
+                {a.track === "social" ? " · just for fun" : ""}
+              </small>
+              <small>
+                {a.level || "Level not given"} · {a.esadeStudent ? "Esade student" : "Not at Esade"}
+              </small>
+              <div className="kb-foot">
+                <span className={`stg-chip stg-${statusSlug(a.status)}`}>{a.status}</span>
+                <small>{fmtDate(a._creationTime)}</small>
+              </div>
+            </>
+          )}
+        </Kanban>
+      ) : (
       <div className="adm-table-wrap">
         <table className="adm-table">
           <thead>
@@ -1044,6 +1216,7 @@ function Tryouts({ me }: { me: NonNullable<Me> }) {
             {shown.map((a) => (
               <tr
                 key={a._id}
+                className={`stg-row stg-${statusSlug(a.status)}`}
                 tabIndex={0}
                 onClick={() => setOpenId(a._id)}
                 onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), setOpenId(a._id))}
@@ -1072,6 +1245,7 @@ function Tryouts({ me }: { me: NonNullable<Me> }) {
           </tbody>
         </table>
       </div>
+      )}
 
       {open && <TeamAppDetail app={open} onClose={() => setOpenId(null)} />}
     </>

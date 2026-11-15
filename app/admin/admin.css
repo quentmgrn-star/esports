@@ -128,3 +128,8 @@
 }
 
 .adm-readonly { background: var(--mist); padding: 10px 14px; border-left: 3px solid var(--blue); }
+/* Kanban boards on the grey admin background */
+.adm .kb-col { background: var(--white); }
+.adm .kb-col.kb-over { background: var(--stg-bg); }
+.adm .kb-card { border: 1px solid var(--line); border-left: 4px solid var(--stg); box-shadow: none; }
+.adm .kb-bar { margin-bottom: 12px; }
