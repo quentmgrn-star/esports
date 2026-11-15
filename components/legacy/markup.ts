@@ -327,7 +327,7 @@ export const SITE_MARKUP = `
       <div><dt>League / event</dt><dd id="match-modal-league"></dd></div>
       <div><dt>Status</dt><dd id="match-modal-status"></dd></div>
     </dl>
-    <a class="btn btn-ghost-navy ics-btn" id="match-modal-ics" href="#" hidden>Add to my calendar</a>
+    <div class="ics-btn" id="match-modal-cal"></div>
   </section>
 </div>
 <div id="page" class="page" hidden></div>

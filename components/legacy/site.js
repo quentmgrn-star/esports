@@ -74,18 +74,42 @@ export function initSite(backend, tools) {
           '<div class="ev-body"><p class="eyebrow">' + esc(e.kind) + (e.example ? ' · <em class="ex">Example</em>' : "") + '</p><h2 class="ev-title">' + esc(e.title) + "</h2>" +
           (e.tagline ? '<p class="ev-tag">' + esc(e.tagline) + "</p>" : "") + "<p>" + esc(e.summary) + "</p>" + (e.details ? '<p class="muted">' + esc(e.details) + "</p>" : "") +
           '<dl class="ev-facts"><div><dt>When</dt><dd>' + esc(eWhen(e)) + '</dd></div><div><dt>Where</dt><dd>' + esc(e.place) + '</dd></div><div><dt>Organised by</dt><dd>' + esc(e.organiser) + '</dd></div><div><dt>Price</dt><dd><b class="price">' + esc(e.price) + "</b>" + (e.priceNote ? " · " + esc(e.priceNote) : "") + "</dd></div></dl>" +
-          (e.signup ? '<a class="btn btn-blue" href="' + esc(e.signup) + '" target="_blank" rel="noopener noreferrer">Sign up</a>' : '<span class="muted" style="font-size:13px">Sign-ups open soon.</span>') + "</div></li>";
+          (e.signup ? '<a class="btn btn-blue" href="' + esc(e.signup) + '" target="_blank" rel="noopener noreferrer">Sign up</a>' : '<span class="muted" style="font-size:13px">Sign-ups open soon.</span>') +
+          calMenu({ id: e.id, title: e.title + " · " + e.kind, date: e.date, time: e.time, mins: 120, place: e.place, details: e.summary + (e.signup ? "\nSign up: " + e.signup : "") }) + "</div></li>";
       }).join("") : '<li class="muted">No upcoming events yet.</li>') + "</ol></div></section>";
   }
 
-  // .ics file for "Add to calendar" (2-hour slot, Europe/Madrid local time).
-  function icsFor(g) {
-    var d = g.date.replace(/-/g, ""), t = g.time.replace(":", "") + "00", h = +g.time.slice(0, 2) + 2;
-    var end = String(Math.min(h, 23)).padStart(2, "0") + g.time.slice(3) + "00";
-    var clean = function (x) { return String(x).replace(/[,;\\]/g, "\\$&"); };
-    return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Esade Sports//Games//EN", "BEGIN:VEVENT", "UID:" + g.id + "@esadesports", "DTSTAMP:" + d + "T000000Z",
-      "DTSTART;TZID=Europe/Madrid:" + d + "T" + t, "DTEND;TZID=Europe/Madrid:" + d + "T" + end, "SUMMARY:" + clean(g.sport + ": " + g.home + " vs " + g.away),
-      "LOCATION:" + clean(g.venue), "DESCRIPTION:" + clean(g.competition), "END:VEVENT", "END:VCALENDAR"].join("\r\n");
+  // ---- "Add to my calendar": one menu for every game and event -------------------------------
+  // Times on the site are Barcelona time (Europe/Madrid). Convert to UTC once, so the date is
+  // right in every calendar whatever the visitor's own time zone (summer/winter time included).
+  function madridOffset(ms) {
+    var p = {}; new Intl.DateTimeFormat("en-US", { timeZone: "Europe/Madrid", hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" })
+      .formatToParts(new Date(ms)).forEach(function (x) { p[x.type] = +x.value; });
+    return Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second) - ms;
+  }
+  function madridToUtc(date, time) {
+    var d = date.split("-"), t = (time || "12:00").split(":");
+    var wall = Date.UTC(+d[0], +d[1] - 1, +d[2], +t[0], +t[1]);
+    var ms = wall - madridOffset(wall);
+    return wall - madridOffset(ms);
+  }
+  function icsStamp(ms) { return new Date(ms).toISOString().replace(/[-:]/g, "").slice(0, 15) + "Z"; }
+  // ev: { id, title, date "YYYY-MM-DD", time "HH:MM", mins, place, details }
+  function calMenu(ev) {
+    var s = madridToUtc(ev.date, ev.time), e = s + (ev.mins || 120) * 60000;
+    var S = icsStamp(s), E = icsStamp(e), enc = encodeURIComponent;
+    var details = (ev.details ? ev.details + "\n\n" : "") + "Esade Sports · " + location.origin;
+    var isoS = new Date(s).toISOString().slice(0, 19) + "Z", isoE = new Date(e).toISOString().slice(0, 19) + "Z";
+    var outlook = function (host) { return "https://" + host + "/calendar/0/action/compose?rru=addevent&subject=" + enc(ev.title) + "&startdt=" + isoS + "&enddt=" + isoE + "&location=" + enc(ev.place || "") + "&body=" + enc(details); };
+    var links = [
+      ["/api/ics?id=" + enc(ev.id) + "&s=" + S + "&e=" + E + "&t=" + enc(ev.title) + "&l=" + enc(ev.place || "") + "&d=" + enc(details), "Apple Calendar (iPhone, Mac)", false],
+      ["https://calendar.google.com/calendar/render?action=TEMPLATE&text=" + enc(ev.title) + "&dates=" + S + "/" + E + "&location=" + enc(ev.place || "") + "&details=" + enc(details), "Google Calendar", true],
+      [outlook("outlook.office.com"), "Outlook (Esade / Microsoft 365)", true],
+      [outlook("outlook.live.com"), "Outlook.com (personal)", true],
+      ["/api/ics?id=" + enc(ev.id) + "&s=" + S + "&e=" + E + "&t=" + enc(ev.title) + "&l=" + enc(ev.place || "") + "&d=" + enc(details), "Other app (.ics file)", false]
+    ];
+    return '<details class="cal-add"><summary class="btn btn-ghost-navy">Add to my calendar</summary><div class="cal-menu">' +
+      links.map(function (l) { return '<a href="' + esc(l[0]) + '"' + (l[2] ? ' target="_blank" rel="noopener noreferrer"' : "") + ">" + l[1] + "</a>"; }).join("") + "</div></details>";
   }
   function openMatch(id) {
     var g = gameById(id), modal = $("match-modal");
@@ -96,11 +120,8 @@ export function initSite(backend, tools) {
     $("match-modal-location").textContent = g.venue;
     $("match-modal-league").textContent = g.competition;
     $("match-modal-status").textContent = gStatus(g);
-    var ics = $("match-modal-ics");
-    if (ics) {
-      ics.hidden = !!g.score;
-      if (!g.score) { ics.href = "data:text/calendar;charset=utf-8," + encodeURIComponent(icsFor(g)); ics.setAttribute("download", "esade-sports-" + g.id + ".ics"); }
-    }
+    var calBox = $("match-modal-cal");
+    if (calBox) calBox.innerHTML = g.score ? "" : calMenu({ id: g.id, title: g.sport + ": " + g.home + " vs " + g.away, date: g.date, time: g.time, mins: 120, place: g.venue, details: g.competition });
     modal.hidden = false;
     document.body.style.overflow = "hidden";
   }

@@ -227,7 +227,7 @@ a { color: inherit; }
 .match-modal { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; padding: 24px; }
 .match-modal[hidden] { display: none; }
 .match-backdrop { position: absolute; inset: 0; background: rgba(0,11,61,.72); }
-.match-dialog { position: relative; width: min(560px, 100%); background: var(--white); color: var(--navy); padding: 36px; box-shadow: 0 24px 70px rgba(0,0,0,.24); }
+.match-dialog { position: relative; width: min(560px, 100%); background: var(--white); color: var(--navy); padding: 36px; max-height: calc(100dvh - 48px); overflow-y: auto; box-shadow: 0 24px 70px rgba(0,0,0,.24); }
 .match-close { position: absolute; top: 12px; right: 14px; border: 0; background: transparent; color: var(--navy); font-size: 28px; line-height: 1; cursor: pointer; }
 .match-dialog h2 { margin: 10px 0 8px; font-size: clamp(26px, 4vw, 38px); font-style: italic; text-transform: uppercase; line-height: 1; }
 .match-dialog .match-meta { margin: 0 0 24px; color: var(--ink-soft); }
@@ -786,6 +786,15 @@ a { color: inherit; }
 .cal-note { font-size: 13px; margin-top: 12px; }
 .cal-empty { padding: 32px 0; }
 .ics-btn { margin-top: 20px; }
+.cal-add { display: inline-block; position: relative; margin-top: 12px; }
+.ev-body .cal-add { margin-left: 8px; }
+.cal-add > summary { list-style: none; cursor: pointer; }
+.cal-add > summary::-webkit-details-marker { display: none; }
+.cal-menu { display: grid; margin-top: 8px; min-width: 260px; border: 1px solid var(--line, #d6dbe4); background: var(--white, #fff); box-shadow: 0 8px 24px rgba(0, 20, 60, .12); }
+.cal-menu a { padding: 12px 14px; font: 600 14px/1.3 var(--font); color: var(--navy); text-decoration: none; border-top: 1px solid var(--line, #d6dbe4); }
+.cal-menu a:first-child { border-top: 0; }
+.cal-menu a:hover, .cal-menu a:focus-visible { background: var(--info-bg); }
+@media (max-width: 760px) { .ev-body .cal-add { margin-left: 0; display: block; } .cal-menu { min-width: 0; } }
 @media (max-width: 760px) {
   .cal-day { min-height: 64px; padding: 4px; }
   .cal-game { font-size: 0; padding: 0; height: 8px; border-left: 0; background: var(--blue); }
