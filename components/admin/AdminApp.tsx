@@ -853,6 +853,7 @@ type TeamApp = {
   esadeStudent: boolean;
   programme?: string;
   level?: string;
+  track?: "competitive" | "social";
   coachingExperience?: string;
   status: string;
   statusChangedAt?: number;
@@ -1006,7 +1007,7 @@ function Tryouts({ me }: { me: NonNullable<Me> }) {
                   <span className="adm-sub">{a.email}</span>
                 </td>
                 <td>{teamLabel(a.teamSlug)}</td>
-                <td>{kindLabel(a.kind)}</td>
+                <td>{kindLabel(a.kind)}{a.track === "social" ? " · just for fun" : ""}</td>
                 <td>{a.esadeStudent ? "Yes" : "No"}</td>
                 <td>{a.level || "—"}</td>
                 <td>{fmtDate(a._creationTime)}</td>
@@ -1044,6 +1045,7 @@ function TeamAppDetail({ app, onClose }: { app: TeamApp; onClose: () => void }) 
     ["Esade student", app.esadeStudent ? "Yes" : "No"],
     ["Programme and year", app.programme || "—"],
     ["Level", app.level || "—"],
+    ["Wants to play", app.kind === "coach" ? "—" : app.track === "social" ? "Just for fun (no try-out)" : "Competitive squad (try-outs)"],
     ["Submitted", new Date(app._creationTime).toLocaleString("en-GB")],
   ];
   return (

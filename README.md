@@ -60,7 +60,20 @@ Every decision is stored with who, when and why. The ledger and check-ups downlo
 
 Admins: set or change the list with `npx convex env set ADMIN_EMAILS "a@alumni.esade.edu,b@alumni.esade.edu,c@alumni.esade.edu" --prod` (comma-separated). Removing an email removes admin rights at once.
 
-The Hub (`/#hub-overview`) shows each person only the views their role allows; admins can preview any role from the Members page. Expenses, check-ups and ideas are real data in Convex; budgets, tasks and people names are still example data (marked Prototype).
+The Hub (`/#hub-overview`) shows each person only the views their role allows; admins can preview any role from the Members page. Everything in the Hub is shared data in Convex:
+
+| | Who sees it | Who acts |
+|---|---|---|
+| Tasks (`convex/tasks.ts`) | The department (associates: department-wide tasks + their teams), Board tasks for the Board, President, VPs, admins, Student Council | Add / remove: the head, President, VPs, admins. Status: anyone in the department |
+| Team budgets (`convex/budgets.ts`) | Finance, Operations, Marketing for the team, its captains, President, VPs, admins, Student Council | Finance for the team (total, Operations / Marketing split, draft / in review / agreed) |
+| Results (`convex/results.ts`) | Public (team pages) | The team's captains, Operations and Marketing for the team |
+| Partnerships tracker (`convex/partners.ts`) | Partnerships (associates: association-wide partners + their teams), President, VPs, admins, Student Council; website partner inquiries too | Partnerships. Remove: the head, President, VPs, admins |
+| Goals (`convex/goals.ts`) | President, VPs, heads, admins, Student Council; associates see their department's goals | Targets: President, VPs, admins. Typed-in numbers: also the department's head. Other numbers are counted from the database |
+| Waiting for you (`convex/inbox.ts`) | Each person: requests, applications, try-outs and partner inquiries they can act on | Links to /admin or the Hub page |
+
+People names in the Hub come from approved members (`org.overview`); nobody approved = "To be assigned". Made-up public content (fictional squads, example games, events and alumni) is hidden by `SHOW_EXAMPLES = false` at the top of `components/legacy/site.js`.
+
+Confirmation emails (`convex/mail.ts`) go out after every public form (try-outs, just for fun, coaching, association applications, alumni profiles, access requests, contact, partner) in the visitor's language, once `RESEND_API_KEY` and `MAIL_FROM` are set on Convex. Without them, forms work and no email is sent.
 
 ## Deploy on Vercel
 

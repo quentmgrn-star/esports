@@ -1014,3 +1014,37 @@ a { text-underline-offset: .18em; text-decoration-thickness: 1.5px; }
   .plogos .marquee-track li { flex: none; }
 }
 .alumni-teaser-text a, .band p a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+
+/* Why join + two ways to play (home) */
+.why-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; border-top: 2px solid var(--navy); }
+.why-col { padding: 24px 28px 8px 0; }
+.why-col + .why-col { padding-left: 28px; border-left: 1px solid var(--line); }
+.why-col h3 { font-size: 22px; font-weight: 900; font-style: italic; text-transform: uppercase; margin: 0 0 14px; letter-spacing: -0.01em; }
+.why-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.why-list li { display: grid; gap: 2px; }
+.why-list b { font-weight: 800; }
+.why-list span { color: var(--ink-soft); }
+.play-ways { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 32px; }
+.play { background: var(--navy); color: var(--white); padding: 24px; display: grid; gap: 10px; align-content: start; justify-items: start; }
+.play h3 { margin: 0; font-size: 24px; font-weight: 900; font-style: italic; text-transform: uppercase; }
+.play p { margin: 0; color: var(--on-navy-soft); }
+.play.fun { background: var(--mist); color: var(--navy); }
+.play.fun p { color: var(--ink-soft); }
+.fun-link { margin: 12px 0 0; font-size: 14px; }
+.fun-link a { font-weight: 700; }
+@media (max-width: 800px) {
+  .why-grid, .play-ways { grid-template-columns: 1fr; }
+  .why-col + .why-col { padding-left: 0; border-left: 0; border-top: 1px solid var(--line); }
+}
+
+/* Hub: waiting for you, partnerships, goals */
+#hub .todo-list { list-style: none; margin: 0; padding: 0; display: grid; }
+#hub .todo-list a { display: grid; grid-template-columns: 44px 1fr auto; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--mist); text-decoration: none; }
+#hub .todo-list a:hover span { text-decoration: underline; }
+#hub .todo-list b { font-size: 22px; font-weight: 900; color: var(--blue); }
+#hub .goals-t .bar { margin-bottom: 4px; }
+#hub .goal-actual { display: inline-flex; gap: 6px; justify-content: flex-end; }
+#hub .goal-actual input { width: 96px; border: 1.5px solid var(--line); padding: 5px 8px; font-size: 14px; text-align: right; }
+#hub #partner-edit { margin-bottom: 18px; padding-bottom: 18px; border-bottom: 1px solid var(--mist); }
+#hub .panel .chips + .table-wrap, #hub .panel .chips + .empty { margin-top: 12px; }
+#hub .panel .chips select { border: 1.5px solid var(--line); padding: 6px 8px; font-size: 13px; }

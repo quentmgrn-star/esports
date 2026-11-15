@@ -4,6 +4,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { adminEmails } from "./auth";
 import { DEPARTMENTS, getAccess, requireAccess, type Access } from "./roles";
 import { TEAMS } from "./teamList";
+import { internal } from "./_generated/api";
 
 // Who approves what (no one approves their own request; view-only people approve nothing):
 //   Admin ............................ everyone, including Board positions and viewers
@@ -14,7 +15,7 @@ const roleV = v.union(v.literal("board"), v.literal("associate"), v.literal("cap
 const positionV = v.optional(v.union(v.literal("president"), v.literal("vice-president"), v.literal("head")));
 type Member = Doc<"members">;
 
-function canDecide(a: Access, m: Pick<Member, "role" | "department" | "email">): boolean {
+export function canDecide(a: Access, m: Pick<Member, "role" | "department" | "email">): boolean {
   if (m.email === a.email || a.readOnly) return false;
   if (a.isAdmin) return true;
   if (m.role === "associate") return a.exec || (!!m.department && a.heads.includes(m.department));
@@ -61,6 +62,7 @@ export const requestAccess = mutation({
     teams: v.optional(v.array(v.string())), // associates: the teams they work with; captains: their team(s)
     note: v.optional(v.string()),
     website: v.optional(v.string()), // honeypot
+    lang: v.optional(v.string()), // for the confirmation email
   },
   handler: async (ctx, args) => {
     if (args.website) return null;
@@ -70,6 +72,8 @@ export const requestAccess = mutation({
     if (mine.some((r) => r.status === "requested" && r.role === m.role && r.department === m.department && (r.teams ?? []).join() === (m.teams ?? []).join()))
       throw new ConvexError("This request is already waiting for approval.");
     await ctx.db.insert("members", { ...m, note: args.note?.trim().slice(0, 500) || undefined, status: "requested", requestedAt: Date.now() });
+    const as = m.role === "captain" ? "captain" : `${m.department} associate`;
+    await ctx.scheduler.runAfter(0, internal.mail.confirm, { to: m.email, name: m.name.split(" ")[0], kind: "access", about: as, lang: args.lang });
     return true;
   },
 });

@@ -1,12 +1,17 @@
 /* eslint-disable */
 import { SPORT_IMAGES } from "@/lib/images";
 import { BOARD_BLOCK } from "./markup";
-import { GAMES } from "./games";
-import { EVENTS } from "./events";
+import { GAMES as ALL_GAMES } from "./games";
+import { EVENTS as ALL_EVENTS } from "./events";
 // Ported from the original prototype script. Runs once on the client after the markup mounts.
 export function initSite(backend, tools) {
 
   "use strict";
+  // Made-up presentation content (fictional players, stats, news, example games, events and alumni) stays
+  // hidden on the public site. Set to true only for an internal demo. Real data never depends on it.
+  var SHOW_EXAMPLES = false;
+  var GAMES = ALL_GAMES.filter(function (g) { return SHOW_EXAMPLES || !g.example; });
+  var EVENTS = ALL_EVENTS.filter(function (e) { return SHOW_EXAMPLES || !e.example; });
   // Line icons (one stroke family, drawn as SVG): no glyph or emoji stand-ins.
   var ICONS = { left: "M15 6l-6 6 6 6", right: "M9 6l6 6-6 6", down: "M12 4v12M6 11l6 6 6-6M5 20h14", x: "M6 6l12 12M18 6L6 18", out: "M7 17L17 7M9 7h8v8" };
   function ico(k) { return '<svg class="ico" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"><path d="' + ICONS[k] + '" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'; }
@@ -107,7 +112,7 @@ export function initSite(backend, tools) {
     var y = cal.month.getFullYear(), m = cal.month.getMonth();
     var games = GAMES.filter(function (g) { return !cal.team || g.team === cal.team; }).sort(function (a, b) { return (a.date + a.time).localeCompare(b.date + b.time); });
     var teamsWithGames = TEAMS.filter(function (t) { return GAMES.some(function (g) { return g.team === t.id; }); });
-    var head = '<section class="band"><div class="wrap"><h1 class="display">Full<br>calendar.</h1><p>Every Esade Sports game on the website: date, time, place and result. Games marked Example are placeholders until captains add the real ones.</p></div></section>';
+    var head = '<section class="band"><div class="wrap"><h1 class="display">Full<br>calendar.</h1><p>Every Esade Sports game on the website: date, time, place and result. Captains add their games during the season.</p></div></section>';
     var bar = '<div class="cal-bar"><div class="cal-nav"><button type="button" class="btn btn-ghost-navy sm" data-cal="prev" aria-label="Previous month">' + ico("left") + '</button><h2 class="cal-title">' + MONTHS[m] + " " + y + '</h2><button type="button" class="btn btn-ghost-navy sm" data-cal="next" aria-label="Next month">' + ico("right") + '</button><button type="button" class="btn btn-ghost-navy sm" data-cal="today">Today</button></div>' +
       '<div class="cal-tools"><label class="field" for="cal-team">Team<select id="cal-team"><option value="">All teams</option>' + teamsWithGames.map(function (t) { return '<option value="' + t.id + '"' + (cal.team === t.id ? " selected" : "") + ">" + esc(tLabel(t)) + "</option>"; }).join("") + "</select></label>" +
       '<div class="cal-toggle" role="group" aria-label="View"><button type="button" data-calview="month" aria-pressed="' + (cal.view === "month") + '">Month</button><button type="button" data-calview="list" aria-pressed="' + (cal.view === "list") + '">List</button></div></div></div>';
@@ -197,6 +202,7 @@ export function initSite(backend, tools) {
     a.headline = ["Sports marketing intern · FC Barcelona", "Business analyst · sports data start-up", "Law student · sports regulation", "Brand strategy intern · sportswear", "Event operations intern · tennis circuit", "Investment banking analyst", "Content intern · sports media", "Commercial intern · football league", "Account intern · sponsorship agency"][i] || (a.inRole + " · " + a.inCo);
     a.esadeRole = i === 0 ? "Football 7 · Former player" : i === 2 ? "Volleyball · Active member" : i === 8 ? "Padel · Volleyball · Active member" : "Esade Sports · Former member";
   });
+  if (!SHOW_EXAMPLES) ALUMNI = []; // example profiles: internal demo only
 
   // ================= State =================
   var state = { user: null, me: null, expenses: null, captains: null, teamApplications: {}, teamInfo: {}, teamResults: {}, tasks: {}, checkups: [], rosters: {}, deckNotes: {}, nextId: 100, al: { q: "", sport: "All", year: "" }, hubFilter: "all", appFilter: "all", teamOpen: null };
@@ -298,7 +304,7 @@ export function initSite(backend, tools) {
       err.hidden = true;
       var btn = $("rq-send"); btn.disabled = true; btn.textContent = "Sending…";
       function done() { f.innerHTML = '<p class="eyebrow">Request sent</p><strong>Thank you</strong><p>' + (role.value === "captain" ? "The Board" : "The head of " + esc($("rq-dept") ? $("rq-dept").value : "your department")) + " will review your request. Once approved, sign in with " + esc(email) + " to create your account.</p>"; }
-      var data = { name: name, email: email, role: role.value, department: role.value === "captain" ? undefined : $("rq-dept").value, teams: teams, note: $("rq-note").value.trim() || undefined, website: $("rq-website").value || undefined };
+      var data = { name: name, email: email, role: role.value, department: role.value === "captain" ? undefined : $("rq-dept").value, teams: teams, note: $("rq-note").value.trim() || undefined, website: $("rq-website").value || undefined, lang: window.__lang };
       if (!backend || !backend.requestAccess) { done(); return; }
       Promise.resolve(backend.requestAccess(data)).then(done, function (x) {
         console.error(x); btn.disabled = false; btn.textContent = "Send request";
@@ -452,7 +458,8 @@ export function initSite(backend, tools) {
       archives: [["2025–26", "Barcelona Padel Tour", "18–3", "1st"], ["2024–25", "Barcelona Padel Tour", "13–7", "3rd"]], statsNote: "Prototype women's padel data with fictional pairings and sample match records."
     }
   };
-  function teamData(t) { return TEAM_DATA[t.id] || {}; }
+  function teamData(t) { return SHOW_EXAMPLES ? TEAM_DATA[t.id] || {} : {}; } // fictional squads: internal demo only
+  function soon(text) { return '<p class="empty-state">' + text + "</p>"; }
   function sgn(n) { return n > 0 ? "+" + n : String(n); }
   function leagueTable(L) {
     var diffCol = L.cols.length - 1;
@@ -507,36 +514,36 @@ export function initSite(backend, tools) {
       out = players.slice(0, n || players.length).map(function (r, i) { return '<li class="player' + (r.captain || i === 0 ? " capt" : "") + '"><div class="ph2">' + esc(r.position || t.sport) + '<span class="no">' + (r.no != null ? r.no : "–") + '</span></div><div class="pi"><strong>' + esc(r.name) + "</strong><span>" + (r.captain ? "Captain · " : "") + esc(r.position || "Player") + " · " + esc(r.programme || (L && L.club) || t.sport) + "</span></div></li>"; });
       return '<ul class="roster">' + out.join("") + "</ul>";
     }
-    for (var i = 0; i < n; i++) out.push('<li class="player' + (i === 0 ? " capt" : "") + '"><div class="ph2">' + esc(pos[i % pos.length]) + '<span class="no">' + String(i + 1).padStart(2, "0") + '</span></div><div class="pi"><strong>Esade squad player ' + (i + 1) + '</strong><span>' + esc(pos[i % pos.length]) + " · Esade Sports squad</span></div></li>");
-    return '<ul class="roster">' + out.join("") + "</ul>";
+    return soon("The squad list is coming soon: the captain is adding it.");
   }
   function schedTable(t) {
     var D = teamData(t), rows = D.schedule || [];
-    if (!rows.length) rows = [{ date: "Season schedule", side: "INFO", opponent: "Captain update pending", venue: "Esade Sports Hub", result: "To be announced" }];
+    if (!rows.length) return soon("The schedule is coming soon: the captain adds the games here.");
     rows = rows.map(function (r) { return '<tr><td>' + esc(r.date) + '</td><td class="ha">' + esc(r.side) + '</td><td class="opp">' + esc(r.opponent) + '</td><td>' + esc(r.venue) + '</td><td>' + (r.result && /^(W|L|D)\b/.test(r.result) ? '<span class="res">' + esc(r.result) + '</span>' : '<span class="muted">' + esc(r.result) + '</span>') + '</td></tr>'; });
     return '<div class="tscroll"><table class="sched"><thead><tr><th>Date</th><th></th><th>Opponent</th><th>Venue</th><th>Result</th></tr></thead><tbody>' + rows.join("") + "</tbody></table></div>";
   }
   function newsList(t, n) {
     var D = teamData(t), stories = D.news || [], out = [];
+    if (!stories.length) return soon("No news yet.");
     stories.slice(0, n || stories.length).forEach(function (story) { out.push('<li><div class="thumb" aria-hidden="true"></div><div><p class="eyebrow">' + esc(story.kind) + "</p><strong>" + esc(story.title) + "</strong><span>" + esc(story.date) + " · " + esc(story.summary) + "</span></div></li>"); });
     return '<ul class="news">' + out.join("") + "</ul>";
   }
   function sec(id, title, sub, body) { return '<section class="tsec" id="' + id + '"><header><h2>' + title + "</h2><span>" + sub + "</span></header>" + body + "</section>"; }
   function joinBlock(t) {
     var D = teamData(t);
-    return '<div class="ways"><div class="tryout"><h3 class="display">Come to<br>try-outs.</h3><p>Next try-out: ' + esc(D.tryout || "Check the next club announcement") + '. Every level is welcome. Come and train with the squad.</p><a class="btn btn-solid-white" href="#apply-player-' + t.id + '">Sign up for try-outs</a></div>' +
+    return '<div class="ways"><div class="tryout"><h3 class="display">Come to<br>try-outs.</h3><p>Next try-out: ' + esc(D.tryout || "Check the next club announcement") + '. Every level is welcome. Come and train with the squad.</p><a class="btn btn-solid-white" href="#apply-player-' + t.id + '">Sign up for try-outs</a><p class="fun-link">Rather play just for fun? No try-out needed. <a href="#apply-fun-' + t.id + '">Join the open sessions</a></p></div>' +
       '<div class="tryout coach"><h3 class="display">Volunteer as coach.</h3><p>Our coaches are volunteers. Esade student or not, if you have played or coached ' + esc(t.sport.toLowerCase()) + ', we would love your help.</p><a class="btn btn-ghost-navy" href="#apply-coach-' + t.id + '">Apply to coach</a></div></div>';
   }
   function statsTable(t) {
     var L = LEAGUE[t.id], cols = (L && L.statCols) || STATCOLS[t.sport] || ["GP"], rows = [], D = teamData(t), players = D.roster || (L && L.players) || [];
     players.forEach(function (pl) { rows.push('<tr><td class="pn"><span class="muted num">#' + (pl.no != null ? pl.no : "–") + "</span> " + esc(pl.name) + "</td>" + cols.map(function (c) { return '<td class="r num">' + (pl.stat && pl.stat[c] != null ? "<strong>" + esc(pl.stat[c]) + "</strong>" : "–") + "</td>"; }).join("") + "</tr>"); });
-    if (!rows.length) rows.push('<tr><td class="pn">Squad totals</td>' + cols.map(function () { return '<td class="r num">–</td>'; }).join("") + "</tr>");
+    if (!rows.length) return soon("Player stats are coming soon.");
     return '<div class="tscroll"><table class="sched stats"><thead><tr><th>Player</th>' + cols.map(function (c) { return '<th class="r">' + c + "</th>"; }).join("") + "</tr></thead><tbody>" + rows.join("") +
       '</tbody></table></div>';
   }
   // Results the captain added in the Hub (manual mode). Shown on the public page straight away in this demo; in production after approval.
   function captainResults(t) {
-    var list = (state.teamResults[t.id] || []).slice().reverse();
+    var list = teamResultsFor(t.id).slice().reverse();
     if (!list.length) return "";
     return sec("t-capres", "Latest updates", "Added by the captain", '<div class="tscroll"><table class="sched"><thead><tr><th>Date</th><th></th><th>Opponent</th><th>Competition</th><th>Result</th></tr></thead><tbody>' +
       list.map(function (r) { return "<tr><td>" + esc(r.date) + '</td><td class="ha">' + esc((r.side || "").toUpperCase()) + '</td><td class="opp">' + (r.side === "Away" ? "at " : "vs ") + esc(r.opponent) + "</td><td>" + esc(r.competition || "") + "</td><td>" + (r.status === "Final" ? '<span class="res">' + esc(r.score) + "</span>" : '<span class="muted">' + esc(r.status) + (r.score ? " · " + esc(r.score) : "") + "</span>") + "</td></tr>"; }).join("") + "</tbody></table></div>");
@@ -562,7 +569,7 @@ export function initSite(backend, tools) {
         '<div class="tgrid">' + sec("t-news", "News", '<a class="link-arrow" href="' + th(t, "news") + '">All news →</a>', newsList(t, 2)) +
         sec("t-staff", "Who runs the team", "Students and volunteers", staffList(t)) + "</div>" +
         sec("t-try", "Join the team", "Two ways in", joinBlock(t)) +
-        '<section class="tsec" id="t-alumni"><div class="alumni-strip"><p><strong>' + nAl + " alumni played " + esc(t.sport.toLowerCase()) + '</strong>Find them in the Alumni corner and get in touch.</p><a class="btn btn-ghost-navy" href="#alumni" data-sport="' + esc(t.sport) + '">See ' + esc(t.sport.toLowerCase()) + " alumni</a></div></section>";
+        '<section class="tsec" id="t-alumni"><div class="alumni-strip"><p>' + (nAl ? "<strong>" + nAl + " alumni played " + esc(t.sport.toLowerCase()) + "</strong>Find them in the Alumni corner and get in touch." : "<strong>Played " + esc(t.sport.toLowerCase()) + " at Esade?</strong>Add your profile to the Alumni corner and stay in touch.") + "</p>" + '<a class="btn btn-ghost-navy" href="#alumni" data-sport="' + esc(t.sport) + '">See ' + esc(t.sport.toLowerCase()) + " alumni</a></div></section>";
     } else if (tab === "roster") {
       body = sec("t-roster", "Roster", "Season 2026–27 · kept up to date by the captain", rosterCards(t, 12));
     } else if (tab === "staff") {
@@ -574,7 +581,7 @@ export function initSite(backend, tools) {
           captainResults(t) + sec("t-table", "League table", esc(L.short), leagueTable(L));
       } else {
         var rec = D.record || { position: "–", total: "–", points: "–", played: "–", gd: 0 };
-        body = '<div class="record"><div><span class="eyebrow">Position</span><strong>' + rec.position + " / " + rec.total + '</strong></div><div><span class="eyebrow">Points</span><strong>' + rec.points + '</strong></div><div><span class="eyebrow">Played</span><strong>' + rec.played + '</strong></div><div><span class="eyebrow">Goal difference</span><strong>' + sgn(rec.gd) + "</strong></div></div>" +
+        body = !D.record ? captainResults(t) + sec("t-sched", "Schedule &amp; results", "Season 2026–27", schedTable(t)) : '<div class="record"><div><span class="eyebrow">Position</span><strong>' + rec.position + " / " + rec.total + '</strong></div><div><span class="eyebrow">Points</span><strong>' + rec.points + '</strong></div><div><span class="eyebrow">Played</span><strong>' + rec.played + '</strong></div><div><span class="eyebrow">Goal difference</span><strong>' + sgn(rec.gd) + "</strong></div></div>" +
           captainResults(t) + sec("t-sched", "Schedule &amp; results", esc(D.league || "Season 2026–27"), schedTable(t));
       }
     } else if (tab === "stats") {
@@ -585,11 +592,11 @@ export function initSite(backend, tools) {
       body = sec("t-try", "Join the team", "Two ways in", joinBlock(t));
     } else if (tab === "archives") {
       var archives = D.archives || [];
-      body = sec("t-arch", "Season archives", "Past seasons", '<div class="tscroll"><table class="sched"><thead><tr><th>Season</th><th>League</th><th>Record</th><th>Position</th><th></th></tr></thead><tbody>' +
+      body = !archives.length ? sec("t-arch", "Season archives", "Past seasons", soon("Past seasons will be added here.")) : sec("t-arch", "Season archives", "Past seasons", '<div class="tscroll"><table class="sched"><thead><tr><th>Season</th><th>League</th><th>Record</th><th>Position</th><th></th></tr></thead><tbody>' +
         archives.map(function (a) { return '<tr><td class="opp">' + esc(a[0]) + "</td><td>" + esc(a[1]) + "</td><td>" + esc(a[2]) + "</td><td>" + esc(a[3]) + '</td><td class="r"><span class="muted">Archived</span></td></tr>'; }).join("") + "</tbody></table></div>") +
         '<p class="muted" style="margin:0;font-size:13px">Each season is kept with its roster, results and stats. Prototype archive data shown for presentation.</p>';
     } else if (tab === "records") {
-      body = sec("t-rec", "Record book", "All-time team records", '<div class="staff">' + (D.records || ["Season highlight · Esade Sports squad", "Captain's award · selected by the team", "Best season record · prototype data", "Biggest win · prototype data"]).map(function (r) { var p = r.split(" · "); return "<div><span>" + esc(p[0]) + "</span><span>" + esc(p.slice(1).join(" · ")) + "</span></div>"; }).join("") + "</div>");
+      body = !D.records ? sec("t-rec", "Record book", "All-time team records", soon("Team records will be added once the season is played.")) : sec("t-rec", "Record book", "All-time team records", '<div class="staff">' + D.records.map(function (r) { var p = r.split(" · "); return "<div><span>" + esc(p[0]) + "</span><span>" + esc(p.slice(1).join(" · ")) + "</span></div>"; }).join("") + "</div>");
     }
     var info = teamInfoFor(t.id), facts = [];
     if (info.league) facts.push(["League", info.league + (info.leagueUrl ? "" : ""), info.leagueUrl]);
@@ -598,18 +605,19 @@ export function initSite(backend, tools) {
     var about = info.about || facts.length || info.leagueUrl ? '<div class="tinfo">' + (info.about ? "<p>" + esc(info.about) + "</p>" : "") +
       (facts.length ? '<dl class="tfacts">' + facts.map(function (f) { return "<div><dt>" + f[0] + "</dt><dd>" + (f[2] ? '<a href="' + esc(f[2]) + '"' + (f[2].indexOf("http") === 0 ? ' target="_blank" rel="noopener"' : "") + ">" + esc(f[1]) + "</a>" : esc(f[1])) + "</dd></div>"; }).join("") + "</dl>" : "") +
       (info.leagueUrl && !info.league ? '<a class="link-arrow" href="' + esc(info.leagueUrl) + '" target="_blank" rel="noopener">League page →</a>' : "") + "</div>" : "";
-    var exNote = L ? "" : '<p class="exnote"><b>Example data</b> <span>Names, results and stats on this page are examples for the presentation. The captain replaces them with the real roster and results.</span></p>';
+    var exNote = L ? "" : SHOW_EXAMPLES ? '<p class="exnote"><b>Example data</b> <span>Names, results and stats on this page are examples for the presentation. The captain replaces them with the real roster and results.</span></p>' : '<p class="exnote"><b>Season 2026–27</b> <span>The squad, schedule and results are coming soon: the captain adds them during the season.</span></p>';
     return head + nextStrip(t) + '<section class="tbody"><div class="wrap">' + exNote + about + body + "</div></section>";
   }
   function staffList(t) {
     var D = t && teamData(t), L = t && LEAGUE[t.id], s = D.staff || {};
-    return '<div class="staff"><div><span>Captain</span><span>' + esc(D.captain || (L && L.captain) || "Esade captain") + '</span></div><div><span>Coach</span><span>' + esc(D.coach || "Esade Sports coach") + '</span></div><div><span>Finance associate</span><span>' + esc(s.finance || "Finance associate") + '</span></div><div><span>Media &amp; Marketing associate</span><span>' + esc(s.media || "Media associate") + '</span></div><div><span>Operations associate</span><span>' + esc(s.operations || "Operations associate") + '</span></div></div>';
+    var tba = "To be announced";
+    return '<div class="staff"><div><span>Captain</span><span>' + esc(D.captain || (L && L.captain) || tba) + '</span></div><div><span>Coach</span><span>' + esc(D.coach || tba) + '</span></div><div><span>Finance associate</span><span>' + esc(s.finance || tba) + '</span></div><div><span>Media &amp; Marketing associate</span><span>' + esc(s.media || tba) + '</span></div><div><span>Operations associate</span><span>' + esc(s.operations || tba) + '</span></div></div>';
   }
 
   // ================= Join a team (player or coach) =================
   function applyView(h) {
-    var m = h.match(/^apply-(player|coach)-(.+)$/), as = m ? m[1] : "player", tid = m && team(m[2]) ? m[2] : TEAMS[0].id;
-    return '<section class="band"><div class="wrap"><h1 class="display">Play or<br>coach.</h1><p>Esade Sports teams are run by students. Players join through try-outs. Coaches are volunteers, and you do not need to be an Esade student to coach.</p></div></section>' +
+    var m = h.match(/^apply-(player|coach|fun)-(.+)$/), fun = /^apply-fun/.test(h), as = m && m[1] === "coach" ? "coach" : "player", tid = m && team(m[2]) ? m[2] : TEAMS[0].id;
+    return '<section class="band"><div class="wrap"><h1 class="display">Play or<br>coach.</h1><p>Esade Sports teams are run by students. Play in a league squad (through try-outs) or just for fun, with no try-out. Coaches are volunteers, and you do not need to be an Esade student to coach.</p></div></section>' +
       '<section class="al"><div class="wrap body"><form class="pform" id="aform" novalidate>' +
       '<div class="fsec"><h2>What would you like to do?</h2><div class="checks" role="radiogroup" aria-label="Join as">' +
       '<label for="as-player"><input type="radio" name="as" id="as-player" value="player"' + (as === "player" ? " checked" : "") + '>Play: sign up for try-outs</label>' +
@@ -618,6 +626,7 @@ export function initSite(backend, tools) {
       '<label class="field" for="a-esade">Are you an Esade student?<select id="a-esade"><option value="yes">Yes, I study at Esade</option><option value="no">No, I am not an Esade student</option></select></label></div></div>' +
       '<div class="fsec"><h2>About you</h2><div class="fgrid">' + fieldI("a-first", "First name", "", "required") + fieldI("a-last", "Last name", "", "required") + fieldI("a-email", "Email", "", 'type="email" required') + phoneField("a-phone", "Phone number", true) +
       '<label class="field" for="a-prog" id="a-prog-wrap">Programme and year<input id="a-prog" placeholder="e.g. BBA, 2nd year"></label>' +
+      '<label class="field" for="a-track">How do you want to play?<select id="a-track"><option value="competitive"' + (fun ? "" : " selected") + '>Competitive squad: try-outs, weekly training, league games</option><option value="social"' + (fun ? " selected" : "") + '>Just for fun: open sessions and friendlies, no try-out</option></select></label>' +
       '<label class="field" for="a-level">Your level<select id="a-level"><option>Beginner</option><option>Played at school or in a club</option><option>Played at a competitive level</option></select></label>' +
       '<label class="field full" for="a-exp" id="a-exp-wrap">Coaching experience<textarea id="a-exp" rows="3" placeholder="Teams or age groups you have coached, licences, how much time you can give each week"></textarea></label></div></div>' +
       '<p class="err" id="a-err" hidden></p><div class="form-actions"><button class="btn btn-blue" type="submit" id="a-submit">Send</button><span class="muted" style="font-size:13px">The captain gets back to you by email.</span></div></form>' +
@@ -670,7 +679,7 @@ export function initSite(backend, tools) {
       var btn = f.querySelector('button[type="submit"]'); btn.disabled = true; btn.textContent = "Sending…";
       backend.submitContactMessage({
         topic: $("ct-topic").value, sport: $("ct-sport").value || undefined, subject: $("ct-subject").value.trim(), message: msg.value.trim(),
-        name: $("ct-name").value.trim(), email: email, phone: ctPhone.value || undefined, consent: true, website: $("ct-website").value || undefined
+        name: $("ct-name").value.trim(), email: email, phone: ctPhone.value || undefined, consent: true, website: $("ct-website").value || undefined, lang: window.__lang
       }).then(done, function (x) {
         console.error(x); btn.disabled = false; btn.textContent = "Send message";
         var m = x && x.data ? String(x.data) : "";
@@ -698,7 +707,7 @@ export function initSite(backend, tools) {
         firstName: $("as-first").value.trim(), lastName: $("as-last").value.trim(), email: $("as-email").value.trim(), phone: phoneValue("as-phone", true).value,
         programme: $("as-programme").value.trim(), year: $("as-year").value, linkedin: $("as-linkedin").value.trim() || undefined,
         pref1: deptName(p1), pref2: p2 ? deptName(p2) : undefined, motivation: $("as-motivation").value.trim(),
-        acceptsRedirect: $("as-redirect").checked, confirmsAccuracy: $("as-consent").checked
+        acceptsRedirect: $("as-redirect").checked, confirmsAccuracy: $("as-consent").checked, lang: window.__lang
       }, { cv: cv, video: video }).then(done, function (x) {
         console.error(x); btn.disabled = false; btn.textContent = "Submit application";
         err.textContent = "Your application could not be sent. Please check your connection and try again."; err.hidden = false;
@@ -710,8 +719,9 @@ export function initSite(backend, tools) {
     function sync() {
       var coach = $("as-coach").checked, esade = $("a-esade").value === "yes";
       $("a-exp-wrap").hidden = !coach; $("a-prog-wrap").hidden = !esade;
-      $("a-level").parentNode.hidden = coach;
-      $("a-submit").textContent = coach ? "Apply to coach" : "Sign up for try-outs";
+      var fun = !coach && $("a-track").value === "social";
+      $("a-level").parentNode.hidden = coach; $("a-track").parentNode.hidden = coach;
+      $("a-submit").textContent = coach ? "Apply to coach" : fun ? "Sign me up" : "Sign up for try-outs";
     }
     f.addEventListener("change", sync); sync();
     f.addEventListener("submit", function (e) {
@@ -720,7 +730,7 @@ export function initSite(backend, tools) {
       if (miss.length) { $("a-err").textContent = "Please fill in your name, email and phone number."; $("a-err").hidden = false; return; }
       var aPhone = phoneValue("a-phone", true);
       if (aPhone.error) { $("a-err").textContent = aPhone.error; $("a-err").hidden = false; return; }
-      var coach = $("as-coach").checked, t = team($("a-team").value);
+      var coach = $("as-coach").checked, t = team($("a-team").value), track = coach ? undefined : $("a-track").value;
       var folder = sportsApplicationsFolder(t.id), captain = captainForTeam(t.id);
       if (!state.teamApplications[folder]) state.teamApplications[folder] = [];
       state.teamApplications[folder].push({
@@ -731,9 +741,9 @@ export function initSite(backend, tools) {
       });
       save();
       function done() {
-        f.hidden = true; $("a-done").hidden = false;
-        $("a-done-h").textContent = coach ? "Thanks for offering to coach" : "You are signed up for try-outs";
-        $("a-done-p").textContent = "Team: " + tLabel(t) + ". Your information is stored in the " + folder + " folder and routed to " + (captain ? captainName(captain) + " (" + captain.email + ")" : "the Board because this team has no active captain") + ".";
+        f.hidden = true; $("a-done").hidden = false; window.scrollTo(0, 0);
+        $("a-done-h").textContent = coach ? "Thanks for offering to coach" : track === "social" ? "You are in: playing just for fun" : "You are signed up for try-outs";
+        $("a-done-p").textContent = "Team: " + tLabel(t) + ". " + (coach ? "The captain and the Operations team will read your application and email you." : track === "social" ? "No try-out needed. The captain will email you when the next open session or friendly is on." : "The captain will email you with the date, time and place of the next try-out.");
       }
       if (!backend || !backend.submitTeamApplication) { done(); return; }
       var btn = $("a-submit"), label = btn.textContent; btn.disabled = true; btn.textContent = "Sending…";
@@ -741,7 +751,7 @@ export function initSite(backend, tools) {
         teamSlug: t.id, kind: coach ? "coach" : "tryout",
         firstName: $("a-first").value.trim(), lastName: $("a-last").value.trim(), email: $("a-email").value.trim(), phone: aPhone.value,
         esadeStudent: $("a-esade").value === "yes", programme: ($("a-esade").value === "yes" && $("a-prog").value.trim()) || undefined,
-        level: coach ? undefined : $("a-level").value, coachingExperience: coach ? ($("a-exp").value.trim() || undefined) : undefined
+        level: coach ? undefined : $("a-level").value, track: track, coachingExperience: coach ? ($("a-exp").value.trim() || undefined) : undefined, lang: window.__lang
       }).then(done, function (x) {
         console.error(x); btn.disabled = false; btn.textContent = label;
         $("a-err").textContent = "Your sign-up could not be sent. Please check your connection and try again."; $("a-err").hidden = false;
@@ -796,7 +806,7 @@ export function initSite(backend, tools) {
         "<h3>" + esc(a.first + " " + a.last) + '</h3><span class="meta">' + esc(a.programme) + " · Class of " + a.grad + '</span><p class="headline">' + esc(a.headline) + "</p>" +
         '<div class="tags">' + a.sports.map(function (s) { return '<span class="tag2">' + esc(s) + "</span>"; }).join("") + (a.active ? '<span class="tag2 soft">Active member</span>' : "") + (a.example ? '<span class="tag2 ex">Example</span>' : "") + "</div>" +
         '<div class="job"><b>Esade Sports</b>' + esc(a.esadeRole) + "</div></div></a></li>";
-    }).join("") : '<li class="empty-state" style="grid-column:1/-1">No alumni match these filters. Try another sport or clear the search.</li>';
+    }).join("") : '<li class="empty-state" style="grid-column:1/-1">' + (allAlumni().length ? "No alumni match these filters. Try another sport or clear the search." : 'No alumni profiles yet. Be the first: <a href="#my-profile">add your profile</a>.') + "</li>";
   }
   function profileView(a) {
     var rows = [];
@@ -919,7 +929,7 @@ export function initSite(backend, tools) {
       if (ph.error) { err.textContent = ph.error; err.hidden = false; return; }
       if (!$("f-consent").checked) { err.textContent = "Tick the consent box so your profile can be shown."; err.hidden = false; return; }
       err.hidden = true;
-      var data = { first: v("f-first"), last: v("f-last"), nationality: v("f-nat"), programme: v("f-prog"), grad: +v("f-grad"), sports: sports,
+      var data = { lang: window.__lang, first: v("f-first"), last: v("f-last"), nationality: v("f-nat"), programme: v("f-prog"), grad: +v("f-grad"), sports: sports,
         esadeRole: v("f-role") || undefined, headline: v("f-headline") || undefined,
         exUni: v("f-exuni"), exDomain: cleanDomain(v("f-exdom")) || undefined, exCity: v("f-excity"), inCo: v("f-inco"), inDomain: cleanDomain(v("f-indom")) || undefined, inRole: v("f-inrole"),
         interns: readInterns().filter(function (x) { return x[0] || x[1]; }).map(function (x) { return { co: x[0], role: x[1], year: x[2] || undefined, domain: cleanDomain(x[3]) || undefined }; }),
@@ -954,7 +964,7 @@ export function initSite(backend, tools) {
   }
 
   // ================= Hub (department tracking) =================
-  var BUDGET_STATUS = { agreed: ["ok", "Agreed with captain"], review: ["warn", "In review"], draft: ["bad", "Not agreed yet"] };
+  var BUDGET_STATUS = { agreed: ["ok", "Agreed with captain"], review: ["warn", "In review"], draft: ["bad", "Not agreed yet"], none: ["", "Budget not set"] };
   var EXP_STATUS = { requested: ["warn", "Requested"], validated: ["info", "Validated by Finance"], paid: ["ok", "Paid"], rejected: ["bad", "Rejected"] };
   if (!state.captains) state.captains = [
     { id: 1, first: "Mika", last: "", email: "email to confirm", team: "football7-men", role: "Captain", programme: "MBA", start: "2026-09-01", active: true },
@@ -1016,9 +1026,30 @@ export function initSite(backend, tools) {
   };
   // Who works on each of the starting tasks (index into [head, associates...]).
   var TASK_OWNER = { board0: 0, board1: 1, board2: 0, fin0: 0, fin1: 2, fin2: 3, fin3: 1, med0: 1, med1: 0, med2: 3, med3: 2, ops0: 2, ops1: 3, ops2: 1, ops3: 4, par0: 1, par1: 0, par2: 3, it0: 1, it1: 0, it2: 2 };
-  function deptPeople(id) { var p = DEPT_PEOPLE[id]; return p ? [p.head].concat(p.associates.map(function (a) { return a[0]; })) : []; }
+  var EXAMPLE_PEOPLE = DEPT_PEOPLE, TBA = "To be assigned";
+  // Signed in (live): the real Board, heads, associates and captains from Convex (convex/org.ts overview).
+  // Nobody approved yet for a role = "To be assigned". Example names are only for the local preview.
+  function applyPeople() {
+    if (!live()) { DEPT_PEOPLE = EXAMPLE_PEOPLE; return; }
+    var o = LIVE.people || { exec: [], departments: [], teams: [] }, out = {};
+    var pres = (o.exec || []).filter(function (x) { return x.position === "President"; })[0];
+    out.board = { head: pres ? pres.name : TBA, headEmail: pres ? pres.email : "", headRole: "President", associates: (o.exec || []).filter(function (x) { return x !== pres; }).map(function (x) { return [x.name, ALL_IDS, x.position, x.email]; }) };
+    DEPTS.forEach(function (d) {
+      if (d.id === "board") return;
+      var r = (o.departments || []).filter(function (x) { return x.name === d.name; })[0] || { heads: [], associates: [] }, h = r.heads[0];
+      out[d.id] = { head: h ? h.name : TBA, headEmail: h ? h.email : "", associates: r.associates.map(function (x) { return [x.name, x.teams || [], "Associate", x.email]; }) };
+    });
+    DEPT_PEOPLE = out;
+  }
+  function deptPeople(id) { var p = DEPT_PEOPLE[id]; return p ? [p.head].concat(p.associates.map(function (a) { return a[0]; })).filter(function (n) { return n !== TBA; }) : []; }
+  // [name, email] of everyone in a department (for "who works on it").
+  function deptMembers(id) { var p = DEPT_PEOPLE[id]; if (!p) return []; var out = p.head !== TBA ? [[p.head, p.headEmail || ""]] : []; p.associates.forEach(function (a) { out.push([a[0], a[3] || ""]); }); return out; }
   function assocFor(deptId, teamId) { var p = DEPT_PEOPLE[deptId], n = ""; if (p) p.associates.forEach(function (a) { if (!n && a[1].indexOf(teamId) > -1) n = a[0]; }); return n; }
+  function deptKey(id) { return id === "board" ? "Board" : deptName(id); }
   function deptTasks(d) {
+    if (live()) return (LIVE.tasks || []).filter(function (t) { return t.dept === deptKey(d.id); }).map(function (t) {
+      return { key: String(t._id), id: t._id, title: t.title, owner: t.ownerName || "", ownerEmail: t.ownerEmail || "", status: t.status, team: t.team, due: t.due, canSet: t.canSet, canRemove: t.canRemove, mine: t.mine };
+    });
     var ppl = deptPeople(d.id);
     return d.tasks.map(function (t, i) { var k = d.id + i; return { key: k, title: t[0], owner: ppl[TASK_OWNER[k] || 0] || "", status: state.tasks[k] || t[1] }; })
       .concat(state.newTasks.filter(function (x) { return x.dept === d.id; }).map(function (x) { return { key: "n" + x.id, title: x.title, owner: x.owner, status: state.tasks["n" + x.id] || "todo" }; }));
@@ -1034,7 +1065,8 @@ export function initSite(backend, tools) {
   function canSetTask(deptId) { var u = hv(); return can("tasks") && (u.role === "admin" || u.role === "exec" || u.dept === deptId); }
   // Name of the person whose view this is (example data).
   function myName() {
-    var u = hv();
+    var u = hv(), me = admin || captain;
+    if (live() && me) return me.name || me.email.split("@")[0];
     if (u.role === "head") return (DEPT_PEOPLE[u.dept] || {}).head || "Head";
     if (u.role === "associate") return assocFor(u.dept, (u.teams || [])[0]) || "Associate";
     if (u.role === "captain") return captainName(captainForTeam(firstTeam()));
@@ -1065,8 +1097,11 @@ export function initSite(backend, tools) {
     if (k === "reports") return true; // weekly / monthly / semester, each person for their own scope
     if (k === "depts") return r !== "captain";
     if (k === "tasks") return !ro && r !== "captain";
+    if (k === "partners") return hDept("par");
+    if (k === "goals") return r !== "captain";
     return false;
   }
+  function tryoutCount() { return live() ? (LIVE.inbox || {}).tryouts || 0 : visibleSportsApplications().length; }
   function visTeams() { return TEAMS.filter(function (t) { return teamOk(t.id); }); }
   function visDepts() { var u = hv(); return DEPTS.filter(function (d) { return hFull() || (d.id !== "board" && d.id === u.dept); }); }
   function firstTeam() { var t = visTeams()[0]; return t ? t.id : TEAMS[0].id; }
@@ -1115,7 +1150,7 @@ export function initSite(backend, tools) {
   function demoKey(u) { var k = ""; DEMO.forEach(function (d) { if (d[2] && d[2].role === u.role && d[2].dept === u.dept && (d[2].teams || []).join() === (u.teams || []).join()) k = d[0]; }); return k; }
   function demoBar(u) {
     var k = demoKey(u);
-    return '<div class="banner demo"><b>Prototype demo</b><span>Viewing as <strong>' + esc(viewLabel(u)) + "</strong> (example data).</span>" +
+    return '<div class="banner demo"><b>Prototype demo</b><span>Viewing as <strong>' + esc(viewLabel(u)) + "</strong>" + (live() ? " (preview: the shared data, shown as that role would see it)" : " (example data)") + ".</span>" +
       '<label class="demo-as">Demo as<select id="demo-as">' + (k ? "" : '<option value="" selected>Custom view</option>') + DEMO.map(function (d) { return '<option value="' + d[0] + '"' + (d[0] === k ? " selected" : "") + ">" + esc(d[1]) + "</option>"; }).join("") + "</select></label>" +
       (u.role !== "admin" ? '<button type="button" class="btn sm" data-demo="admin">Back to admin</button>' : "") + "</div>";
   }
@@ -1134,7 +1169,9 @@ export function initSite(backend, tools) {
     return allowedViews().some(function (v) { return v.role === u.role && v.dept === u.dept && (v.teams || []).join() === (u.teams || []).join(); });
   }
   function totals(id) { var o = { paid: 0, pending: 0 }; allExp().forEach(function (e) { if (e.team !== id) return; if (e.status === "paid") o.paid += e.amount; else if (e.status !== "rejected") o.pending += e.amount; }); return o; }
-  function captainForTeam(id) { for (var i = 0; i < state.captains.length; i++) if (state.captains[i].team === id && state.captains[i].active && state.captains[i].role === "Captain") return state.captains[i]; return null; }
+  function captainForTeam(id) {
+    if (live()) { var row = ((LIVE.people || {}).teams || []).filter(function (x) { return x.id === id; })[0], c = row && row.captains[0]; return c ? { first: c.name || c.email, last: "", email: c.email, team: id, role: "Captain", active: true } : null; }
+    for (var i = 0; i < state.captains.length; i++) if (state.captains[i].team === id && state.captains[i].active && state.captains[i].role === "Captain") return state.captains[i]; return null; }
   function captainName(c) { return c ? (c.first + (c.last ? " " + c.last : "")) : "Unassigned"; }
   function sportsApplicationsFolder(id) { return "Applications for sports/" + id; }
   function applicationsForTeam(id) { return state.teamApplications[sportsApplicationsFolder(id)] || []; }
@@ -1156,30 +1193,40 @@ export function initSite(backend, tools) {
       var h = location.hash.slice(1); if (h.indexOf("team-") === 0) render();
     }, console.error);
   }
-  function teamResultsFor(id) { return state.teamResults[id] || []; }
+  // Results typed in the Hub: Convex when available (public on the team pages), else this browser (local preview).
+  var PUBLIC_RESULTS = null;
+  function teamResultsFor(id) {
+    var rows = live() && LIVE.results ? LIVE.results : PUBLIC_RESULTS;
+    if (!rows) return state.teamResults[id] || [];
+    return rows.filter(function (r) { return r.team === id; }).map(function (r) { return { id: r._id, date: r.date, opponent: r.opponent, side: r.side, score: r.score || "", status: r.status, competition: r.competition || "", canRemove: !!r.canRemove }; });
+  }
+  function loadResults() {
+    if (!backend || !backend.listResults) return;
+    Promise.resolve(backend.listResults()).then(function (rows) { PUBLIC_RESULTS = rows || []; var h = location.hash.slice(1); if (h.indexOf("team-") === 0) render(); }, console.error);
+  }
   function pill(map, k) { return '<span class="pill ' + map[k][0] + '">' + map[k][1] + "</span>"; }
   function stat(k, v, s) { return '<div class="stat"><p class="eyebrow">' + k + '</p><span class="v num">' + v + "</span><small>" + s + "</small></div>"; }
-  var HUBV = [["hub-overview", "Overview"], ["hub-teams", "Teams"], ["hub-team-editor", "Team editor"], ["hub-applications", "Sports applications"], ["hub-captains", "Captains"], ["hub-ideas", "Ideas & logistics"], ["hub-expenses", "Expenses ledger"], ["hub-departments", "Departments"], ["hub-history", "History"], ["hub-report", "Reports"]];
+  var HUBV = [["hub-overview", "Overview"], ["hub-teams", "Teams"], ["hub-team-editor", "Team editor"], ["hub-applications", "Sports applications"], ["hub-captains", "Captains"], ["hub-ideas", "Ideas & logistics"], ["hub-expenses", "Expenses ledger"], ["hub-partners", "Partnerships"], ["hub-departments", "Departments"], ["hub-goals", "Goals"], ["hub-history", "History"], ["hub-report", "Reports"]];
 
   function hubShell(view, inner) {
     var pending = visExp().filter(canDecideE).length, newIdeas = can("ideas") ? visIdeas().filter(function (i) { return (i.status === "new" && canRunIdea(i)) || canApproveIdea(i) || canCommIdea(i); }).length : 0;
-    var nav = HUBV.filter(function (v) { return (v[0] !== "hub-expenses" || can("expenses")) && (v[0] !== "hub-departments" || can("depts")) && (v[0] !== "hub-report" || can("reports")) && (v[0] !== "hub-captains" || can("captains")) && (v[0] !== "hub-team-editor" || can("teamEdit")) && (v[0] !== "hub-applications" || can("applications")) && (v[0] !== "hub-ideas" || can("ideas")); }).map(function (v) {
-      return '<a href="#' + v[0] + '"' + (v[0] === view ? ' aria-current="page"' : "") + ">" + (v[0] === "hub-teams" && !can("all") ? "My team" : v[1]) + (v[0] === "hub-expenses" && pending ? '<span class="count num">' + pending + "</span>" : "") + (v[0] === "hub-overview" && unreadCount() ? '<span class="count num" title="New notifications">' + unreadCount() + "</span>" : "") + (v[0] === "hub-ideas" && newIdeas ? '<span class="count num">' + newIdeas + "</span>" : "") + (v[0] === "hub-applications" && visibleSportsApplications().length ? '<span class="count num">' + visibleSportsApplications().length + "</span>" : "") + "</a>";
+    var nav = HUBV.filter(function (v) { return (v[0] !== "hub-expenses" || can("expenses")) && (v[0] !== "hub-departments" || can("depts")) && (v[0] !== "hub-report" || can("reports")) && (v[0] !== "hub-captains" || can("captains")) && (v[0] !== "hub-team-editor" || can("teamEdit")) && (v[0] !== "hub-applications" || can("applications")) && (v[0] !== "hub-ideas" || can("ideas")) && (v[0] !== "hub-partners" || can("partners")) && (v[0] !== "hub-goals" || can("goals")); }).map(function (v) {
+      return '<a href="#' + v[0] + '"' + (v[0] === view ? ' aria-current="page"' : "") + ">" + (v[0] === "hub-teams" && !can("all") ? "My team" : v[1]) + (v[0] === "hub-expenses" && pending ? '<span class="count num">' + pending + "</span>" : "") + (v[0] === "hub-overview" && unreadCount() ? '<span class="count num" title="New notifications">' + unreadCount() + "</span>" : "") + (v[0] === "hub-ideas" && newIdeas ? '<span class="count num">' + newIdeas + "</span>" : "") + (v[0] === "hub-applications" && tryoutCount() ? '<span class="count num">' + tryoutCount() + "</span>" : "") + (v[0] === "hub-partners" && (LIVE.inbox || {}).inquiries ? '<span class="count num" title="New partner inquiries">' + LIVE.inbox.inquiries + "</span>" : "") + "</a>";
     }).join("");
     var u = state.user, me = admin || captain, multi = !!admin || allowedViews().length > 1;
     return '<div class="app"><aside class="rail"><div class="top"><a class="lock" href="#home" aria-label="Back to Esade Sports home">' + mono(38) + '<span>ESADE SPORTS<br>HUB</span></a><div class="history" aria-label="Page navigation"><button type="button" data-history="back" aria-label="Go back">' + ico("left") + '</button><button type="button" data-history="forward" aria-label="Go forward">' + ico("right") + '</button></div>' +
-      '<div class="who"><p class="eyebrow">Signed in' + (admin ? " as admin" : "") + '</p><strong>' + esc(me.email) + "</strong><small>Viewing as " + esc(viewLabel(u)) + (hRO() ? " · read-only" : "") + "</small>" + (multi ? '<a class="back-site" href="#signin">Change view</a>' : "") + '<a class="back-site" href="#home">← Public site</a><button type="button" data-signout>Sign out</button>' + langSwitch() + '</div></div>' +
+      '<div class="who"><p class="eyebrow">Signed in' + (admin ? " as admin" : "") + '</p><strong>' + esc(me.email) + "</strong><small>Viewing as " + esc(viewLabel(u)) + (hRO() ? " · read-only" : "") + "</small>" + (multi ? '<a class="back-site" href="#signin">Change view</a>' : "") + '<a class="back-site" href="/admin">Requests &amp; applications</a><a class="back-site" href="#home">← Public site</a><button type="button" data-signout>Sign out</button>' + langSwitch() + '</div></div>' +
       '<nav aria-label="Hub">' + nav + "</nav></aside>" +
-      '<main class="main">' + (admin ? demoBar(u) : '<div class="banner"><b>Prototype</b><span>Example figures and tasks. In the live version, access comes from an approved Esade login and data from a shared database.</span></div>') + inner + "</main></div>";
+      '<main class="main">' + (admin ? demoBar(u) : live() ? "" : '<div class="banner"><b>Prototype</b><span>Example figures and tasks, saved in this browser only.</span></div>') + inner + "</main></div>";
   }
   // People responsible for a team in each department (captain view, team detail).
   function teamContacts(teamId) {
     return [["fin", "Finance"], ["med", "Media & Marketing"], ["ops", "Operations"], ["par", "Partnerships"]].map(function (d) {
-      return [d[1], assocFor(d[0], teamId) || "To be assigned", "Head: " + DEPT_PEOPLE[d[0]].head];
+      return [d[1], assocFor(d[0], teamId) || TBA, "Head: " + DEPT_PEOPLE[d[0]].head];
     });
   }
   function contactsPanel(teamId) {
-    return '<section class="panel"><div class="panel-head"><h2>Who looks after your team</h2><span class="muted" style="font-size:12px">Example names</span></div><div class="people">' +
+    return '<section class="panel"><div class="panel-head"><h2>Who looks after your team</h2>' + (live() ? "" : '<span class="muted" style="font-size:12px">Example names</span>') + '</div><div class="people">' +
       teamContacts(teamId).map(function (p) { return '<div><p class="eyebrow">' + esc(p[0]) + "</p><strong>" + esc(p[1]) + '</strong><small class="muted">' + esc(p[2]) + "</small></div>"; }).join("") + "</div></section>";
   }
   function tasksPanel(deptId) {
@@ -1194,7 +1241,7 @@ export function initSite(backend, tools) {
     if ((u.role === "head" || u.role === "associate") && u.dept) return tasksPanel(u.dept);
     if (u.role === "captain") return contactsPanel(firstTeam());
     return '<section class="panel"><div class="panel-head"><h2>Departments</h2><a class="btn sm" href="#hub-departments">Open</a></div><table><tbody>' +
-      visDepts().map(function (d) { var done = d.tasks.filter(function (t, i) { return state.tasks[d.id + i] === "done"; }).length; return "<tr><td><strong>" + d.name + '</strong><br><small class="muted">' + d.head + '</small></td><td class="r num">' + done + " / " + d.tasks.length + ' <span class="muted">done</span></td></tr>'; }).join("") + "</tbody></table></section>";
+      visDepts().map(function (d) { var all = deptTasks(d), done = all.filter(function (t) { return t.status === "done"; }).length; return "<tr><td><strong>" + d.name + '</strong><br><small class="muted">' + d.head + '</small></td><td class="r num">' + done + " / " + all.length + ' <span class="muted">done</span></td></tr>'; }).join("") + "</tbody></table></section>";
   }
   // ---- Overview panels: department budgets, where the work stands, main links, Operations desk ---------
   function pair(a, b) { return a && b ? '<div class="grid-2">' + a + b + "</div>" : a || b; }
@@ -1206,7 +1253,7 @@ export function initSite(backend, tools) {
       var b = budgetLines(t), u = lineUse(t.id); tot.ops += b.ops; tot.med += b.med; tot.uo += u.ops; tot.um += u.med;
       return '<tr><td class="tname">' + esc(tLabel(t)) + '</td><td class="r num">' + EUR.format(t.budget) + '</td><td class="r num">' + EUR.format(b.ops) + '<small class="muted"> · ' + EUR.format(u.ops) + ' used</small></td><td class="r num">' + EUR.format(b.med) + '<small class="muted"> · ' + EUR.format(u.med) + " used</small></td></tr>";
     }).join("");
-    return '<section class="panel budgets"><div class="panel-head"><h2>Department budgets' + (ts.length === 1 ? " · " + esc(tLabel(ts[0])) : "") + '</h2><span class="pill">Example split 70 / 30</span></div>' +
+    return '<section class="panel budgets"><div class="panel-head"><h2>Department budgets' + (ts.length === 1 ? " · " + esc(tLabel(ts[0])) : "") + '</h2>' + (live() ? "" : '<span class="pill">Example split 70 / 30</span>') + '</div>' +
       '<p class="lead-note">Each team\'s budget is split between <b>Operations</b> and <b>Marketing</b>, the two departments that spend it. <b>Finance does not spend it.</b> Finance allocates the budgets and approves or rejects each request, once Esade\'s finance office has accepted it.</p>' +
       '<div class="grid-4 b-lines">' + stat("Team budgets", EUR.format(tot.ops + tot.med), ts.length + " team" + (ts.length === 1 ? "" : "s") + " · allocated by Finance") + stat("Operations", EUR.format(tot.ops), EUR.format(tot.uo) + " used · kit, facilities, travel") + stat("Marketing", EUR.format(tot.med), EUR.format(tot.um) + " used · media, promotion, events") +
         stat("Waiting for a decision", EUR.format(visExp().filter(function (e) { return e.status === "requested" && ts.some(function (t) { return t.id === e.team; }); }).reduce(function (n, e) { return n + e.amount; }, 0)), "Esade, then Finance") + "</div>" +
@@ -1319,19 +1366,152 @@ export function initSite(backend, tools) {
     else if (s === "refused") b = '<button class="btn sm ghost" data-esade="accepted" data-id="' + id + '">Esade accepted after all</button>';
     return b ? '<div class="esade-box">' + b + "</div>" : "";
   }
+  // ---- Waiting for you / My week (overview) ----------------------------------------------------
+  // Everything this person should act on, with a link to where it is done. Counts follow the same rules as each page.
+  function pl(n, one, many) { return n + " " + (n === 1 ? one : many); }
+  function todayYmd(off) { var d = new Date(); d.setDate(d.getDate() + (off || 0)); return ymd(d); }
+  function myOpenTasks() {
+    if (!live()) return [];
+    var out = []; DEPTS.forEach(function (d) { deptTasks(d).forEach(function (t) { if (t.mine && t.status !== "done") out.push({ t: t, d: d }); }); });
+    return out;
+  }
+  function todoPanel() {
+    if (hRO()) return "";
+    var u = hv(), ib = live() ? LIVE.inbox || {} : {}, items = [];
+    function add(n, text, href) { if (n) items.push('<li><a href="' + href + '"><b class="num">' + n + "</b><span>" + text + "</span>" + ico("right") + "</a></li>"); }
+    var exD = visExp().filter(canDecideE).length, exP = visExp().filter(canPayE).length;
+    var ideas = can("ideas") ? visIdeas().filter(function (i) { return (i.status === "new" && canRunIdea(i)) || canApproveIdea(i) || canCommIdea(i); }).length : 0;
+    add(exD, exD === 1 ? "expense request to decide" : "expense requests to decide", "#hub-expenses");
+    add(exP, exP === 1 ? "validated expense to pay" : "validated expenses to pay", "#hub-expenses");
+    add(ideas, ideas === 1 ? "captain idea waiting for you" : "captain ideas waiting for you", "#hub-ideas");
+    var approver = u.role === "admin" || u.role === "exec" || u.role === "head";
+    if (approver) add(ib.requests, ib.requests === 1 ? "access request to approve (associate or captain)" : "access requests to approve (associates or captains)", "/admin");
+    if (approver) add(ib.applications, ib.applications === 1 ? "new application to join your department" : "new applications to join your department", "/admin");
+    add(ib.tryouts, ib.tryouts === 1 ? "new try-out or coach sign-up" : "new try-out or coach sign-ups", u.role === "captain" || u.dept === "ops" || hFull() ? "/admin" : "#hub-applications");
+    if (can("partners")) {
+      var me = meEmail(), soon = ((LIVE.partners || {}).partners || []).filter(function (p) { return p.nextDate && p.nextDate <= todayYmd(7) && p.stage !== "signed" && p.stage !== "lost" && (u.role !== "associate" || p.ownerEmail === me || !p.ownerEmail); }).length;
+      add(ib.inquiries, ib.inquiries === 1 ? "new partner inquiry from the website" : "new partner inquiries from the website", "#hub-partners");
+      add(soon, soon === 1 ? "partner follow-up due this week" : "partner follow-ups due this week", "#hub-partners");
+    }
+    if (u.role === "head" && live()) { var d0 = DEPTS.filter(function (d) { return d.id === u.dept; })[0], un = d0 ? deptTasks(d0).filter(function (t) { return t.status !== "done" && !t.owner; }).length : 0; add(un, un === 1 ? "open task with nobody assigned" : "open tasks with nobody assigned", "#hub-departments"); }
+    var mine = myOpenTasks(), assoc = u.role === "associate";
+    var title = assoc ? "My week" : u.role === "head" ? "Needs your approval" : "Waiting for you";
+    var sub = assoc ? '<p class="muted" style="margin:0 0 8px;font-size:13px">Your teams: ' + esc(teamsText(u.teams) || "none yet") + " · " + esc(deptName(u.dept)) + "</p>" : "";
+    var tasks = mine.length ? '<h3 class="sub-h">My tasks</h3><ul class="tasks">' + mine.slice(0, 6).map(function (x) { return taskRowBase(x.t, x.d.id).replace("<li>", '<li><small class="muted dept-tag">' + esc(x.d.name) + "</small>"); }).join("") + "</ul>" : "";
+    return '<section class="panel todo"><div class="panel-head"><h2>' + title + "</h2>" + (items.length ? '<span class="pill warn">' + pl(items.length, "thing", "things") + " to do</span>" : '<span class="pill ok">All clear</span>') + "</div>" + sub +
+      (items.length ? '<ul class="todo-list">' + items.join("") + "</ul>" : '<p class="empty">Nothing is waiting for you right now.</p>') + tasks + "</section>";
+  }
+
+  // ---- Partnerships tracker (sponsors and partners, from first contact to signed) ---------------
+  var P_STAGE = { lead: ["", "Lead"], contacted: ["info", "Contacted"], meeting: ["info", "Meeting"], proposal: ["warn", "Proposal sent"], signed: ["ok", "Signed"], lost: ["bad", "Lost"] };
+  var INQ_STATUS = { "new": "New", contacted: "Contacted", added: "Added to tracker", closed: "Closed" };
+  var INTEREST_KIND = { "Team sponsor": "Cash sponsor", "Event partner": "Event partner", "Industry Platform partner": "Industry Platform" };
+  function openStage(st) { return st !== "signed" && st !== "lost"; }
+  function partnerArgs(p, over) {
+    var o = {}, src = Object.assign({}, p, over || {});
+    ["company", "contactName", "contactEmail", "team", "kind", "stage", "value", "nextStep", "nextDate", "notes", "ownerEmail", "ownerName"].forEach(function (k) { var v = src[k]; if (v !== undefined && v !== null && v !== "") o[k] = v; });
+    return o;
+  }
+  function partnerForm(d, p) {
+    var ts = can("all") ? TEAMS : visTeams(), ppl = deptMembers("par"), x = p || {};
+    function opt(v, l, cur) { return '<option value="' + esc(v) + '"' + (v === cur ? " selected" : "") + ">" + esc(l) + "</option>"; }
+    return '<form class="form" id="partner-edit" data-id="' + esc(x._id || "") + '" data-inq="' + esc(x.inquiryId || "") + '"><p class="form-sub">' + (x._id ? "Edit " + esc(x.company) : "Add a partner") + "</p>" +
+      '<label>Company<input name="company" required maxlength="120" value="' + esc(x.company || "") + '"></label>' +
+      '<label>Kind<select name="kind">' + d.kinds.map(function (k) { return opt(k, k, x.kind || d.kinds[0]); }).join("") + "</select></label>" +
+      '<label>For<select name="team">' + opt("", "The whole association", x.team || "") + ts.map(function (t) { return opt(t.id, tLabel(t), x.team || ""); }).join("") + "</select></label>" +
+      '<label>Stage<select name="stage">' + Object.keys(P_STAGE).map(function (k) { return opt(k, P_STAGE[k][1], x.stage || "lead"); }).join("") + "</select></label>" +
+      '<label>Contact name<input name="contactName" maxlength="100" value="' + esc(x.contactName || "") + '"></label>' +
+      '<label>Contact email<input name="contactEmail" type="email" maxlength="200" value="' + esc(x.contactEmail || "") + '"></label>' +
+      '<label>Value (€, optional)<input name="value" type="number" min="0" step="50" value="' + (x.value != null ? x.value : "") + '" placeholder="Cash or value of kit"></label>' +
+      '<label>Who follows it<select name="owner">' + opt("", "Nobody yet", "") + ppl.map(function (n) { return opt(n[1] + "|" + n[0], n[0], (x.ownerEmail || "") + "|" + (x.ownerName || "")); }).join("") + "</select></label>" +
+      '<label style="grid-column:span 2">Next step<input name="nextStep" maxlength="200" value="' + esc(x.nextStep || "") + '" placeholder="e.g. Send the sponsorship deck"></label>' +
+      '<label>Next step date<input name="nextDate" type="date" value="' + esc(x.nextDate || "") + '"></label>' +
+      '<label style="grid-column:1/-1">Notes<input name="notes" maxlength="2000" value="' + esc(x.notes || "") + '" placeholder="What was agreed, what they want in return"></label>' +
+      '<div><button class="btn solid" type="submit">' + (x._id ? "Save" : "Add partner") + '</button> <button class="btn" type="button" data-p-cancel>Cancel</button></div></form>';
+  }
+  function hubPartners() {
+    var head = '<div class="ph-head"><div><h1 class="display">Partnerships.</h1><p>Every sponsor and partner, from first contact to signed: who follows it, the next step and what it is worth. Partner messages from the website arrive here too.</p></div></div>';
+    if (!live()) return head + '<section class="panel"><p class="empty">The tracker works once you are signed in (shared database).</p></section>';
+    var d = LIVE.partners;
+    if (d === undefined) return head + '<section class="panel"><p class="empty">Loading…</p></section>';
+    if (!d) return head + '<section class="panel"><p class="empty">The tracker is for the Partnerships department and the Board.</p></section>';
+    var all = d.partners.filter(function (p) { return !p.team || teamOk(p.team); }), f = state.pFilter || "open", ft = state.pTeam || "all";
+    var open = all.filter(function (p) { return openStage(p.stage); }), signed = all.filter(function (p) { return p.stage === "signed"; });
+    var sum = function (arr) { return arr.reduce(function (n, p) { return n + (p.value || 0); }, 0); };
+    var rows = all.filter(function (p) { return (f === "all" || (f === "open" ? openStage(p.stage) : p.stage === f)) && (ft === "all" || (ft === "assoc" ? !p.team : p.team === ft)); });
+    var edit = !hRO() && d.canAdd, today = todayYmd(0);
+    var editing = state.pEdit === "new" ? state.pPrefill || {} : state.pEdit ? all.filter(function (p) { return p._id === state.pEdit; })[0] : null;
+    var table = rows.length ? '<div class="table-wrap"><table><thead><tr><th>Partner</th><th>For</th><th>Stage</th><th class="r">Value</th><th>Next step</th><th>Who</th><th></th></tr></thead><tbody>' + rows.map(function (p) {
+      var late = p.nextDate && p.nextDate < today && openStage(p.stage);
+      return '<tr><td><strong>' + esc(p.company) + '</strong><br><small class="muted">' + esc(p.kind) + (p.contactName || p.contactEmail ? " · " + esc(p.contactName || "") + (p.contactEmail ? ' <a href="mailto:' + esc(p.contactEmail) + '">' + esc(p.contactEmail) + "</a>" : "") : "") + "</small>" + (p.notes ? '<br><small class="muted">' + esc(p.notes.length > 120 ? p.notes.slice(0, 117) + "…" : p.notes) + "</small>" : "") + "</td>" +
+        '<td class="tname">' + esc(p.team && team(p.team) ? tLabel(team(p.team)) : "Association") + "</td>" +
+        "<td>" + (p.canEdit && !hRO() ? '<select data-pstage="' + esc(p._id) + '" aria-label="Stage of ' + esc(p.company) + '">' + Object.keys(P_STAGE).map(function (k) { return '<option value="' + k + '"' + (k === p.stage ? " selected" : "") + ">" + P_STAGE[k][1] + "</option>"; }).join("") + "</select>" : pill(P_STAGE, p.stage)) + "</td>" +
+        '<td class="r num">' + (p.value != null ? EUR.format(p.value) : '<span class="muted">–</span>') + "</td>" +
+        "<td>" + (p.nextStep ? esc(p.nextStep) : '<span class="muted">None</span>') + (p.nextDate ? '<br><small class="' + (late ? "esade bad" : "muted") + '">' + (late ? "Late · " : "") + esc(p.nextDate) + "</small>" : "") + "</td>" +
+        "<td>" + esc(p.ownerName || "Nobody yet") + "</td>" +
+        '<td class="r">' + (p.canEdit && !hRO() ? '<button type="button" class="btn sm" data-p-edit="' + esc(p._id) + '">Edit</button>' : "") + (p.canRemove && !hRO() ? ' <button type="button" class="btn sm ghost" data-p-del="' + esc(p._id) + '" aria-label="Remove ' + esc(p.company) + '">' + ico("x") + "</button>" : "") + "</td></tr>";
+    }).join("") + "</tbody></table></div>" : '<p class="empty">' + (all.length ? "No partner in this selection." : "No partners yet. Add the first company you are talking to: even a lead counts.") + "</p>";
+    var tsel = can("all") ? TEAMS : visTeams();
+    var inq = d.inquiries || [], newInq = inq.filter(function (i) { return i.status === "new"; }).length;
+    return head + '<div class="grid-4">' + stat("In progress", String(open.length), EUR.format(sum(open)) + " in discussion") + stat("Signed", String(signed.length), EUR.format(sum(signed)) + " signed value") +
+      stat("Follow-ups late", String(open.filter(function (p) { return p.nextDate && p.nextDate < today; }).length), "next step date passed") + stat("Website inquiries", String(newInq), "new, to answer") + "</div>" +
+      '<section class="panel"><div class="panel-head"><h2>Partners</h2>' + (edit && !editing ? '<button type="button" class="btn sm solid" data-p-new>Add a partner</button>' : "") + "</div>" +
+      (editing ? partnerForm(d, editing) : "") +
+      '<div class="chips" role="group" aria-label="Stage">' + [["open", "In progress"], ["signed", "Signed"], ["lost", "Lost"], ["all", "All"]].map(function (x) { return '<button class="chip" data-pf="' + x[0] + '" aria-pressed="' + (f === x[0]) + '">' + x[1] + "</button>"; }).join("") +
+      (tsel.length > 1 ? '<select id="p-team-f" aria-label="Team" style="margin-left:auto"><option value="all">Every team and the association</option><option value="assoc"' + (ft === "assoc" ? " selected" : "") + ">The whole association</option>" + tsel.map(function (t) { return '<option value="' + t.id + '"' + (ft === t.id ? " selected" : "") + ">" + esc(tLabel(t)) + "</option>"; }).join("") + "</select>" : "") + "</div>" + table + "</section>" +
+      '<section class="panel"><div class="panel-head"><h2>Messages from the website</h2><span class="muted" style="font-size:12px">Partner form on the home page</span></div>' +
+      (inq.length ? '<div class="table-wrap"><table><thead><tr><th>Company</th><th>Interested in</th><th>Message</th><th>Received</th><th>Status</th><th></th></tr></thead><tbody>' + inq.map(function (i) {
+        return "<tr><td><strong>" + esc(i.company) + "</strong><br><small>" + esc(i.name) + ' · <a href="mailto:' + esc(i.email) + '">' + esc(i.email) + "</a></small></td><td>" + esc(i.interest) + '</td><td><small class="muted">' + esc(i.message ? (i.message.length > 160 ? i.message.slice(0, 157) + "…" : i.message) : "No message") + '</small></td><td class="num muted">' + esc(fmtDay(i._creationTime)) + "</td>" +
+          "<td>" + (d.canInquiry && !hRO() ? '<select data-inq="' + esc(i._id) + '" aria-label="Status">' + Object.keys(INQ_STATUS).map(function (k) { return '<option value="' + k + '"' + (k === i.status ? " selected" : "") + ">" + INQ_STATUS[k] + "</option>"; }).join("") + "</select>" : esc(INQ_STATUS[i.status] || i.status)) + "</td>" +
+          '<td class="r">' + (edit && i.status !== "added" ? '<button type="button" class="btn sm" data-inq-add="' + esc(i._id) + '">Add to tracker</button>' : "") + "</td></tr>";
+      }).join("") + "</tbody></table></div>" : '<p class="empty">No partner messages from the website yet.</p>') + "</section>";
+  }
+
+  // ---- Goals: semester targets against the real numbers ----------------------------------------
+  function termOf(y, s2) { return y + "-" + String((y + 1) % 100).padStart(2, "0") + " S" + (s2 ? 2 : 1); }
+  function currentTerm() { var d = new Date(), y = d.getFullYear(), m = d.getMonth(); return m >= 8 ? termOf(y, false) : m === 0 ? termOf(y - 1, false) : termOf(y - 1, true); }
+  function goalTerm() { return state.goalTerm || currentTerm(); }
+  function shiftTerm(t, n) { var m = t.match(/^(\d{4})-\d{2} S([12])$/), i = +m[1] * 2 + (+m[2] - 1) + n; return termOf(Math.floor(i / 2), i % 2 === 1); }
+  var GOAL_IDEAS = [["Players on the team sheets", "players", "players"], ["Try-out sign-ups", "tryouts", "sign-ups"], ["Just-for-fun sign-ups", "social", "sign-ups"], ["Matches played", "results", "matches"], ["Applications to join the association", "applications", "applications"], ["Partners signed", "partnersSigned", "partners", "Partnerships"], ["Sponsorship income", "sponsorIncome", "€", "Partnerships"], ["Budget spent", "spent", "€", "Finance"], ["Events held", "manual", "events", "Operations"], ["Event attendance", "manual", "people", "Operations"], ["Instagram followers", "manual", "followers", "Media & Marketing"]];
+  function fmtGoal(v, unit) { return v == null ? "–" : unit === "€" ? EUR.format(v) : String(Math.round(v * 10) / 10) + " " + unit; }
+  function hubGoals() {
+    var term = goalTerm(); watchGoals(term);
+    var d = LIVE.goals, head = '<div class="ph-head"><div><h1 class="display">Goals.</h1><p>The Board\'s targets for the semester, with the real number next to each one. Most numbers are counted from the website and the Hub; the rest are typed in by the department.</p></div></div>' +
+      '<section class="panel hist-filters"><div class="chips" role="group" aria-label="Semester"><button class="chip" data-term="' + esc(shiftTerm(term, -1)) + '">' + ico("left") + " " + esc(shiftTerm(term, -1)) + '</button><button class="chip" aria-pressed="true">' + esc(term) + '</button><button class="chip" data-term="' + esc(shiftTerm(term, 1)) + '">' + esc(shiftTerm(term, 1)) + " " + ico("right") + "</button></div></section>";
+    if (!live()) return head + '<section class="panel"><p class="empty">Goals work once you are signed in (shared database).</p></section>';
+    if (d === undefined) return head + '<section class="panel"><p class="empty">Loading…</p></section>';
+    if (!d) return head + '<section class="panel"><p class="empty">Goals are for the Board and the departments.</p></section>';
+    var u = hv(), gs = d.goals.filter(function (g) { return hFull() || u.role === "head" || !g.dept || g.dept === deptName(u.dept); }), edit = d.canEdit && !hRO();
+    var reached = gs.filter(function (g) { return g.value != null && g.target && g.value >= g.target; }).length;
+    var list = gs.length ? '<div class="table-wrap"><table class="goals-t"><thead><tr><th>Goal</th><th class="r">Target</th><th class="r">Real</th><th style="width:22%">Progress</th><th>Where the number comes from</th><th></th></tr></thead><tbody>' + gs.map(function (g) {
+      var p = g.value != null && g.target ? Math.min(100, g.value / g.target * 100) : 0;
+      var real = g.canSetActual && !hRO() ? '<form class="goal-actual" data-goal-actual="' + esc(g._id) + '"><input name="v" type="number" min="0" step="any" value="' + (g.value != null ? g.value : "") + '" aria-label="Real number for ' + esc(g.title) + '"><button class="btn sm" type="submit">Save</button></form>' : '<strong class="num">' + esc(fmtGoal(g.value, g.unit)) + "</strong>";
+      return "<tr><td><strong>" + esc(g.title) + '</strong><br><small class="muted">' + esc(g.dept || "Board") + (g.note ? " · " + esc(g.note) : "") + '</small></td><td class="r num">' + esc(fmtGoal(g.target, g.unit)) + '</td><td class="r">' + real + "</td>" +
+        '<td><div class="bar"><i style="width:' + p + '%"></i></div><small class="muted">' + (g.value == null ? "No number yet" : Math.round(g.target ? g.value / g.target * 100 : 0) + "% of target") + '</small></td><td><small class="muted">' + esc(d.sources[g.source] || g.source) + "</small></td>" +
+        '<td class="r">' + (edit ? '<button type="button" class="btn sm ghost" data-goal-del="' + esc(g._id) + '" aria-label="Remove ' + esc(g.title) + '">' + ico("x") + "</button>" : "") + "</td></tr>";
+    }).join("") + "</tbody></table></div>" : '<p class="empty">No goals for ' + esc(term) + " yet. " + (edit ? "Add the 5 to 7 numbers the Board agreed on." : "The President or a Vice-president adds them once the Board has agreed on them.") + "</p>";
+    var form = edit ? '<section class="panel"><div class="panel-head"><h2>Add a goal</h2></div><p class="muted" style="margin:0 0 10px;font-size:13px">Ideas (click to fill in, then type the target):</p><div class="chips" style="margin-bottom:14px">' + GOAL_IDEAS.map(function (x, i) { return '<button type="button" class="chip" data-gi="' + i + '">' + esc(x[0]) + "</button>"; }).join("") + "</div>" +
+      '<form class="form" id="goal-form"><label style="grid-column:span 2">Goal<input name="title" required maxlength="120" placeholder="e.g. Players on the team sheets"></label>' +
+      '<label>Target<input name="target" type="number" min="0" step="any" required></label><label>Unit<input name="unit" maxlength="20" placeholder="players, €, matches"></label>' +
+      '<label style="grid-column:span 2">Real number comes from<select name="source">' + Object.keys(d.sources).map(function (k) { return '<option value="' + k + '">' + esc(d.sources[k]) + "</option>"; }).join("") + "</select></label>" +
+      '<label>Department<select name="dept"><option value="">Board</option>' + DEPTS.filter(function (x) { return x.id !== "board"; }).map(function (x) { return "<option>" + esc(x.name) + "</option>"; }).join("") + "</select></label>" +
+      '<label>Note (optional)<input name="note" maxlength="300"></label><div><button class="btn solid" type="submit">Add goal</button></div></form></section>' : "";
+    return head + '<div class="grid-4">' + stat("Goals", String(gs.length), term) + stat("Reached", String(reached), "target met or beaten") + stat("To watch", String(gs.filter(function (g) { return g.value == null || (g.target && g.value < g.target); }).length), "below target or no number yet") + stat("Counted automatically", String(gs.filter(function (g) { return g.source !== "manual"; }).length), "no typing needed") + "</div>" +
+      '<section class="panel"><div class="panel-head"><h2>Targets and real numbers</h2><span class="muted" style="font-size:12px">' + esc(term) + "</span></div>" + list + "</section>" + form;
+  }
   function hubOverview() {
     var ts = visTeams(), budget = 0, paid = 0, pend = 0;
     if (!can("money")) // no finance view: teams and department only
-      return '<div class="ph-head"><div><h1 class="display">Overview.</h1><p>' + esc(viewLabel(hv())) + ".</p></div></div>" + notifPanel() + opsDesk() + pair(workPanel(), linksPanel()) + budgetPanel() +
+      return '<div class="ph-head"><div><h1 class="display">Overview.</h1><p>' + esc(viewLabel(hv())) + ".</p></div></div>" + todoPanel() + notifPanel() + opsDesk() + pair(workPanel(), linksPanel()) + budgetPanel() +
         '<div class="grid-2"><section class="panel"><div class="panel-head"><h2>' + (can("all") ? "Every team" : "Your teams") + '</h2><a class="btn sm" href="#hub-teams">Open</a></div><table><tbody>' +
         ts.map(function (t) { return '<tr><td class="tname">' + esc(tLabel(t)) + '</td><td class="r muted">' + esc(captainName(captainForTeam(t.id))) + "</td></tr>"; }).join("") + "</tbody></table></section>" + deptPanel() + "</div>";
     ts.forEach(function (t) { var o = totals(t.id); budget += t.budget; paid += o.paid; pend += o.pending; });
     var reqs = visExp().filter(function (e) { return e.status === "requested"; });
     var agreed = ts.filter(function (t) { return t.status === "agreed"; }).length;
     return '<div class="ph-head"><div><h1 class="display">' + (ts.length !== 1 ? "Overview." : esc(tLabel(ts[0])) + ".") + "</h1><p>" + (ts.length !== 1 ? "Where " + (can("all") ? "every team" : "your teams") + " and " + (hFull() ? "every department" : "your department") + " stand today." : "Your team's budget and expenses, handled by your Finance, Media and Operations associates.") + "</p></div></div>" +
-      '<div class="grid-4">' + stat("Season budget", EUR.format(budget), ts.length !== 1 ? ts.length + " teams" : "Agreed with you") + stat("Paid so far", EUR.format(paid), Math.round(paid / budget * 100) + "% of budget") +
+      '<div class="grid-4">' + stat("Season budget", EUR.format(budget), ts.length !== 1 ? ts.length + " teams" : "Agreed with you") + stat("Paid so far", EUR.format(paid), pct(paid, budget) + "% of budget") +
       stat("Waiting", EUR.format(pend), reqs.length + " request" + (reqs.length === 1 ? "" : "s") + " to validate") + stat(ts.length !== 1 ? "Budgets agreed" : "Budget", ts.length !== 1 ? agreed + " / " + ts.length : BUDGET_STATUS[ts[0].status][1], ts.length !== 1 ? "with captains" : "status") + "</div>" +
-      notifPanel() + budgetPanel() + pair(workPanel(), linksPanel()) + '<div class="grid-2"><section class="panel"><div class="panel-head"><h2>Requests waiting for Finance</h2>' + (hv().role === "captain" && can("submit") ? '<a class="btn sm solid" href="#hub-expenses" data-make-req>Make a request</a>' : '<a class="btn sm" href="#hub-expenses">All expenses</a>') + '</div>' + expTable(reqs, true) + "</section>" +
+      todoPanel() + notifPanel() + budgetPanel() + pair(workPanel(), linksPanel()) + '<div class="grid-2"><section class="panel"><div class="panel-head"><h2>Requests waiting for Finance</h2>' + (hv().role === "captain" && can("submit") ? '<a class="btn sm solid" href="#hub-expenses" data-make-req>Make a request</a>' : '<a class="btn sm" href="#hub-expenses">All expenses</a>') + '</div>' + expTable(reqs, true) + "</section>" +
       deptPanel() + "</div>";
   }
   // ---- Team information and roster (captain's team sheet) --------------------------------------
@@ -1402,6 +1582,16 @@ export function initSite(backend, tools) {
       TEAMS.map(function (t) { var pl = all[t.id] || []; return '<tr class="click" data-hteam="' + t.id + '" tabindex="0"><td class="tname">' + esc(tLabel(t)) + "</td><td>" + esc(captainName(captainForTeam(t.id))) + '</td><td class="r num">' + (pl.length || '<span class="muted">—</span>') + "</td><td>" + (esc(sizeSummary(pl)) || '<span class="muted">Not filled in</span>') + "</td></tr>"; }).join("") +
       '</tbody></table></div><p class="muted" style="margin:0;font-size:12px">Select a team to open its information and full roster.</p></section>';
   }
+  // Finance sets each team's season budget and split, then marks it agreed with the captain.
+  function budgetForm(t) {
+    if (!live() || !canBudget(t.id)) return t.budgetNote ? '<p class="muted" style="margin:0;font-size:13px">Note from Finance: ' + esc(t.budgetNote) + "</p>" : "";
+    return '<form class="form" id="budget-form" data-team="' + t.id + '"><p class="form-sub">Season budget · set by Finance</p>' +
+      '<label>Total (€)<input name="total" type="number" min="0" step="10" required value="' + (t.status === "none" ? "" : t.budget) + '" placeholder="e.g. 2500"></label>' +
+      '<label>Operations share (%)<input name="ops" type="number" min="0" max="100" step="5" required value="' + (t.opsShare == null ? 70 : t.opsShare) + '"></label>' +
+      '<label>Status<select name="status">' + ["draft", "review", "agreed"].map(function (k) { return '<option value="' + k + '"' + (t.status === k ? " selected" : "") + ">" + BUDGET_STATUS[k][1] + "</option>"; }).join("") + "</select></label>" +
+      '<label>Note (optional)<input name="note" maxlength="300" value="' + esc(t.budgetNote || "") + '" placeholder="e.g. includes league fee"></label>' +
+      '<div><button class="btn solid" type="submit">Save budget</button></div>' + (t.budgetBy ? '<p class="muted" style="grid-column:1/-1;margin:0;font-size:12px">Last set by ' + esc(t.budgetBy) + "</p>" : "") + "</form>";
+  }
   function hubTeams() {
     var ts = visTeams();
     if (!can("money")) // teams without the money columns (Finance only)
@@ -1412,14 +1602,14 @@ export function initSite(backend, tools) {
     if (open) {
       var t = team(open), o = totals(open);
       detail = '<section class="panel" id="team-detail"><div class="panel-head"><h2>' + esc(tLabel(t)) + "</h2>" + pill(BUDGET_STATUS, t.status) + "</div>" +
-        '<div class="people">' + [["Captain", captainName(captainForTeam(open)), "Runs the team"], ["Finance associate", assocFor("fin", open), "Budget and payments"], ["Media associate", assocFor("med", open), "Social media and coverage"], ["Operations associate", assocFor("ops", open), "Bookings, kit, travel"]].map(function (p) { return '<div class="person"><p class="eyebrow">' + p[0] + "</p><strong>" + esc(p[1]) + "</strong><small>" + p[2] + "</small></div>"; }).join("") + "</div>" +
+        '<div class="people">' + [["Captain", captainName(captainForTeam(open)), "Runs the team"], ["Finance associate", assocFor("fin", open) || TBA, "Budget and payments"], ["Media associate", assocFor("med", open) || TBA, "Social media and coverage"], ["Operations associate", assocFor("ops", open) || TBA, "Bookings, kit, travel"], ["Partnerships associate", assocFor("par", open) || TBA, "Sponsors for the team"]].map(function (p) { return '<div class="person"><p class="eyebrow">' + p[0] + "</p><strong>" + esc(p[1]) + "</strong><small>" + p[2] + "</small></div>"; }).join("") + "</div>" +
         '<p class="muted" style="margin:0">Budget ' + EUR.format(t.budget) + " · paid " + EUR.format(o.paid) + " · waiting " + EUR.format(o.pending) + " · left " + EUR.format(Math.max(0, t.budget - o.paid - o.pending)) + "</p>" +
-        splitPanel(t) +
+        splitPanel(t) + budgetForm(t) +
         expTable(visExp().filter(function (e) { return e.team === open; }), false) + "</section>" + teamInfoPanel(open) + rosterPanel(open);
     }
     return '<div class="ph-head"><div><h1 class="display">' + (can("all") ? "Every team." : "My team.") + "</h1><p>Each official team has a season budget agreed with its captain, and three dedicated associates.</p></div></div>" +
       '<section class="panel"><div class="table-wrap"><table><thead><tr><th>Team</th><th>Budget</th><th class="r">Agreed</th><th class="r">Paid</th><th>Used (paid + waiting)</th></tr></thead><tbody>' +
-      ts.map(function (t) { var o = totals(t.id), p = Math.min(100, o.paid / t.budget * 100), q = Math.min(100 - p, o.pending / t.budget * 100);
+      ts.map(function (t) { var o = totals(t.id), p = t.budget ? Math.min(100, o.paid / t.budget * 100) : 0, q = t.budget ? Math.min(100 - p, o.pending / t.budget * 100) : 0;
         return '<tr class="click" data-hteam="' + t.id + '" tabindex="0"><td class="tname">' + esc(tLabel(t)) + "</td><td>" + pill(BUDGET_STATUS, t.status) + '</td><td class="r num">' + EUR.format(t.budget) + '</td><td class="r num">' + EUR.format(o.paid) + '</td><td style="width:22%"><div class="bar"><i style="width:' + p + '%"></i><i class="pend" style="left:' + p + "%;width:" + q + '%"></i></div></td></tr>'; }).join("") +
       "</tbody></table></div>" + (can("all") ? '<p class="muted" style="margin:0;font-size:12px">Select a team to see its associates and expenses.</p>' : "") + "</section>" + rostersOverview() + detail;
   }
@@ -1446,9 +1636,29 @@ export function initSite(backend, tools) {
       LIVE.unLinks = backend.watchDeptLinks ? backend.watchDeptLinks(function (rows) { if (rows === undefined) return; LIVE.links = rows || []; hubRefresh(); }) : null;
       LIVE.unTupd = backend.watchTaskUpdates ? backend.watchTaskUpdates(function (rows) { if (rows === undefined) return; LIVE.tupd = rows || []; hubRefresh(); }) : null;
       LIVE.unNotifs = backend.watchNotifications ? backend.watchNotifications(function (d) { if (d === undefined) return; LIVE.notifs = d; hubRefresh(); }) : null;
+      // Shared Hub data: same for everyone with the right access (convex/tasks, budgets, results, org, partners, inbox).
+      LIVE.subs = [];
+      applyPeople(); applyBudgets();
+      if (backend.watch) [["tasks", "tasks"], ["budgets", "budgets"], ["results", "results"], ["people", "people"], ["partners", "partners"], ["inbox", "inbox"]].forEach(function (x) {
+        LIVE.subs.push(backend.watch(x[0], function (d) { if (d === undefined) return; LIVE[x[1]] = d; if (x[1] === "people") applyPeople(); if (x[1] === "budgets") applyBudgets(); hubRefresh(); }));
+      });
+      watchGoals(goalTerm());
     } else if (!on && LIVE.unExp) {
+      (LIVE.subs || []).forEach(function (u) { try { u(); } catch (e) {} }); LIVE.subs = [];
+      if (LIVE.unGoals) LIVE.unGoals(); LIVE.unGoals = null;
+      ["tasks", "budgets", "results", "people", "partners", "inbox", "goals"].forEach(function (k) { LIVE[k] = null; });
+      setTimeout(function () { applyPeople(); applyBudgets(); }, 0);
       LIVE.unExp(); LIVE.unIdeas(); if (LIVE.unNotifs) LIVE.unNotifs(); if (LIVE.unTupd) LIVE.unTupd(); if (LIVE.unLinks) LIVE.unLinks(); LIVE.unLinks = null; LIVE.links = null; LIVE.unTupd = null; LIVE.tupd = null; LIVE.unExp = LIVE.unIdeas = LIVE.unNotifs = null; LIVE.notifs = null; LIVE.exp = LIVE.ideas = null; LIVE.checks = {}; ROSTER = {}; ROSTER_ALL = null;
     }
+  }
+  // Goals are per semester: re-subscribe when the Board looks at another semester.
+  function watchGoals(term) {
+    if (!backend || !backend.watch || !(admin || captain)) return;
+    if (LIVE.unGoals && LIVE.goalsTerm === term) return;
+    if (LIVE.unGoals) LIVE.unGoals();
+    LIVE.goalsTerm = term; LIVE.goals = undefined; LIVE.unGoals = function () {};
+    var un = backend.watch("goals", function (d) { if (d === undefined || LIVE.goalsTerm !== term) return; LIVE.goals = d; setTimeout(hubRefresh, 0); }, { term: term });
+    if (LIVE.goalsTerm === term) LIVE.unGoals = un; else un();
   }
   function allExp() { return live() ? LIVE.exp || [] : state.expenses; }
   function visExp() { return allExp().filter(seeExp); }
@@ -1476,7 +1686,18 @@ export function initSite(backend, tools) {
   function fmtDay(ms) { var d = new Date(ms); return d.getDate() + " " + MONTHS[d.getMonth()] + " " + d.getFullYear(); }
   function fmtWhen(ms) { var d = new Date(ms); return fmtDay(ms) + ", " + ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2); }
   // Budget lines: each team's budget is split between Operations and Marketing (example split 70 / 30).
-  function budgetLines(t) { var o = Math.round(t.budget * 0.7); return { ops: o, med: t.budget - o }; }
+  function budgetLines(t) { var o = Math.round(t.budget * (t.opsShare == null ? 70 : t.opsShare) / 100); return { ops: o, med: t.budget - o }; }
+  // Team budgets: set by Finance in Convex. Not set yet = 0 and "Budget not set" (the example figures are for the local preview only).
+  var EXAMPLE_BUDGETS = {}; TEAMS.forEach(function (t) { EXAMPLE_BUDGETS[t.id] = [t.budget, t.status]; });
+  function applyBudgets() {
+    TEAMS.forEach(function (t) {
+      if (!live()) { t.budget = EXAMPLE_BUDGETS[t.id][0]; t.status = EXAMPLE_BUDGETS[t.id][1]; t.opsShare = 70; t.budgetNote = ""; return; }
+      var b = (LIVE.budgets || []).filter(function (x) { return x.team === t.id; })[0];
+      t.budget = b ? b.total : 0; t.status = b ? b.status : "none"; t.opsShare = b ? b.opsShare : 70; t.budgetNote = b ? b.note || "" : ""; t.budgetBy = b ? b.by : "";
+    });
+  }
+  function canBudget(id) { var u = hv(); return !hRO() && (u.role === "admin" || u.role === "exec" || (u.dept === "fin" && (u.role === "head" || (u.teams || []).indexOf(id) > -1))); }
+  function pct(a, b) { return b ? Math.round(a / b * 100) : 0; }
   function lineUse(teamId) {
     var u = { ops: 0, med: 0 };
     allExp().forEach(function (e) { if (e.team !== teamId || e.status === "rejected" || e.status === "requested") return; if (e.dept === "Media & Marketing") u.med += e.amount; else if (e.dept === "Operations") u.ops += e.amount; });
@@ -1487,7 +1708,7 @@ export function initSite(backend, tools) {
     return '<div class="split">' + [["Operations", b.ops, u.ops, "Kit, facilities, travel, tournaments"], ["Marketing", b.med, u.med, "Media, promotion, events"]].map(function (x) {
       var pc = x[1] ? Math.min(100, x[2] / x[1] * 100) : 0;
       return '<div><p class="eyebrow">' + x[0] + ' budget</p><strong class="num">' + EUR.format(x[2]) + ' <span class="muted">/ ' + EUR.format(x[1]) + '</span></strong><div class="bar"><i style="width:' + pc + '%"></i></div><small class="muted">' + x[3] + "</small></div>";
-    }).join("") + '<small class="muted split-note">Split agreed by Finance (example: 70 / 30). Validated and paid expenses count against it.</small></div>';
+    }).join("") + '<small class="muted split-note">Split set by Finance: ' + (t.opsShare == null ? 70 : t.opsShare) + " / " + (100 - (t.opsShare == null ? 70 : t.opsShare)) + ". Validated and paid expenses count against it.</small></div>";
   }
   function histList(e) {
     var h = e.history || []; if (!h.length) return "";
@@ -1708,6 +1929,7 @@ export function initSite(backend, tools) {
       form + "</section>" + deck + budget + (p.kind === "semester" && (hFull() || u.role === "head") ? metricsPanel() : "");
   }
   function metricsPanel() {
+    if (live()) return '<section class="panel"><div class="panel-head"><h2>Goals for the Student Council</h2><a class="btn sm" href="#hub-goals">Open Goals</a></div><p class="muted" style="margin:0">The semester targets and their real numbers are on the Goals page, counted from the website and the Hub.</p></section>';
     return '<section style="display:grid;gap:12px"><h2 style="margin:0;font-size:15px;font-weight:800">Seven metrics for the Student Council</h2><ul class="metrics">' + METRICS.map(function (m) { return '<li class="metric"><p class="eyebrow">' + m[0] + "</p><strong>—</strong><small>" + m[1] + "</small></li>"; }).join("") + '</ul><p class="muted" style="margin:0;font-size:12px">Metrics fill in once the association is running. Shown empty on purpose.</p></section>';
   }
 
@@ -1802,7 +2024,7 @@ export function initSite(backend, tools) {
   function hubTeamEditor() {
     var ts = visTeams(), selected = state.teamOpen && teamOk(state.teamOpen) ? state.teamOpen : ts[0].id, t = team(selected), info = teamInfoFor(selected), results = teamResultsFor(selected);
     var teamField = ts.length > 1 ? '<label for="ti-team">Team<select id="ti-team">' + ts.map(function (x) { return '<option value="' + x.id + '"' + (x.id === selected ? ' selected' : '') + '>' + esc(tLabel(x)) + '</option>'; }).join('') + '</select></label>' : '<input type="hidden" id="ti-team" value="' + esc(selected) + '">';
-    var rows = results.length ? results.slice().reverse().map(function (r) { return '<tr><td class="num">' + esc(r.date) + '</td><td class="opp">' + esc(r.opponent) + '</td><td>' + esc(r.side) + '</td><td class="num"><strong>' + esc(r.score) + '</strong></td><td>' + esc(r.status) + '</td></tr>'; }).join('') : '<tr><td colspan="5" class="muted">No manual results yet.</td></tr>';
+    var rows = results.length ? results.slice().reverse().map(function (r) { return '<tr><td class="num">' + esc(r.date) + '</td><td class="opp">' + esc(r.opponent) + '</td><td>' + esc(r.side) + '</td><td class="num"><strong>' + esc(r.score) + '</strong></td><td>' + esc(r.status) + (r.canRemove ? ' <button type="button" class="btn sm ghost" data-res-del="' + esc(String(r.id)) + '" aria-label="Remove this result">' + ico("x") + "</button>" : "") + '</td></tr>'; }).join('') : '<tr><td colspan="5" class="muted">No results yet.</td></tr>';
     return '<div class="ph-head"><div><h1 class="display">Team editor.</h1><p>Keep your team page current: team information, league source, venue and results. Manual updates are available immediately; live league syncing can be connected once the competition provides an API or approved feed.</p></div></div>' +
       '<section class="panel"><div class="panel-head"><h2>Team information</h2><span class="muted">' + (can("teamEdit") ? "Saved for everyone" : "View only") + '</span></div><form class="form" id="team-info-form">' + teamField +
         '<label style="grid-column:span 2">Short description · public<textarea id="ti-about" rows="2" placeholder="Who the team is and what the season is about">' + esc(info.about || "") + '</textarea></label>' +
@@ -1837,12 +2059,23 @@ export function initSite(backend, tools) {
     }).join('') + '</tbody></table></div>';
   }
   function hubApplications() {
+    if (live()) {
+      var n = (LIVE.inbox || {}).tryouts || 0;
+      return '<div class="ph-head"><div><h1 class="display">Try-outs inbox.</h1><p>Try-out, "just for fun" and coach sign-ups from the website. Each captain sees their own team; Operations sees the teams it covers.</p></div></div>' +
+        '<section class="panel"><div class="panel-head"><h2>Sign-ups</h2>' + (n ? '<span class="pill warn">' + n + " new</span>" : "") + '</div><p class="muted" style="margin:0 0 14px">The sign-ups, with their status (New, Contacted, Trial invited, Accepted, Declined) and your notes, are in the members area.</p><a class="btn solid" href="/admin">Open try-outs and coaches</a></section>';
+    }
     var apps = visibleSportsApplications(), t = state.user.role === "captain" ? team(firstTeam()) : null, recipient = t ? captainForTeam(t.id) : null;
     return '<div class="ph-head"><div><h1 class="display">Try-outs inbox.</h1><p>' + (t ? 'Applications for ' + esc(tLabel(t)) + ' are routed to you as captain.' : 'Board view across every sports application folder. Each captain sees only applications for their own team.') + '</p></div></div>' +
       '<section class="panel"><div class="panel-head"><h2>' + (t ? 'Your team applications' : 'All team applications') + '</h2><span class="muted num">' + apps.length + ' received</span></div><p class="muted" style="margin:0 0 18px">Folder: <strong>' + esc(t ? sportsApplicationsFolder(t.id) : 'Applications for sports/*') + '</strong>' + (recipient ? ' · Captain recipient: <strong>' + esc(captainName(recipient)) + ' · ' + esc(recipient.email) + '</strong>' : '') + '</p>' + sportsApplicationsTable(apps) + '</section>' +
       '<section class="panel"><div class="panel-head"><h2>Routing rule</h2><span class="pill ok">Active in prototype</span></div><p class="muted" style="margin:0">When a student applies to a team, their try-out or coaching information is stored in that team’s Applications for sports folder and is visible to the active captain for that team. In production, this same event should also send the captain a notification email.</p></section>';
   }
   function hubCaptains() {
+    if (live()) {
+      var trs = TEAMS.map(function (t) { var row = ((LIVE.people || {}).teams || []).filter(function (x) { return x.id === t.id; })[0], cs = row ? row.captains : [];
+        return '<tr><td class="tname">' + esc(tLabel(t)) + "</td><td>" + (cs.length ? cs.map(function (c) { return "<strong>" + esc(c.name || c.email) + '</strong><br><small class="muted">' + esc(c.email) + "</small>"; }).join("<br>") : '<span class="muted">No captain approved yet</span>') + "</td></tr>"; }).join("");
+      return '<div class="ph-head"><div><h1 class="display">Captains.</h1><p>The approved captain of every team. Captains request access on the Members page; the Board approves them in the members area.</p></div></div>' +
+        '<section class="panel"><div class="panel-head"><h2>Captains by team</h2><a class="btn sm" href="/admin">Approve or add captains</a></div><div class="table-wrap"><table><thead><tr><th>Team</th><th>Captain</th></tr></thead><tbody>' + trs + "</tbody></table></div></section>";
+    }
     var active = state.captains.filter(function (c) { return c.active; }), edit = !hRO();
     var rows = active.map(function (c) {
       return '<tr><td><strong>' + esc(captainName(c)) + '</strong><br><small class="muted">' + esc(c.email) + '</small></td><td class="tname">' + esc(tLabel(team(c.team))) + '</td><td>' + esc(c.role) + '</td><td>' + esc(c.programme) + '</td><td class="num">' + esc(c.start) + '</td><td class="r">' + (edit ? '<button class="btn sm" data-captain-deactivate="' + c.id + '">Deactivate</button>' : "") + '</td></tr>';
@@ -1852,7 +2085,9 @@ export function initSite(backend, tools) {
       (edit ?       '<section class="panel"><div class="panel-head"><h2>Add a captain</h2><span class="muted">Board only</span></div><form class="form" id="captain-form"><label>First name<input id="c-first" required placeholder="First name"></label><label>Last name<input id="c-last" required placeholder="Last name"></label><label>Email<input id="c-email" type="email" required placeholder="name@esade.edu"></label><label>Team<select id="c-team">' + TEAMS.map(function (t) { return '<option value="' + t.id + '">' + esc(tLabel(t)) + '</option>'; }).join('') + '</select></label><label>Role<select id="c-role"><option>Captain</option><option>Vice-captain</option></select></label><label>Programme<input id="c-programme" required placeholder="BBA, MSc..."></label><div><button class="btn solid" type="submit">Add captain</button></div></form></section>' : '<p class="muted">View only: changes are made by the Board.</p>');
   }
   function taskRowBase(t, deptId) {
-    return "<li><span>" + esc(t.title) + '<small class="owner">' + esc(t.owner || "Unassigned") + "</small></span>" + (canSetTask(deptId) ? '<select data-task="' + t.key + '" aria-label="Status of ' + esc(t.title) + '">' + Object.keys(TASK_STATUS).map(function (o) { return '<option value="' + o + '"' + (o === t.status ? " selected" : "") + ">" + TASK_STATUS[o] + "</option>"; }).join("") + "</select>" : taskStatusPill(t.status)) + "</li>";
+    var meta = [t.owner || "Unassigned"]; if (t.team && team(t.team)) meta.push(tLabel(team(t.team))); if (t.due) meta.push("due " + t.due);
+    var del = t.canRemove && canAddTask(deptId) ? '<button type="button" class="btn sm ghost" data-task-del="' + esc(t.key) + '" aria-label="Remove task ' + esc(t.title) + '">' + ico("x") + "</button>" : "";
+    return "<li><span>" + esc(t.title) + '<small class="owner">' + esc(meta.join(" · ")) + "</small></span>" + del + (canSetTask(deptId) && (!live() || t.canSet) ? '<select data-task="' + t.key + '" aria-label="Status of ' + esc(t.title) + '">' + Object.keys(TASK_STATUS).map(function (o) { return '<option value="' + o + '"' + (o === t.status ? " selected" : "") + ">" + TASK_STATUS[o] + "</option>"; }).join("") + "</select>" : taskStatusPill(t.status)) + "</li>";
   }
   // A task with its work summaries and comments (everyone in the department sees them and can add to them).
   function taskRow(t, deptId) {
@@ -1868,14 +2103,17 @@ export function initSite(backend, tools) {
   }
   function addTaskForm(d) {
     if (!canAddTask(d.id)) return "";
-    return '<form class="form add-task" data-add-task="' + d.id + '"><label style="grid-column:span 2">New task<input name="title" required maxlength="120" placeholder="e.g. Book courts for the spring try-outs"></label><label>Who works on it<select name="owner">' + deptPeople(d.id).map(function (n) { return "<option>" + esc(n) + "</option>"; }).join("") + '</select></label><div><button class="btn solid" type="submit">Add task</button></div></form>';
+    var ppl = deptMembers(d.id);
+    return '<form class="form add-task" data-add-task="' + d.id + '"><label style="grid-column:span 2">New task<input name="title" required maxlength="120" placeholder="e.g. Book courts for the spring try-outs"></label><label>Who works on it<select name="owner"><option value="">Not assigned yet</option>' + ppl.map(function (n) { return '<option value="' + esc(n[1] + "|" + n[0]) + '">' + esc(n[0]) + "</option>"; }).join("") + "</select></label>" +
+      (live() ? '<label>Team (optional)<select name="team"><option value="">Whole department</option>' + TEAMS.map(function (t) { return '<option value="' + t.id + '">' + esc(tLabel(t)) + "</option>"; }).join("") + '</select></label><label>Due (optional)<input name="due" type="date"></label>' : "") +
+      '<div><button class="btn solid" type="submit">Add task</button></div>' + (live() && !ppl.length ? '<p class="muted" style="grid-column:1/-1;margin:0;font-size:12px">Nobody is approved in this department yet: approve associates in the members area (/admin), then assign tasks to them.</p>' : "") + "</form>";
   }
   function hubDepts() {
     var open = null; visDepts().forEach(function (d) { if (d.id === state.deptOpen) open = d; });
     if (open) {
       var p = DEPT_PEOPLE[open.id], ts = deptTasks(open), team = [[p.head, p.headRole || "Head of " + open.name, null]].concat(p.associates.map(function (a) { return [a[0], a[2] || "Associate", a[1]]; }));
       return '<div class="ph-head"><div><p class="eyebrow"><a href="#hub-departments" data-dept-open="">← All departments</a></p><h1 class="display">' + esc(open.name) + '.</h1><p>' + esc(open.remit) + "</p></div></div>" +
-        '<section class="panel"><div class="panel-head"><h2>The team</h2><span class="muted" style="font-size:12px">Example names</span></div><div class="table-wrap"><table><thead><tr><th>Person</th><th>Role</th><th>Teams</th><th>Working on now</th></tr></thead><tbody>' +
+        '<section class="panel"><div class="panel-head"><h2>The team</h2>' + (live() ? "" : '<span class="muted" style="font-size:12px">Example names</span>') + '</div><div class="table-wrap"><table><thead><tr><th>Person</th><th>Role</th><th>Teams</th><th>Working on now</th></tr></thead><tbody>' +
         team.map(function (m) {
           var now = ts.filter(function (t) { return t.owner === m[0] && t.status !== "done"; });
           return '<tr><td><strong>' + esc(m[0]) + "</strong></td><td>" + esc(m[1]) + '</td><td class="muted">' + (m[2] ? (m[2].length === TEAMS.length ? "All teams" : esc(teamsText(m[2]))) : "All teams") + "</td><td>" + (now.length ? now.map(function (t) { return esc(t.title) + " " + taskStatusPill(t.status); }).join("<br>") : '<span class="muted">Nothing open</span>') + "</td></tr>";
@@ -1901,7 +2139,14 @@ export function initSite(backend, tools) {
     hub.querySelectorAll("[data-add-task]").forEach(function (f) { f.addEventListener("submit", function (ev) {
       ev.preventDefault(); var d = f.getAttribute("data-add-task"), title = f.elements.title.value.trim();
       if (!title || !canAddTask(d)) return;
-      state.newTasks.push({ id: state.nextId++, dept: d, title: title.slice(0, 120), owner: f.elements.owner.value, status: "todo" }); save(); render(); toast("Task added.");
+      var ow = f.elements.owner.value.split("|");
+      if (live()) {
+        var bt = f.querySelector("button"); bt.disabled = true;
+        Promise.resolve(backend.run("addTask", { dept: deptKey(d), title: title, ownerEmail: ow[0] || undefined, ownerName: ow[1] || undefined, team: f.elements.team.value || undefined, due: f.elements.due.value || undefined }))
+          .then(function () { toast("Task added. Your department sees it."); }, function (x) { bt.disabled = false; toast(errText(x)); });
+        return;
+      }
+      state.newTasks.push({ id: state.nextId++, dept: d, title: title.slice(0, 120), owner: ow[1] || "", status: "todo" }); save(); render(); toast("Task added.");
     }); });
     hub.querySelectorAll("[data-reject-cancel]").forEach(function (b) { b.addEventListener("click", function () { state.rejecting = state.reconsidering = state.esadeRefusing = null; render(); }); });
     hub.querySelectorAll("[data-reject-confirm]").forEach(function (b) { b.addEventListener("click", function () {
@@ -2047,7 +2292,13 @@ export function initSite(backend, tools) {
       r.addEventListener("click", open); r.addEventListener("keydown", function (e) { if (e.key === "Enter") open(); });
     });
     hub.querySelectorAll("[data-filter]").forEach(function (c) { c.addEventListener("click", function () { state.hubFilter = c.getAttribute("data-filter"); render(); }); });
-    hub.querySelectorAll("[data-task]").forEach(function (s) { s.addEventListener("change", function () { state.tasks[s.getAttribute("data-task")] = s.value; save(); toast("Task updated."); }); });
+    hub.querySelectorAll("[data-task]").forEach(function (s) { s.addEventListener("change", function () {
+      if (live()) { Promise.resolve(backend.run("setTask", { id: s.getAttribute("data-task"), status: s.value })).then(function () { toast("Task updated for everyone."); }, function (x) { toast(errText(x)); }); return; }
+      state.tasks[s.getAttribute("data-task")] = s.value; save(); toast("Task updated.");
+    }); });
+    hub.querySelectorAll("[data-task-del]").forEach(function (b) { b.addEventListener("click", function () {
+      b.disabled = true; Promise.resolve(backend.run("removeTask", { id: b.getAttribute("data-task-del") })).then(function () { toast("Task removed."); }, function (x) { b.disabled = false; toast(errText(x)); });
+    }); });
     var f = $("req"); if (f) f.addEventListener("submit", function (ev) {
       ev.preventDefault(); var amt = Math.round(+$("r-amt").value), item = $("r-item").value.trim(); if (!item || !(amt > 0)) return;
       var link = $("r-link").value.trim(), file = $("r-file").files[0], tm = $("r-team") ? $("r-team").value : firstTeam(), dept = $("r-dept").value, cat = $("r-cat").value;
@@ -2078,6 +2329,52 @@ export function initSite(backend, tools) {
       state.captains.push({ id: state.nextId++, first: $("c-first").value.trim(), last: $("c-last").value.trim(), email: $("c-email").value.trim(), team: $("c-team").value, role: $("c-role").value, programme: $("c-programme").value.trim(), start: "2026-11-12", active: true });
       save(); render(); toast("Captain added.");
     });
+    // Partnerships tracker
+    function pRun(key, args, ok) { return Promise.resolve(backend.run(key, args)).then(function () { if (ok) toast(ok); }, function (x) { toast(errText(x)); throw x; }); }
+    function pFind(id) { return (((LIVE.partners || {}).partners) || []).filter(function (p) { return p._id === id; })[0]; }
+    hub.querySelectorAll("[data-pf]").forEach(function (b) { b.addEventListener("click", function () { state.pFilter = b.getAttribute("data-pf"); render(); }); });
+    var ptf = $("p-team-f"); if (ptf) ptf.addEventListener("change", function () { state.pTeam = ptf.value; render(); });
+    hub.querySelectorAll("[data-p-new]").forEach(function (b) { b.addEventListener("click", function () { state.pEdit = "new"; state.pPrefill = null; render(); var f = $("partner-edit"); if (f) f.elements.company.focus(); }); });
+    hub.querySelectorAll("[data-p-edit]").forEach(function (b) { b.addEventListener("click", function () { state.pEdit = b.getAttribute("data-p-edit"); render(); var f = $("partner-edit"); if (f) f.scrollIntoView({ block: "center" }); }); });
+    hub.querySelectorAll("[data-p-cancel]").forEach(function (b) { b.addEventListener("click", function () { state.pEdit = null; state.pPrefill = null; render(); }); });
+    hub.querySelectorAll("[data-p-del]").forEach(function (b) { b.addEventListener("click", function () { b.disabled = true; pRun("removePartner", { id: b.getAttribute("data-p-del") }, "Partner removed.").catch(function () { b.disabled = false; }); }); });
+    hub.querySelectorAll("[data-pstage]").forEach(function (sel) { sel.addEventListener("change", function () { var p = pFind(sel.getAttribute("data-pstage")); if (!p) return; pRun("updatePartner", Object.assign({ id: p._id }, partnerArgs(p, { stage: sel.value })), "Stage updated."); }); });
+    hub.querySelectorAll("[data-inq]").forEach(function (sel) { sel.addEventListener("change", function () { pRun("setInquiry", { id: sel.getAttribute("data-inq"), status: sel.value }, "Status updated."); }); });
+    hub.querySelectorAll("[data-inq-add]").forEach(function (b) { b.addEventListener("click", function () {
+      var i = (((LIVE.partners || {}).inquiries) || []).filter(function (x) { return x._id === b.getAttribute("data-inq-add"); })[0]; if (!i) return;
+      state.pEdit = "new"; state.pPrefill = { company: i.company, contactName: i.name, contactEmail: i.email, kind: INTEREST_KIND[i.interest] || "Other", stage: "contacted", notes: i.message || "", inquiryId: i._id };
+      render(); window.scrollTo(0, 0);
+    }); });
+    var pe = $("partner-edit"); if (pe) pe.addEventListener("submit", function (ev) {
+      ev.preventDefault(); var e = pe.elements, ow = e.owner.value.split("|"), id = pe.getAttribute("data-id"), inq = pe.getAttribute("data-inq");
+      var args = partnerArgs({ company: e.company.value.trim(), kind: e.kind.value, team: e.team.value, stage: e.stage.value, contactName: e.contactName.value.trim(), contactEmail: e.contactEmail.value.trim(), value: e.value.value === "" ? undefined : +e.value.value, ownerEmail: ow[0], ownerName: ow[1], nextStep: e.nextStep.value.trim(), nextDate: e.nextDate.value, notes: e.notes.value.trim() });
+      if (id) args.id = id; else if (inq) args.inquiryId = inq;
+      var b = pe.querySelector('button[type="submit"]'); b.disabled = true;
+      pRun(id ? "updatePartner" : "addPartner", args, id ? "Partner saved." : "Partner added. Partnerships sees it.").then(function () { state.pEdit = null; state.pPrefill = null; render(); }, function () { b.disabled = false; });
+    });
+    // Goals
+    hub.querySelectorAll("[data-term]").forEach(function (b) { b.addEventListener("click", function () { state.goalTerm = b.getAttribute("data-term"); render(); }); });
+    hub.querySelectorAll("[data-gi]").forEach(function (b) { b.addEventListener("click", function () {
+      var x = GOAL_IDEAS[+b.getAttribute("data-gi")], f = $("goal-form"); if (!f) return;
+      f.elements.title.value = x[0]; f.elements.source.value = x[1]; f.elements.unit.value = x[2]; f.elements.dept.value = x[3] || ""; f.elements.target.focus();
+    }); });
+    var gf = $("goal-form"); if (gf) gf.addEventListener("submit", function (ev) {
+      ev.preventDefault(); var e = gf.elements, b = gf.querySelector("button"); b.disabled = true;
+      pRun("addGoal", { term: goalTerm(), title: e.title.value.trim(), target: +e.target.value, unit: e.unit.value.trim() || "#", source: e.source.value, dept: e.dept.value || undefined, note: e.note.value.trim() || undefined }, "Goal added.").catch(function () { b.disabled = false; });
+    });
+    hub.querySelectorAll("[data-goal-actual]").forEach(function (f) { f.addEventListener("submit", function (ev) {
+      ev.preventDefault(); if (f.elements.v.value === "") return;
+      pRun("setGoalActual", { id: f.getAttribute("data-goal-actual"), actual: +f.elements.v.value }, "Number saved.");
+    }); });
+    hub.querySelectorAll("[data-goal-del]").forEach(function (b) { b.addEventListener("click", function () { b.disabled = true; pRun("removeGoal", { id: b.getAttribute("data-goal-del") }, "Goal removed.").catch(function () { b.disabled = false; }); }); });
+    hub.querySelectorAll("[data-res-del]").forEach(function (b) { b.addEventListener("click", function () {
+      b.disabled = true; Promise.resolve(backend.run("removeResult", { id: b.getAttribute("data-res-del") })).then(function () { PUBLIC_RESULTS = null; loadResults(); toast("Result removed."); }, function (x) { b.disabled = false; toast(errText(x)); });
+    }); });
+    var bf = $("budget-form"); if (bf) bf.addEventListener("submit", function (ev) {
+      ev.preventDefault(); var b = bf.querySelector("button"); b.disabled = true;
+      Promise.resolve(backend.run("setBudget", { team: bf.getAttribute("data-team"), total: +bf.elements.total.value, opsShare: +bf.elements.ops.value, status: bf.elements.status.value, note: bf.elements.note.value.trim() || undefined }))
+        .then(function () { toast("Budget saved. The captain and the departments see it."); }, function (x) { b.disabled = false; toast(errText(x)); });
+    });
     var tif = $("team-info-form");
     if (tif && $("ti-team").tagName === "SELECT") $("ti-team").addEventListener("change", function () { state.teamOpen = $("ti-team").value; render(); });
     if (tif && backend && backend.getTeamInfo) Promise.resolve(backend.getTeamInfo($("ti-team").value)).then(function (r) {
@@ -2100,6 +2397,12 @@ export function initSite(backend, tools) {
     });
     var mf = $("match-form"); if (mf) mf.addEventListener("submit", function (ev) {
       ev.preventDefault(); var id = $("m-team").value;
+      if (live()) {
+        var mb = mf.querySelector('button[type="submit"]'); mb.disabled = true;
+        Promise.resolve(backend.run("addResult", { team: id, date: $("m-date").value, opponent: $("m-opponent").value.trim(), side: $("m-side").value, score: $("m-score").value.trim() || undefined, status: $("m-status").value, competition: $("m-comp").value.trim() || undefined }))
+          .then(function () { state.teamOpen = id; PUBLIC_RESULTS = null; loadResults(); toast("Result added. It shows on the team page."); }, function (x) { mb.disabled = false; toast(errText(x)); });
+        return;
+      }
       if (!state.teamResults[id]) state.teamResults[id] = [];
       state.teamResults[id].push({ date: $("m-date").value, opponent: $("m-opponent").value.trim(), side: $("m-side").value, score: $("m-score").value.trim(), status: $("m-status").value, competition: $("m-comp").value.trim() });
       if ($("m-status").value === "Final" && !$("m-score").value.trim()) { state.teamResults[id].pop(); toast("Add the score for a final result."); return; }
@@ -2121,6 +2424,7 @@ export function initSite(backend, tools) {
       if (admin === undefined && !captain) { page.innerHTML = '<section class="band"><div class="wrap"><h1 class="display">Checking your login…</h1></div></section>'; show("page"); return; }
       if (!admin && !captain) { location.replace("#signin"); return; }
       if (demoPublic) { demoPublic = false; industryVisibility(); }
+      applyPeople(); applyBudgets();
       if (!isHub() || !viewAllowed(state.user)) { var dv = allowedViews()[0]; if (!dv) { location.replace("#signin"); return; } state.user = dv; save(); renderAcct(); }
       if (h === "hub-expenses" && !can("expenses")) h = "hub-overview";
       if (h === "hub-departments" && !can("depts")) h = "hub-overview";
@@ -2129,7 +2433,9 @@ export function initSite(backend, tools) {
       if (h === "hub-team-editor" && !can("teamEdit")) h = "hub-overview";
       if (h === "hub-applications" && !can("applications")) h = "hub-overview";
       if (h === "hub-ideas" && !can("ideas")) h = "hub-overview";
-      var inner = h === "hub-teams" ? hubTeams() : h === "hub-team-editor" ? hubTeamEditor() : h === "hub-applications" ? hubApplications() : h === "hub-captains" ? hubCaptains() : h === "hub-expenses" ? hubExpenses() : h === "hub-departments" ? hubDepts() : h === "hub-report" || h === "hub-checkups" ? hubCheckups() : h === "hub-ideas" ? hubIdeas() : h === "hub-history" ? hubHistory() : hubOverview();
+      if (h === "hub-partners" && !can("partners")) h = "hub-overview";
+      if (h === "hub-goals" && !can("goals")) h = "hub-overview";
+      var inner = h === "hub-partners" ? hubPartners() : h === "hub-goals" ? hubGoals() : h === "hub-teams" ? hubTeams() : h === "hub-team-editor" ? hubTeamEditor() : h === "hub-applications" ? hubApplications() : h === "hub-captains" ? hubCaptains() : h === "hub-expenses" ? hubExpenses() : h === "hub-departments" ? hubDepts() : h === "hub-report" || h === "hub-checkups" ? hubCheckups() : h === "hub-ideas" ? hubIdeas() : h === "hub-history" ? hubHistory() : hubOverview();
       hub.innerHTML = hubShell(h, inner); show("hub"); bindHub(); return;
     }
     if (h === "signin") html = signinView();
@@ -2206,14 +2512,16 @@ export function initSite(backend, tools) {
   pf.addEventListener("submit", function (e) {
     e.preventDefault();
     if (!$("p-company").value.trim() || !$("p-name").value.trim() || !$("p-email").value.trim()) { $("p-err").hidden = false; return; }
-    if (backend && backend.submitPartnerInquiry) backend.submitPartnerInquiry({
-      company: $("p-company").value.trim(), name: $("p-name").value.trim(), email: $("p-email").value.trim(),
-      interest: $("p-type").value, message: $("p-msg").value.trim() || undefined
+    $("p-err").hidden = true;
+    var data = { company: $("p-company").value.trim(), name: $("p-name").value.trim(), email: $("p-email").value.trim(), interest: $("p-type").value, message: $("p-msg").value.trim() || undefined, lang: window.__lang };
+    function done() { pf.hidden = true; $("p-done").hidden = false; }
+    if (!backend || !backend.submitPartnerInquiry) { done(); return; }
+    var btn = pf.querySelector('button[type="submit"]'); btn.disabled = true;
+    // Saved in the database: the Partnerships team follows it up in the Hub.
+    Promise.resolve(backend.submitPartnerInquiry(data)).then(done, function (x) {
+      console.error(x); btn.disabled = false;
+      $("p-err").textContent = "Your message could not be sent. Please check the fields and try again."; $("p-err").hidden = false;
     });
-    var subject = "Esade Sports partnership proposal — " + $("p-company").value.trim();
-    var body = "Company: " + $("p-company").value.trim() + "\nName: " + $("p-name").value.trim() + "\nWork email: " + $("p-email").value.trim() + "\nInterested in: " + $("p-type").value + "\n\n" + $("p-msg").value.trim();
-    window.location.href = "mailto:esadesports@alumni.esade.edu?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body);
-    pf.hidden = true; $("p-done").hidden = false;
   });
   function signOut() {
     if (state.user && HUB_ROLES[state.user.role]) state.user = null;
@@ -2286,7 +2594,7 @@ export function initSite(backend, tools) {
   window.addEventListener("hashchange", function () { state.teamOpen = null; render(); });
   // A live update that arrived while someone was typing in the Hub is shown once they leave the field.
   hub.addEventListener("focusout", function () { if (LIVE.dirty) setTimeout(function () { if (LIVE.dirty && !hubBusy()) { LIVE.dirty = false; render(); } }, 400); });
-  renderAcct(); render(); loadAlumni(); loadTeamInfo();
+  renderAcct(); render(); loadAlumni(); loadTeamInfo(); loadResults();
   return { setAdmin: setAdmin };
 
 }

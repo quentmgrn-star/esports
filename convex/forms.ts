@@ -1,6 +1,11 @@
 import { ConvexError, v } from "convex/values";
 import { mutation } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { teamLabel } from "./teamList";
+
+// Optional language of the visitor ("en" | "ca" | "es"), used for the confirmation email.
+const langV = v.optional(v.string());
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const submitTeamApplication = mutation({
   args: {
@@ -13,9 +18,11 @@ export const submitTeamApplication = mutation({
     esadeStudent: v.boolean(),
     programme: v.optional(v.string()),
     level: v.optional(v.string()),
+    track: v.optional(v.union(v.literal("competitive"), v.literal("social"))),
     coachingExperience: v.optional(v.string()),
+    lang: langV,
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, { lang, ...args }) => {
     const clean = (s: string | undefined, max: number) => (s ?? "").trim().slice(0, max);
     const a = {
       ...args,
@@ -29,7 +36,16 @@ export const submitTeamApplication = mutation({
       coachingExperience: clean(args.coachingExperience, 3000) || undefined,
     };
     if (!a.teamSlug || !a.firstName || !a.lastName || !a.email || !a.phone) throw new ConvexError("Missing required fields.");
-    return ctx.db.insert("teamApplications", { ...a, status: "New", statusChangedAt: Date.now() });
+    const track = a.kind === "tryout" ? a.track ?? "competitive" : undefined;
+    const id = await ctx.db.insert("teamApplications", { ...a, track, status: "New", statusChangedAt: Date.now() });
+    await ctx.scheduler.runAfter(0, internal.mail.confirm, {
+      to: a.email,
+      name: a.firstName,
+      kind: a.kind === "coach" ? "coach" : track === "social" ? "social" : "tryout",
+      about: teamLabel(a.teamSlug),
+      lang,
+    });
+    return id;
   },
 });
 
@@ -40,8 +56,21 @@ export const submitPartnerInquiry = mutation({
     email: v.string(),
     interest: v.string(),
     message: v.optional(v.string()),
+    lang: langV,
   },
-  handler: async (ctx, args) => ctx.db.insert("partnerInquiries", args),
+  handler: async (ctx, { lang, ...args }) => {
+    const a = {
+      company: args.company.trim().slice(0, 150),
+      name: args.name.trim().slice(0, 100),
+      email: args.email.trim().toLowerCase().slice(0, 200),
+      interest: args.interest.trim().slice(0, 100),
+      message: args.message?.trim().slice(0, 3000) || undefined,
+    };
+    if (!a.company || !a.name || !EMAIL_RE.test(a.email)) throw new ConvexError("Please fill in the company, your name and a valid email.");
+    const id = await ctx.db.insert("partnerInquiries", { ...a, status: "new" });
+    await ctx.scheduler.runAfter(0, internal.mail.confirm, { to: a.email, name: a.name.split(" ")[0], kind: "partner", about: a.company, lang });
+    return id;
+  },
 });
 
 const DEPARTMENTS = ["Finance", "Media & Marketing", "Operations", "Partnerships", "IT"];
@@ -68,8 +97,9 @@ export const submitAssociationApplication = mutation({
     videoId: v.optional(v.id("_storage")),
     acceptsRedirect: v.boolean(),
     confirmsAccuracy: v.boolean(),
+    lang: langV,
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, { lang, ...args }) => {
     const clean = (s: string, max: number) => s.trim().slice(0, max);
     const a = {
       ...args,
@@ -90,7 +120,9 @@ export const submitAssociationApplication = mutation({
       throw new ConvexError("Invalid department preferences.");
     }
     if (!a.acceptsRedirect || !a.confirmsAccuracy) throw new ConvexError("Both acknowledgements are required.");
-    return ctx.db.insert("associationApplications", { ...a, stage: "applied", stageChangedAt: Date.now() });
+    const id = await ctx.db.insert("associationApplications", { ...a, stage: "applied", stageChangedAt: Date.now() });
+    await ctx.scheduler.runAfter(0, internal.mail.confirm, { to: a.email, name: a.firstName, kind: "association", about: [a.pref1, a.pref2].filter(Boolean).join(", "), lang });
+    return id;
   },
 });
 
@@ -104,7 +136,6 @@ export const CONTACT_TOPICS = [
   "Alumni",
   "Other",
 ];
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Footer contact form. "website" is a hidden honeypot field: real visitors leave it empty.
 export const submitContactMessage = mutation({
@@ -118,6 +149,7 @@ export const submitContactMessage = mutation({
     phone: v.optional(v.string()),
     consent: v.boolean(),
     website: v.optional(v.string()),
+    lang: langV,
   },
   handler: async (ctx, args) => {
     if (args.website) return null; // bot: pretend it worked, store nothing
@@ -142,6 +174,7 @@ export const submitContactMessage = mutation({
     const id = await ctx.db.insert("contactMessages", { topic: args.topic, name, email, subject, message, sport, phone, status: "new" });
     // Email a copy to the right people after saving; a failed email never loses the message.
     await ctx.scheduler.runAfter(0, internal.notify.emailContactMessage, { id });
+    await ctx.scheduler.runAfter(0, internal.mail.confirm, { to: email, name: name.split(" ")[0], kind: "contact", about: subject, lang: args.lang });
     return id;
   },
 });
@@ -175,6 +208,7 @@ export const submitAlumniProfile = mutation({
     phone: v.optional(v.string()),
     consent: v.boolean(),
     website: v.optional(v.string()),
+    lang: langV,
   },
   handler: async (ctx, a) => {
     if (a.website) return null;
@@ -222,6 +256,8 @@ export const submitAlumniProfile = mutation({
       .filter((q) => q.gt(q.field("_creationTime"), since))
       .collect();
     if (recent.length >= 3) throw new ConvexError("You have sent several profiles in a short time. Please wait a few minutes.");
-    return await ctx.db.insert("alumniProfiles", { ...p, status: "pending" });
+    const id = await ctx.db.insert("alumniProfiles", { ...p, status: "pending" });
+    await ctx.scheduler.runAfter(0, internal.mail.confirm, { to: email, name: p.first, kind: "alumni", lang: a.lang });
+    return id;
   },
 });

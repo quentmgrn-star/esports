@@ -2,12 +2,40 @@
 
 import { useEffect } from "react";
 import { useConvexAuth, useQuery } from "convex/react";
+import type { FunctionReference } from "convex/server";
 import { api } from "@/convex/_generated/api";
 import { authClient } from "@/lib/auth-client";
 import { convex } from "./ConvexClientProvider";
 import { SITE_MARKUP } from "./legacy/markup";
 import { initSite, type SiteAdmin } from "./legacy/site";
 import { initI18n } from "./legacy/i18n";
+
+// Live queries and mutations the Hub uses by name (backend.watch / backend.run in site.js).
+const WATCH: Record<string, FunctionReference<"query">> = {
+  tasks: api.tasks.list,
+  budgets: api.budgets.list,
+  results: api.results.list,
+  people: api.org.overview,
+  partners: api.partners.list,
+  goals: api.goals.list,
+  inbox: api.inbox.counts,
+};
+const RUN: Record<string, FunctionReference<"mutation">> = {
+  addTask: api.tasks.add,
+  setTask: api.tasks.setStatus,
+  removeTask: api.tasks.remove,
+  setBudget: api.budgets.set,
+  addResult: api.results.add,
+  removeResult: api.results.remove,
+  addPartner: api.partners.add,
+  updatePartner: api.partners.update,
+  removePartner: api.partners.remove,
+  setInquiry: api.partners.setInquiryStatus,
+  addGoal: api.goals.add,
+  updateGoal: api.goals.update,
+  setGoalActual: api.goals.setActual,
+  removeGoal: api.goals.remove,
+};
 
 let started = false; // the prototype script binds global listeners: run it once per page load
 let site: ReturnType<typeof initSite> | null = null;
@@ -59,8 +87,7 @@ export default function EsadeSite() {
     const backend = client && {
       signOut: () => authClient.signOut(),
       submitTeamApplication: (a: Record<string, unknown>) => client.mutation(api.forms.submitTeamApplication, a as never),
-      submitPartnerInquiry: (a: Record<string, unknown>) =>
-        client.mutation(api.forms.submitPartnerInquiry, a as never).catch(console.error),
+      submitPartnerInquiry: (a: Record<string, unknown>) => client.mutation(api.forms.submitPartnerInquiry, a as never),
       // Errors are passed back so the form can show them (e.g. rate limit).
       submitContactMessage: (a: Record<string, unknown>) => client.mutation(api.forms.submitContactMessage, a as never),
       // Alumni corner: profiles wait for an admin's approval; the public list never includes email or phone.
@@ -132,6 +159,23 @@ export default function EsadeSite() {
         return w.onUpdate(push);
       },
       addTaskUpdate: (a: Record<string, unknown>) => client.mutation(api.taskUpdates.add, a as never),
+      // Shared Hub data (tasks, budgets, results, people, partners, goals, "waiting for you"), kept live.
+      // Convex only returns what the signed-in account may see.
+      watch: (key: string, cb: (rows: unknown) => void, args?: Record<string, unknown>) => {
+        const q = WATCH[key];
+        if (!q) return () => {};
+        const w = client.watchQuery(q, (args ?? {}) as never);
+        const push = () => { try { cb(w.localQueryResult()); } catch (e) { console.error(e); } };
+        push();
+        return w.onUpdate(push);
+      },
+      run: (key: string, a: Record<string, unknown>) => {
+        const m = RUN[key];
+        if (!m) return Promise.reject(new Error("Unknown action " + key));
+        return client.mutation(m, a as never);
+      },
+      // Public results typed in the Hub (shown on the team pages).
+      listResults: () => client.query(api.results.listPublic, {}),
       // Uploads the CV (and optional video) to Convex storage, then stores the application.
       submitAssociationApplication: async (a: Record<string, unknown>, files: { cv: File; video?: File }) => {
         const upload = async (file: File) => {

@@ -21,7 +21,7 @@ async function requireExecEdit(ctx: QueryCtx | MutationCtx) {
 }
 // Association applications belong to the departments the applicant chose. Heads see those for their
 // department; associates don't see recruitment.
-const seesApp = (a: Access, app: { pref1: string; pref2?: string }) =>
+export const seesApp = (a: Access, app: { pref1: string; pref2?: string }) =>
   a.full || a.heads.includes(app.pref1) || (!!app.pref2 && a.heads.includes(app.pref2));
 async function editableApp(ctx: MutationCtx, id: Id<"associationApplications">) {
   const a = await requireAccess(ctx);
@@ -31,10 +31,10 @@ async function editableApp(ctx: MutationCtx, id: Id<"associationApplications">) 
   return app;
 }
 // Contact messages: the sport's captains, plus the department the topic belongs to.
-const TOPIC_DEPT: Record<string, string> = { "Partnership or business": "Partnerships", "Try-outs": "Operations", Coaching: "Operations" };
+export const TOPIC_DEPT: Record<string, string> = { "Partnership or business": "Partnerships", "Try-outs": "Operations", Coaching: "Operations" };
 const messageRes = (m: { sport?: string; topic: string }): Resource => ({ sport: m.sport, captains: true, dept: TOPIC_DEPT[m.topic] });
 // Try-out and coach sign-ups: the team's captains and Operations.
-const tryoutRes = (x: { teamSlug: string }): Resource => ({ team: x.teamSlug, captains: true, dept: "Operations" });
+export const tryoutRes = (x: { teamSlug: string }): Resource => ({ team: x.teamSlug, captains: true, dept: "Operations" });
 
 // Who is signed in: admin (ADMIN_EMAILS) and/or the teams they captain.
 export const me = query({

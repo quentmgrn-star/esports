@@ -136,6 +136,44 @@ export const SITE_MARKUP = `
     </div>
   </section>
 
+  <section class="sec why-sec" id="why" aria-labelledby="why-title">
+    <div class="wrap">
+      <div class="sec-head"><div><h2 class="h2" id="why-title">Why join Esade Sports</h2></div></div>
+      <div class="why-grid">
+        <div class="why-col">
+          <h3>What you get</h3>
+          <ul class="why-list">
+            <li><b>Friends across Esade</b><span>Teams mix programmes, years and nationalities: BBA, Law, Masters and MBA students play side by side.</span></li>
+            <li><b>Sport at your level</b><span>Play in a league squad, or just for fun in open sessions and friendlies.</span></li>
+            <li><b>Real responsibility</b><span>Captains, coaches and associates run budgets, events and partnerships: experience you can talk about in an interview.</span></li>
+            <li><b>A network that lasts</b><span>Stay in touch through the Alumni corner, part of an Esade alumni network ranked #6 in Europe by the Financial Times.</span></li>
+          </ul>
+        </div>
+        <div class="why-col">
+          <h3>What Esade gains</h3>
+          <ul class="why-list">
+            <li><b>Esade on the field</b><span>Official teams represent the school in Barcelona's university and amateur leagues.</span></li>
+            <li><b>A stronger community</b><span>Sport brings students together across programmes and helps new students settle in.</span></li>
+            <li><b>Links with the sports industry</b><span>Partners, sports-business talks and the Industry Platform connect students with companies.</span></li>
+            <li><b>Clear reporting</b><span>The Board tracks semester goals, budgets and results, and reports them to the Student Council.</span></li>
+          </ul>
+        </div>
+      </div>
+      <div class="play-ways">
+        <div class="play">
+          <h3>Competitive squad</h3>
+          <p>Weekly training and league games. Places are decided at try-outs, and every level can try.</p>
+          <a class="btn btn-solid-white" href="#apply">Sign up for try-outs</a>
+        </div>
+        <div class="play fun">
+          <h3>Just for fun</h3>
+          <p>No try-out and no commitment to every match. Come to open sessions and friendlies when you can.</p>
+          <a class="btn btn-ghost-navy" href="#apply-fun">Play just for fun</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section class="sec" id="teams">
     <div class="wrap">
       <div class="sec-head">
@@ -271,7 +309,7 @@ export const SITE_MARKUP = `
           <p class="err" id="p-err" hidden>Please add your company, name and work email.</p>
           <div class="form-actions"><button class="btn btn-blue" type="submit">Contact us</button><span class="muted" style="font-size:13px">Or email <a href="mailto:esadesports@alumni.esade.edu">esadesports@alumni.esade.edu</a>.</span></div>
         </form>
-        <div class="locked" id="p-done" hidden><h2>Your email draft is ready</h2><p>Your email application should open with the proposal addressed to <a href="mailto:esadesports@alumni.esade.edu">esadesports@alumni.esade.edu</a>.</p></div>
+        <div class="locked" id="p-done" hidden><h2>Thank you, we have your message</h2><p>Our Partnerships team will get back to you by email.</p></div>
       </div>
     </div>
   </section>
@@ -313,6 +351,6 @@ export const SITE_MARKUP = `
     <small><a class="foot-email" href="mailto:esadesports@alumni.esade.edu">esadesports@alumni.esade.edu</a><br>© Esade Sports 2026</small>
   </div>
 </footer>
-<div class="proto"><div class="wrap"><b>Prototype</b><span>Items in [brackets] are placeholders. Profiles, figures and tasks are examples. Logins are simulated.</span></div></div>
+<div class="proto"><div class="wrap"><b>Preview</b><span>This website is being prepared. Team squads, schedules and results are added by the captains during the season.</span></div></div>
 
 `;

@@ -172,6 +172,8 @@ export default defineSchema({
     esadeStudent: v.boolean(),
     programme: v.optional(v.string()),
     level: v.optional(v.string()),
+    // "competitive" = try-outs for the league squad, "social" = just for fun (casual sessions, friendlies)
+    track: v.optional(v.union(v.literal("competitive"), v.literal("social"))),
     coachingExperience: v.optional(v.string()),
     status: v.string(), // one of TEAM_STATUSES in convex/stages.ts ("New" for older rows)
     statusChangedAt: v.optional(v.number()),
@@ -206,6 +208,8 @@ export default defineSchema({
     email: v.string(),
     interest: v.string(),
     message: v.optional(v.string()),
+    // Partnerships follows up each one in the Hub (missing = new)
+    status: v.optional(v.union(v.literal("new"), v.literal("contacted"), v.literal("added"), v.literal("closed"))),
   }),
 
   // Team captains, added by an admin in /admin. A captain can sign in and sees the contact messages
@@ -369,4 +373,79 @@ export default defineSchema({
     by: v.string(),
     at: v.number(),
   }).index("by_dept", ["dept"]),
+
+  // Shared department tasks (convex/tasks.ts). "Board" = Board-only tasks.
+  tasks: defineTable({
+    dept: v.string(),
+    title: v.string(),
+    team: v.optional(v.string()), // optional: a task for one team
+    ownerEmail: v.optional(v.string()),
+    ownerName: v.optional(v.string()),
+    status: v.union(v.literal("todo"), v.literal("doing"), v.literal("done")),
+    due: v.optional(v.string()), // YYYY-MM-DD
+    by: v.string(),
+    at: v.number(),
+    updatedAt: v.optional(v.number()),
+  }).index("by_dept", ["dept"]),
+
+  // Each team's season budget, set by Finance (convex/budgets.ts). opsShare: % for Operations, the rest for Marketing.
+  teamBudgets: defineTable({
+    team: v.string(),
+    total: v.number(),
+    opsShare: v.number(),
+    status: v.union(v.literal("draft"), v.literal("review"), v.literal("agreed")),
+    note: v.optional(v.string()),
+    by: v.string(),
+    at: v.number(),
+  }).index("by_team", ["team"]),
+
+  // Match results added by captains, Operations or Marketing (convex/results.ts). Public on the team page.
+  results: defineTable({
+    team: v.string(),
+    date: v.string(), // YYYY-MM-DD
+    opponent: v.string(),
+    side: v.union(v.literal("Home"), v.literal("Away")),
+    score: v.optional(v.string()),
+    status: v.union(v.literal("Final"), v.literal("Pending"), v.literal("Postponed")),
+    competition: v.optional(v.string()),
+    by: v.string(),
+    byEmail: v.string(),
+    at: v.number(),
+  }).index("by_team", ["team"]),
+
+  // Partnerships tracker (convex/partners.ts): sponsors and partners, from first contact to signed.
+  partners: defineTable({
+    company: v.string(),
+    contactName: v.optional(v.string()),
+    contactEmail: v.optional(v.string()),
+    team: v.optional(v.string()), // missing = for the whole association
+    kind: v.string(), // one of PARTNER_KINDS in convex/partners.ts
+    stage: v.union(v.literal("lead"), v.literal("contacted"), v.literal("meeting"), v.literal("proposal"), v.literal("signed"), v.literal("lost")),
+    value: v.optional(v.number()), // euros (cash, or estimated value of kit / services)
+    nextStep: v.optional(v.string()),
+    nextDate: v.optional(v.string()), // YYYY-MM-DD
+    notes: v.optional(v.string()),
+    ownerEmail: v.optional(v.string()),
+    ownerName: v.optional(v.string()),
+    inquiryId: v.optional(v.id("partnerInquiries")),
+    by: v.string(),
+    at: v.number(),
+    updatedAt: v.number(),
+  }).index("by_stage", ["stage"]),
+
+  // Board goals for a semester: a target and the real number (convex/goals.ts).
+  // source "manual": someone types the real number; any other source is counted from the database.
+  goals: defineTable({
+    term: v.string(), // "2026-27 S1"
+    title: v.string(),
+    dept: v.optional(v.string()), // department that owns it (missing = Board)
+    target: v.number(),
+    unit: v.string(), // "people", "€", "matches", "followers"...
+    source: v.string(),
+    actual: v.optional(v.number()), // manual goals only
+    note: v.optional(v.string()),
+    by: v.string(),
+    at: v.number(),
+    updatedAt: v.optional(v.number()),
+  }).index("by_term", ["term"]),
 });
