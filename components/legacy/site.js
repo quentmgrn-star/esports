@@ -2188,7 +2188,7 @@ export function initSite(backend, tools) {
         ts.map(function (t) { var tm = team(t.team);
           return '<tr class="click" data-ho-open="' + t.team + '" tabindex="0"' + (open === t.team ? ' aria-current="true"' : "") + '><td class="tname">' + esc(tm ? tLabel(tm) : t.team) + "</td>" + depts.map(function (d) {
             var s = t.sections.filter(function (x) { return x.dept === d; })[0];
-            return "<td>" + (!s ? '<span class="muted">—</span>' : hoFilled(s) ? '<span class="pill ok">Filled</span>' + (s.updatedAt ? ' <small class="muted">' + esc(fmtDay(s.updatedAt)) + "</small>" : "") : '<span class="pill warn">Empty</span>') + "</td>";
+            return "<td>" + (!s ? '<span class="muted">—</span>' : hoFilled(s) ? '<span class="pill ok">Filled</span>' : '<span class="pill warn">Empty</span>') + "</td>";
           }).join("") + "</tr>"; }).join("") +
         '</tbody></table></div><p class="muted" style="margin:0;font-size:12px">Select a team to open its handover notes.</p></section>';
     }
