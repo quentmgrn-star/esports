@@ -567,8 +567,10 @@ type ContactMessage = {
   phone?: string;
   status: "new" | "read" | "answered";
   emailStatus?: string;
+  replies?: { text: string; byName: string; byEmail: string; at: number; emailStatus?: string }[];
 };
-const MSG_STATUS: Record<ContactMessage["status"], string> = { new: "New", read: "Read", answered: "Answered" };
+// "answered" is the stored value; it is shown as "Sent".
+const MSG_STATUS: Record<ContactMessage["status"], string> = { new: "New", read: "Read", answered: "Sent" };
 
 function Messages({ messages }: { messages: ContactMessage[] | undefined }) {
   const setStatus = useMutation(api.admin.setContactStatus);
@@ -600,7 +602,7 @@ function Messages({ messages }: { messages: ContactMessage[] | undefined }) {
             <option value="">All</option>
             <option value="new">New</option>
             <option value="read">Read</option>
-            <option value="answered">Answered</option>
+            <option value="answered">Sent</option>
           </select>
         </label>
       </div>
@@ -673,6 +675,23 @@ function MessageDetail({
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
   const reply = `mailto:${m.email}?subject=${encodeURIComponent("Re: " + m.subject)}`;
+  const send = useMutation(api.admin.replyToMessage);
+  const [text, setText] = useState("");
+  const [sending, setSending] = useState(false);
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!text.trim()) return;
+    setSending(true);
+    try {
+      await send({ id: m._id as never, text });
+      setText("");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      alert(msg.replace(/^.*ConvexError: /s, "").split("\n")[0]);
+    } finally {
+      setSending(false);
+    }
+  };
   return (
     <div className="match-modal">
       <div className="match-backdrop" onClick={onClose} />
@@ -717,17 +736,46 @@ function MessageDetail({
         </dl>
         <h3 className="adm-h3">Message</h3>
         <p className="adm-motivation">{m.message}</p>
-        <div className="adm-notes-actions" style={{ marginTop: 20, flexWrap: "wrap" }}>
-          <a className="btn btn-blue" href={reply} onClick={() => onStatus("answered")}>
-            Reply by email
-          </a>
+        {(m.replies ?? []).length > 0 && (
+          <>
+            <h3 className="adm-h3">Replies</h3>
+            {m.replies!.map((r, i) => (
+              <div key={i} style={{ borderLeft: "3px solid var(--blue)", padding: "6px 12px", marginBottom: 10 }}>
+                <span className="adm-sub">
+                  {r.byName} · {new Date(r.at).toLocaleString("en-GB")} ·{" "}
+                  {r.emailStatus === "sent" ? "Emailed" : r.emailStatus === "sending" ? "Sending…" : `Not sent (${r.emailStatus ?? "unknown"})`}
+                </span>
+                <p style={{ whiteSpace: "pre-wrap", margin: "4px 0 0" }}>{r.text}</p>
+              </div>
+            ))}
+          </>
+        )}
+        <form onSubmit={submit}>
+          <h3 className="adm-h3">Reply to {m.name}</h3>
+          <textarea
+            rows={5}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder={`Emailed to ${m.email}; their answer comes back to your inbox.`}
+            style={{ width: "100%", padding: 10, font: "inherit", border: "1.5px solid var(--navy)" }}
+          />
+          <div className="adm-notes-actions" style={{ marginTop: 12, flexWrap: "wrap" }}>
+            <button className="btn btn-blue" type="submit" disabled={sending || !text.trim()}>
+              {sending ? "Sending…" : "Send reply"}
+            </button>
+            <a className="btn btn-ghost-navy" href={reply} onClick={() => onStatus("answered")}>
+              Reply in my email app
+            </a>
+          </div>
+        </form>
+        <div className="adm-notes-actions" style={{ marginTop: 12, flexWrap: "wrap" }}>
           {m.status !== "answered" ? (
             <button className="btn btn-ghost-navy" type="button" onClick={() => onStatus("answered")}>
-              Mark as answered
+              Mark as sent
             </button>
           ) : (
             <button className="btn btn-ghost-navy" type="button" onClick={() => onStatus("read")}>
-              Mark as not answered
+              Mark as not sent
             </button>
           )}
           <button className="btn btn-ghost-navy" type="button" onClick={() => onStatus("new")}>

@@ -5,6 +5,7 @@ import { authComponent, isAdminEmail } from "./auth";
 import { stageValidator, TEAM_STATUSES } from "./stages";
 import { canEdit, canSee, getAccess, isExecEditor, requireAccess, type Access, type Resource } from "./roles";
 import { TEAMS } from "./teamList";
+import { internal } from "./_generated/api";
 
 // Every rule below goes through canSee / canEdit in convex/roles.ts.
 const deny = (a: Access) => new ConvexError(a.readOnly ? "Your access is view-only." : "Not authorised.");
@@ -118,6 +119,25 @@ export const setContactStatus = mutation({
     if (!m) throw new ConvexError("Message not found.");
     if (a.readOnly || !(a.board || canEdit(a, messageRes(m)))) throw deny(a);
     await ctx.db.patch(id, { status });
+  },
+});
+
+// Reply to a website message from the Hub or /admin: saved on the message, emailed to the sender
+// (convex/notify.ts sendReply) and the message is marked "Sent". Needs RESEND_API_KEY and MAIL_FROM on Convex.
+export const replyToMessage = mutation({
+  args: { id: v.id("contactMessages"), text: v.string() },
+  handler: async (ctx, { id, text }) => {
+    const a = await requireAccess(ctx);
+    const m = await ctx.db.get(id);
+    if (!m) throw new ConvexError("Message not found.");
+    if (a.readOnly || !(a.board || canEdit(a, messageRes(m)))) throw deny(a);
+    const body = text.trim().slice(0, 10000);
+    if (!body) throw new ConvexError("Write your reply first.");
+    if (!process.env.RESEND_API_KEY || !process.env.MAIL_FROM)
+      throw new ConvexError("Sending email from the website is not set up yet (RESEND_API_KEY and MAIL_FROM on Convex). Use “Reply in my email app” for now.");
+    const replies = [...(m.replies ?? []), { text: body, byName: a.name || a.email, byEmail: a.email, at: Date.now(), emailStatus: "sending" }];
+    await ctx.db.patch(id, { replies, status: "answered" });
+    await ctx.scheduler.runAfter(0, internal.notify.sendReply, { id, index: replies.length - 1 });
   },
 });
 

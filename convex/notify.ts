@@ -81,3 +81,56 @@ export const emailContactMessage = internalAction({
     }
   },
 });
+
+export const setReplyStatus = internalMutation({
+  args: { id: v.id("contactMessages"), index: v.number(), emailStatus: v.string() },
+  handler: async (ctx, { id, index, emailStatus }): Promise<void> => {
+    const m = await ctx.db.get(id);
+    if (!m?.replies?.[index]) return;
+    const replies = m.replies.map((r, i) => (i === index ? { ...r, emailStatus } : r));
+    await ctx.db.patch(id, { replies });
+  },
+});
+export const message = internalQuery({
+  args: { id: v.id("contactMessages") },
+  handler: async (ctx, { id }) => ctx.db.get(id),
+});
+
+// Emails a reply written on the website to the person who sent the message.
+// Replies to that email go to the Board member who wrote it.
+export const sendReply = internalAction({
+  args: { id: v.id("contactMessages"), index: v.number() },
+  handler: async (ctx, { id, index }): Promise<null> => {
+    const m: Doc<"contactMessages"> | null = await ctx.runQuery(internal.notify.message, { id });
+    const r = m?.replies?.[index];
+    if (!m || !r) return null;
+    const status = async (s: string): Promise<null> => {
+      await ctx.runMutation(internal.notify.setReplyStatus, { id, index, emailStatus: s });
+      return null;
+    };
+    const key = process.env.RESEND_API_KEY, from = process.env.MAIL_FROM;
+    if (!key || !from) return status("not sent: email not set up");
+    const text = [
+      `Hello ${m.name},`,
+      "",
+      r.text,
+      "",
+      `${r.byName}`,
+      "Esade Sports",
+      "",
+      `---- Your message (${new Date(m._creationTime).toLocaleDateString("en-GB")}) ----`,
+      m.message,
+    ].join("\n");
+    try {
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ from, to: [m.email], reply_to: r.byEmail, subject: `Re: ${m.subject}`, text }),
+      });
+      if (!res.ok) return status(`failed: ${res.status} ${(await res.text()).slice(0, 200)}`);
+      return status("sent");
+    } catch (e) {
+      return status(`failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  },
+});

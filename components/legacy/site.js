@@ -1472,7 +1472,7 @@ export function initSite(backend, tools) {
   // ---- Website messages and association applications (admins and the Board) -------------------
   // Same data as /admin (convex/admin.ts): Convex only sends what the signed-in account may see.
   function boardAccount() { return !!admin || !!(captain && captain.scope && (captain.scope.exec || (captain.scope.heads || []).length)); }
-  var MSG_STATUS = { "new": ["warn", "New"], read: ["info", "Read"], answered: ["ok", "Answered"] };
+  var MSG_STATUS = { "new": ["warn", "New"], read: ["info", "Read"], answered: ["ok", "Sent"] }; // "answered" is stored, shown as "Sent"
   var APP_STAGE = { applied: "Applied", review: "Under review", interview: "Interview", "case": "Case interview", offer: "Offer", accepted: "Accepted", declined: "Declined", rejected: "Rejected" };
   var APP_TABS = [["all", "All"], ["applied", "Applied"], ["review", "Under review"], ["interview", "Interview"], ["case", "Case interview"], ["decision", "Decision"]];
   function visMsgs() { return can("board") && live() ? LIVE.messages || [] : []; }
@@ -1484,21 +1484,44 @@ export function initSite(backend, tools) {
   function newMsgCount() { return visMsgs().filter(function (m) { return m.status === "new"; }).length; }
   function newAppCount() { return visApps().filter(function (a) { return (a.stage || "applied") === "applied"; }).length; }
   function clip(t, n) { t = t || ""; return t.length > n ? t.slice(0, n - 1) + "…" : t; }
+  function msgStatusSelect(m) {
+    return '<span class="st-select st-' + m.status + '"><select data-msg="' + esc(m._id) + '" aria-label="Status of the message from ' + esc(m.name) + '">' + Object.keys(MSG_STATUS).map(function (k) { return '<option value="' + k + '"' + (k === m.status ? " selected" : "") + ">" + MSG_STATUS[k][1] + "</option>"; }).join("") + "</select></span>";
+  }
   function hubMessages() {
-    var head = '<div class="ph-head"><div><h1 class="display">Messages.</h1><p>Everything sent through the contact form on the website. Mark each one read, then answered once someone has replied by email.</p></div></div>';
+    var head = '<div class="ph-head"><div><h1 class="display">Messages.</h1><p>Everything sent through the contact form on the website. Click a message to read it in full and reply: the reply is emailed to the sender and the message moves to Sent.</p></div></div>';
     if (!live()) return head + '<section class="panel"><p class="empty">Messages show once you are signed in.</p></section>';
     if (LIVE.messages == null) return head + '<section class="panel"><p class="empty">Loading…</p></section>';
-    var all = visMsgs(), f = state.mFilter || "new", rows = all.filter(function (m) { return f === "all" || m.status === f; });
+    var all = visMsgs(), f = state.mFilter || "all", rows = all.filter(function (m) { return f === "all" || m.status === f; });
     var cnt = function (k) { return all.filter(function (m) { return m.status === k; }).length; };
-    return head + '<div class="grid-4">' + stat("New", String(cnt("new")), "not opened yet") + stat("Read", String(cnt("read")), "waiting for an answer") + stat("Answered", String(cnt("answered")), "done") + stat("Total", String(all.length), "since the site opened") + "</div>" +
-      '<section class="panel"><div class="chips" role="group" aria-label="Status">' + [["new", "New"], ["read", "Read"], ["answered", "Answered"], ["all", "All"]].map(function (x) { return '<button class="chip" data-mf="' + x[0] + '" aria-pressed="' + (f === x[0]) + '">' + x[1] + "</button>"; }).join("") + "</div>" +
-      (rows.length ? '<div class="table-wrap"><table><thead><tr><th>From</th><th>Topic</th><th>Message</th><th>Received</th><th>Status</th></tr></thead><tbody>' + rows.map(function (m) {
-        return "<tr><td><strong>" + esc(m.name) + '</strong><br><small><a href="mailto:' + esc(m.email) + "?subject=" + encodeURIComponent("Re: " + (m.subject || "")) + '">' + esc(m.email) + "</a>" + (m.phone ? "<br>" + esc(m.phone) : "") + "</small></td>" +
+    var open = all.filter(function (m) { return m._id === state.msgOpen; })[0];
+    return head + '<div class="grid-4">' + stat("New", String(cnt("new")), "not opened yet") + stat("Read", String(cnt("read")), "opened, no reply yet") + stat("Sent", String(cnt("answered")), "replied to") + stat("Total", String(all.length), "since the site opened") + "</div>" +
+      '<section class="panel"><div class="chips" role="group" aria-label="Status">' + [["all", "All"], ["new", "New"], ["read", "Read"], ["answered", "Sent"]].map(function (x) { return '<button class="chip" data-mf="' + x[0] + '" aria-pressed="' + (f === x[0]) + '">' + x[1] + (x[0] === "all" ? "" : " (" + cnt(x[0]) + ")") + "</button>"; }).join("") + "</div>" +
+      (rows.length ? '<div class="table-wrap"><table class="msg-table"><thead><tr><th>From</th><th>Topic</th><th>Message</th><th>Received</th><th>Status</th></tr></thead><tbody>' + rows.map(function (m) {
+        return '<tr class="msg-row' + (m.status === "new" ? " unread" : "") + '" data-msg-open="' + esc(m._id) + '" tabindex="0" title="Open the full message">' +
+          '<td><span class="msg-name">' + esc(m.name) + '</span><br><small class="muted">' + esc(m.email) + "</small></td>" +
           "<td>" + esc(m.topic) + (m.sport ? '<br><small class="muted">' + esc(m.sport) + "</small>" : "") + "</td>" +
-          "<td><strong>" + esc(m.subject) + "</strong>" + (m.message.length > 160 ? '<details><summary><small class="muted">' + esc(clip(m.message, 160)) + '</small></summary><p style="white-space:pre-wrap;margin:6px 0 0">' + esc(m.message) + "</p></details>" : '<br><small class="muted" style="white-space:pre-wrap">' + esc(m.message) + "</small>") + "</td>" +
+          '<td><span class="msg-subj">' + esc(m.subject) + '</span><br><small class="muted">' + esc(clip(m.message, 110)) + '</small><br><span class="msg-more">Open message' + ((m.replies || []).length ? " · " + m.replies.length + (m.replies.length === 1 ? " reply" : " replies") : "") + " →</span></td>" +
           '<td class="num muted">' + esc(fmtDay(m._creationTime)) + "</td>" +
-          "<td>" + (hRO() ? pill(MSG_STATUS, m.status) : '<select data-msg="' + esc(m._id) + '" aria-label="Status of the message from ' + esc(m.name) + '">' + Object.keys(MSG_STATUS).map(function (k) { return '<option value="' + k + '"' + (k === m.status ? " selected" : "") + ">" + MSG_STATUS[k][1] + "</option>"; }).join("") + "</select>") + "</td></tr>";
-      }).join("") + "</tbody></table></div>" : '<p class="empty">' + (all.length ? "No message with this status." : "No messages from the website yet.") + "</p>") + "</section>";
+          "<td>" + (hRO() ? pill(MSG_STATUS, m.status) : msgStatusSelect(m)) + "</td></tr>";
+      }).join("") + "</tbody></table></div>" : '<p class="empty">' + (all.length ? "No message with this status." : "No messages from the website yet.") + "</p>") + "</section>" +
+      (open ? msgDialog(open) : "");
+  }
+  function msgDialog(m) {
+    var mailto = "mailto:" + esc(m.email) + "?subject=" + encodeURIComponent("Re: " + (m.subject || ""));
+    var reps = (m.replies || []).map(function (r) {
+      var st = r.emailStatus === "sent" ? '<span class="pill ok">Emailed</span>' : r.emailStatus === "sending" ? '<span class="pill info">Sending…</span>' : '<span class="pill bad" title="' + esc(r.emailStatus || "") + '">Not sent</span>';
+      return '<div class="msg-reply"><p class="eyebrow">' + esc(r.byName) + " · " + esc(fmtDay(r.at)) + " " + st + '</p><p style="white-space:pre-wrap;margin:4px 0 0">' + esc(r.text) + "</p></div>";
+    }).join("");
+    return '<div class="match-modal"><div class="match-backdrop" data-msg-close></div><section class="match-dialog msg-dialog" role="dialog" aria-modal="true" aria-labelledby="msg-title">' +
+      '<button class="match-close" type="button" data-msg-close aria-label="Close">×</button>' +
+      '<p class="eyebrow" style="color:var(--blue)">' + esc(m.topic) + (m.sport ? " · " + esc(m.sport) : "") + "</p><h2 id=\"msg-title\">" + esc(m.subject) + "</h2>" +
+      '<dl class="match-details"><div><dt>From</dt><dd>' + esc(m.name) + '</dd></div><div><dt>Email</dt><dd><a href="mailto:' + esc(m.email) + '">' + esc(m.email) + "</a></dd></div>" + (m.phone ? "<div><dt>Phone</dt><dd>" + esc(m.phone) + "</dd></div>" : "") +
+      "<div><dt>Received</dt><dd>" + esc(new Date(m._creationTime).toLocaleString("en-GB")) + "</dd></div><div><dt>Status</dt><dd>" + (hRO() ? pill(MSG_STATUS, m.status) : msgStatusSelect(m)) + "</dd></div></dl>" +
+      '<p class="msg-body">' + esc(m.message) + "</p>" +
+      (reps ? '<h3 class="msg-h3">Replies</h3>' + reps : "") +
+      (hRO() ? "" : '<form id="msg-reply" data-id="' + esc(m._id) + '" class="msg-form"><label for="msg-reply-text" class="msg-h3">Reply to ' + esc(m.name) + '</label><textarea id="msg-reply-text" name="text" rows="5" required placeholder="Write your answer. It is emailed to ' + esc(m.email) + ', and their answer comes back to your inbox."></textarea>' +
+        '<div class="msg-actions"><button type="submit" class="btn solid">Send reply</button><a class="btn" href="' + mailto + '">Reply in my email app</a><button type="button" class="btn ghost" data-msg-unread="' + esc(m._id) + '">Mark as unread</button></div></form>') +
+      "</section></div>";
   }
   function hubAssocApps() {
     var head = '<div class="ph-head"><div><h1 class="display">Association applications.</h1><p>Students applying to join a department. Heads see the applicants who chose their department; the President, VPs and admins see everyone. Notes stay in <a href="/admin">Requests &amp; applications</a>.</p></div></div>';
@@ -2397,7 +2420,27 @@ export function initSite(backend, tools) {
     hub.querySelectorAll("[data-pstage]").forEach(function (sel) { sel.addEventListener("change", function () { var p = pFind(sel.getAttribute("data-pstage")); if (!p) return; pRun("updatePartner", Object.assign({ id: p._id }, partnerArgs(p, { stage: sel.value })), "Stage updated."); }); });
     hub.querySelectorAll("[data-mf]").forEach(function (b) { b.addEventListener("click", function () { state.mFilter = b.getAttribute("data-mf"); render(); }); });
     hub.querySelectorAll("[data-af]").forEach(function (b) { b.addEventListener("click", function () { state.aFilter = b.getAttribute("data-af"); render(); }); });
-    hub.querySelectorAll("[data-msg]").forEach(function (sel) { sel.addEventListener("change", function () { pRun("setMessage", { id: sel.getAttribute("data-msg"), status: sel.value }, "Status updated."); }); });
+    hub.querySelectorAll("[data-msg]").forEach(function (sel) {
+      sel.addEventListener("click", function (e) { e.stopPropagation(); });
+      sel.addEventListener("change", function () { pRun("setMessage", { id: sel.getAttribute("data-msg"), status: sel.value }, "Status updated."); });
+    });
+    function openMsg(id) {
+      state.msgOpen = id; render();
+      var m = visMsgs().filter(function (x) { return x._id === id; })[0];
+      if (m && m.status === "new" && !hRO()) pRun("setMessage", { id: id, status: "read" });
+    }
+    hub.querySelectorAll("[data-msg-open]").forEach(function (tr) {
+      tr.addEventListener("click", function (e) { if (e.target.closest("a, select, button")) return; openMsg(tr.getAttribute("data-msg-open")); });
+      tr.addEventListener("keydown", function (e) { if ((e.key === "Enter" || e.key === " ") && e.target === tr) { e.preventDefault(); openMsg(tr.getAttribute("data-msg-open")); } });
+    });
+    hub.querySelectorAll("[data-msg-close]").forEach(function (b) { b.addEventListener("click", function () { state.msgOpen = null; render(); }); });
+    hub.querySelectorAll("[data-msg-unread]").forEach(function (b) { b.addEventListener("click", function () { var id = b.getAttribute("data-msg-unread"); state.msgOpen = null; pRun("setMessage", { id: id, status: "new" }, "Marked as unread."); render(); }); });
+    var mr = $("msg-reply");
+    if (mr) mr.addEventListener("submit", function (ev) {
+      ev.preventDefault(); var btn = mr.querySelector("button[type=submit]"), t = mr.elements.text.value.trim(); if (!t) return;
+      btn.disabled = true; btn.textContent = "Sending…";
+      pRun("replyMessage", { id: mr.getAttribute("data-id"), text: t }, "Reply sent.").then(function () { mr.elements.text.value = ""; render(); }, function () { btn.disabled = false; btn.textContent = "Send reply"; });
+    });
     hub.querySelectorAll("[data-app-stage]").forEach(function (sel) { sel.addEventListener("change", function () { pRun("setAppStage", { id: sel.getAttribute("data-app-stage"), stage: sel.value }, "Stage updated."); }); });
     hub.querySelectorAll("[data-inq]").forEach(function (sel) { sel.addEventListener("change", function () { pRun("setInquiry", { id: sel.getAttribute("data-inq"), status: sel.value }, "Status updated."); }); });
     hub.querySelectorAll("[data-inq-add]").forEach(function (b) { b.addEventListener("click", function () {
@@ -2568,6 +2611,7 @@ export function initSite(backend, tools) {
     var row = e.target.closest && e.target.closest("[data-match-id]");
     if (row && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openMatch(row.getAttribute("data-match-id")); }
     if (e.key === "Escape") closeMatch();
+    if (e.key === "Escape" && state.msgOpen && location.hash === "#hub-messages") { state.msgOpen = null; render(); }
   });
   var pf = $("partner-form");
   pf.addEventListener("submit", function (e) {

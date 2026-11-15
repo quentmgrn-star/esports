@@ -38,6 +38,7 @@ const RUN: Record<string, FunctionReference<"mutation">> = {
   setGoalActual: api.goals.setActual,
   removeGoal: api.goals.remove,
   setMessage: api.admin.setContactStatus,
+  replyMessage: api.admin.replyToMessage,
   setAppStage: api.admin.setApplicationStage,
 };
 

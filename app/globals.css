@@ -1048,3 +1048,27 @@ a { text-underline-offset: .18em; text-decoration-thickness: 1.5px; }
 #hub #partner-edit { margin-bottom: 18px; padding-bottom: 18px; border-bottom: 1px solid var(--mist); }
 #hub .panel .chips + .table-wrap, #hub .panel .chips + .empty { margin-top: 12px; }
 #hub .panel .chips select { border: 1.5px solid var(--line); padding: 6px 8px; font-size: 13px; }
+
+/* Hub · Messages: unread rows bold, clickable rows, status drop-down, full message dialog */
+#hub .msg-row { cursor: pointer; font-weight: 400; }
+#hub .msg-row:hover td { background: var(--info-bg); }
+#hub .msg-row .msg-name, #hub .msg-row .msg-subj { font-weight: 500; }
+#hub .msg-row.unread td { font-weight: 700; }
+#hub .msg-row.unread .msg-name, #hub .msg-row.unread .msg-subj { font-weight: 800; }
+#hub .msg-row.unread small.muted { color: var(--navy); font-weight: 600; }
+#hub .msg-more { font-size: 12px; font-weight: 700; color: var(--blue); }
+#hub .st-select { position: relative; display: inline-block; }
+#hub .st-select select { appearance: none; -webkit-appearance: none; cursor: pointer; font-size: 12px; font-weight: 700; padding: 7px 30px 7px 12px; border: 1.5px solid currentColor; border-radius: 0; min-width: 104px; background: transparent; color: inherit; }
+#hub .st-select::after { content: ""; position: absolute; right: 12px; top: 50%; width: 7px; height: 7px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: translateY(-70%) rotate(45deg); pointer-events: none; }
+#hub .st-select.st-new { background: var(--warn-bg); color: var(--warn); }
+#hub .st-select.st-read { background: var(--info-bg); color: var(--blue); }
+#hub .st-select.st-answered { background: var(--ok-bg); color: var(--ok); }
+#hub .st-select select option { color: var(--navy); background: var(--white); }
+#hub .msg-dialog { width: min(680px, 100%); max-height: calc(100vh - 48px); overflow-y: auto; }
+#hub .msg-dialog .match-details dd { overflow-wrap: anywhere; }
+#hub .msg-body { white-space: pre-wrap; margin: 20px 0; padding: 16px; background: var(--info-bg); line-height: 1.55; overflow-wrap: anywhere; }
+#hub .msg-h3 { display: block; margin: 20px 0 8px; font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+#hub .msg-reply { border-left: 3px solid var(--blue); padding: 6px 12px; margin-bottom: 10px; }
+#hub .msg-form textarea { width: 100%; padding: 10px; border: 1.5px solid var(--navy); resize: vertical; }
+#hub .msg-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+#hub .msg-dialog .match-close { font-size: 28px; }

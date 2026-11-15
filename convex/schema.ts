@@ -232,6 +232,10 @@ export default defineSchema({
     status: v.union(v.literal("new"), v.literal("read"), v.literal("answered")),
     // Email copy to the captains (sport messages) or admins (general): "sent", "skipped: …" or "failed: …".
     emailStatus: v.optional(v.string()),
+    // Replies written from the website (Hub or /admin), emailed to the sender with Resend.
+    replies: v.optional(
+      v.array(v.object({ text: v.string(), byName: v.string(), byEmail: v.string(), at: v.number(), emailStatus: v.optional(v.string()) })),
+    ),
   }).index("by_email", ["email"]),
 
   // Expenses ledger (Hub). Every decision is kept in history: who, when, and why.
