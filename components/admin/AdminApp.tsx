@@ -528,7 +528,9 @@ function Dashboard({ me }: { me: NonNullable<Me> }) {
   const seesMessages = seesTryouts || d.includes("Partnerships");
   const seesApplications = me.full || me.heads.length > 0;
   const approves = me.board && !me.readOnly;
-  const [section, setSection] = useState<Section>(seesApplications ? "applications" : seesMessages ? "messages" : "organisation");
+  // Organisation (every member and email) and the "Email not sent" warning: admins, President and VPs only.
+  const seesOrg = me.isAdmin || me.exec;
+  const [section, setSection] = useState<Section>(seesApplications ? "applications" : seesMessages ? "messages" : seesOrg ? "organisation" : "chat");
   const messages = useQuery(api.admin.listContactMessages, seesMessages ? {} : "skip") as ContactMessage[] | undefined;
   const requests = useQuery(api.org.manageable, approves ? {} : "skip") as MemberRow[] | null | undefined;
   const unread = (messages ?? []).filter((m) => m.status === "new").length;
@@ -537,7 +539,7 @@ function Dashboard({ me }: { me: NonNullable<Me> }) {
     ["applications", seesApplications],
     ["tryouts", seesTryouts],
     ["messages", seesMessages, unread],
-    ["organisation", true],
+    ["organisation", seesOrg],
     ["requests", approves, waiting],
     ["chat", true],
     ["captains", me.full],
@@ -572,7 +574,7 @@ function Dashboard({ me }: { me: NonNullable<Me> }) {
             </button>
           ))}
       </nav>
-      {(me.full || me.board) && <EmailProblems />}
+      {seesOrg && <EmailProblems />}
       {me.readOnly && (
         <p className="adm-p adm-readonly">View-only access: you can see everything, but not change anything.</p>
       )}
@@ -584,14 +586,14 @@ function Dashboard({ me }: { me: NonNullable<Me> }) {
         <Messages messages={messages} />
       ) : section === "requests" && approves ? (
         <Requests me={me} rows={requests ?? undefined} />
-      ) : section === "chat" ? (
-        <Chat />
+      ) : section === "organisation" && seesOrg ? (
+        <Organisation />
       ) : section === "captains" && me.full ? (
         <Captains />
       ) : section === "alumni" && me.full ? (
         <AlumniProfiles />
       ) : (
-        <Organisation />
+        <Chat />
       )}
     </main>
   );

@@ -124,7 +124,8 @@ async function nameOf(ctx: QueryCtx, email: string) {
   return m?.name;
 }
 
-// The organisation chart, for signed-in members only.
+// The organisation chart. Full version (/admin Organisation tab): admins, President, VPs.
+// Other members get a trimmed version for the Hub (who looks after which team).
 export const overview = query({
   args: {},
   handler: async (ctx) => {
@@ -148,7 +149,23 @@ export const overview = query({
       id: t.id,
       captains: captains.filter((c) => c.teams.includes(t.id)).map((c) => ({ name: c.name ?? null, email: c.email })),
     }));
-    return { admins, exec, departments, teams, viewers };
+    // The full list (admins, view-only accounts, every email) is the /admin Organisation tab:
+    // admins, the President and the Vice-presidents only. Everyone else gets what the Hub needs.
+    if (a.isAdmin || a.exec) return { admins, exec, departments, teams, viewers };
+    // A captain (no Board or associate role) only gets the people who look after their own team(s):
+    // the President / VPs, the heads, the associates assigned to their team(s) and their own team's captains.
+    // No other teams, no admins, no view-only accounts.
+    if (!a.full && !a.board && !a.assoc.length) {
+      const mine = (p: { teams: string[] }) => ({ ...p, teams: p.teams.filter((t) => a.teams.includes(t)) });
+      return {
+        admins: [],
+        exec,
+        departments: departments.map((d) => ({ ...d, associates: d.associates.map(mine).filter((x) => x.teams.length) })),
+        teams: teams.filter((t) => a.teams.includes(t.id)),
+        viewers: [],
+      };
+    }
+    return { admins: [], exec, departments, teams, viewers: [] };
   },
 });
 

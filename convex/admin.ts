@@ -237,7 +237,7 @@ export const deleteAlumniProfile = mutation({
   },
 });
 
-// ---------- Emails that did not go out (admin + Board) ----------
+// ---------- Emails that did not go out (admins, President, VPs) ----------
 // Every public form sends a confirmation email (convex/mail.ts) and stores the result as `confirmEmail`.
 // This lists the ones that failed or were skipped, so a missing confirmation is never silent.
 export type EmailProblem = { at: number; form: string; name: string; email: string; about: string; why: string };
@@ -246,7 +246,7 @@ export const emailProblems = query({
   args: {},
   handler: async (ctx): Promise<EmailProblem[]> => {
     const a = await getAccess(ctx);
-    if (!a || !(a.full || a.board)) return [];
+    if (!a || !(a.isAdmin || a.exec)) return [];
     const out: EmailProblem[] = [];
     for (const x of await ctx.db.query("associationApplications").collect())
       if (notSent(x.confirmEmail)) out.push({ at: x._creationTime, form: "Association application", name: `${x.firstName} ${x.lastName}`, email: x.email, about: [x.pref1, x.pref2].filter(Boolean).join(", "), why: x.confirmEmail! });
