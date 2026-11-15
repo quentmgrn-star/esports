@@ -926,10 +926,21 @@ export function initI18n() {
     "When a student applies to a team, their try-out or coaching information is stored in that team’s Applications for sports folder and is visible to the active captain for that team. In production, this same event should also send the captain a notification email.": ["Quan un estudiant s'inscriu a un equip, les seves dades de prova o d'entrenador es guarden a la carpeta d'inscripcions d'aquell equip i les veu el capità actiu. En producció, aquest mateix pas també enviarà un correu d'avís al capità.","Cuando un estudiante se inscribe en un equipo, sus datos de prueba o de entrenador se guardan en la carpeta de inscripciones de ese equipo y los ve el capitán activo. En producción, este mismo paso también enviará un correo de aviso al capitán."],
     "Search the Esade Sports alumni network like a professional directory. Anyone can browse profiles; sign in only when you want to create or edit your own profile or access consented contact details.": ["Cerca a la xarxa d'alumni d'Esade Sports com en un directori professional. Tothom pot veure els perfils; només cal entrar per crear o editar el teu perfil o veure les dades de contacte compartides.","Busca en la red de alumni de Esade Sports como en un directorio profesional. Todo el mundo puede ver los perfiles; solo hay que entrar para crear o editar tu perfil o ver los datos de contacto compartidos."],
     "Esade Sports coach": ["Entrenador d'Esade Sports","Entrenador de Esade Sports"],
-    "Esade captain": ["Capità d'Esade","Capitán de Esade"]
+    "Esade captain": ["Capità d'Esade","Capitán de Esade"],
+    "Finished": ["Acabat","Terminado"],
+    "Result TBC": ["Resultat pendent","Resultado pendiente"],
+    "Result to be confirmed": ["Resultat per confirmar","Resultado por confirmar"],
+    "Played · Result to be confirmed": ["Jugat · Resultat per confirmar","Jugado · Resultado por confirmar"],
+    "Upcoming · Home": ["Proper · Casa","Próximo · Casa"],
+    "Upcoming · Away": ["Proper · Fora","Próximo · Fuera"],
+    "No upcoming games yet.": ["Encara no hi ha partits programats.","Aún no hay partidos programados."],
+    "No results yet.": ["Encara no hi ha resultats.","Aún no hay resultados."],
+    "This event has taken place.": ["Aquest esdeveniment ja s'ha fet.","Este evento ya se ha celebrado."]
   };
   // Partial replacements, applied when there is no exact match (team names, placeholders, counts)
   var SUBS = [
+    [/^Next match · /, "Proper partit · ", "Próximo partido · "],
+    [/ · Past event$/, " · Esdeveniment passat", " · Evento pasado"],
     [/^Played (.+) at Esade\?$/, "Has jugat a $1 a Esade?", "¿Has jugado a $1 en Esade?"],
     [/^Team: (.+)\. The captain will email you with the date, time and place of the next try-out\.$/, "Equip: $1. El capità t'escriurà amb el dia, l'hora i el lloc de la propera prova.", "Equipo: $1. El capitán te escribirá con el día, la hora y el lugar de la próxima prueba."],
     [/^Team: (.+)\. No try-out needed\. The captain will email you when the next open session or friendly is on\.$/, "Equip: $1. No cal fer cap prova. El capità t'escriurà quan hi hagi la propera sessió oberta o amistós.", "Equipo: $1. No hace falta prueba. El capitán te escribirá cuando haya la próxima sesión abierta o amistoso."],

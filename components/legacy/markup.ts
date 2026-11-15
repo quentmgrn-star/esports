@@ -186,15 +186,8 @@ export const SITE_MARKUP = `
     </div>
   </section>
 
-  <section class="strip" aria-label="Next match">
-    <div class="wrap">
-      <p class="eyebrow">Next match · Football 7</p>
-      <p class="vs" style="margin:0">EUBS <b>vs</b> Esade FC</p>
-      <div class="meta">
-        <span>Sat 14/11 · 17:00 · Field A</span>
-        <a class="link-arrow" href="#team-football7-men-schedule">Match details →</a>
-      </div>
-    </div>
+  <section class="strip" id="next-strip" aria-label="Next match" hidden>
+    <div class="wrap"></div>
   </section>
 
   <section class="sec" id="fixtures">

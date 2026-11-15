@@ -33,49 +33,71 @@ export function initSite(backend, tools) {
   var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   function gDate(g) { var p = g.date.split("-"); return new Date(+p[0], +p[1] - 1, +p[2]); }
   function ymd(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+  // Past or upcoming is decided when the page is viewed, in Barcelona time (Europe/Madrid), whatever the
+  // visitor's own time zone. A game counts as played 2 hours after kick-off, even if no score was added yet.
+  var GAME_MINS = 120;
+  function dayKey(s) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s || ""); if (m) return m[0]; m = /(\d{2})\/(\d{2})\/(\d{4})/.exec(s || ""); return m ? m[3] + "-" + m[2] + "-" + m[1] : null; }
+  function startMs(x) { var d = dayKey(x.date); return d ? madridToUtc(d, /^\d{1,2}:\d{2}$/.test(x.time || "") ? x.time : "12:00") : NaN; }
+  function isOver(x, mins) { return !!x.score || Date.now() > startMs(x) + (mins || GAME_MINS) * 60000; }
+  function madridYmd(offDays) {
+    var p = {}; new Intl.DateTimeFormat("en-US", { timeZone: "Europe/Madrid", year: "numeric", month: "2-digit", day: "2-digit" })
+      .formatToParts(new Date(Date.now() + (offDays || 0) * 864e5)).forEach(function (x) { p[x.type] = x.value; });
+    return p.year + "-" + p.month + "-" + p.day;
+  }
   function gameById(id) { for (var i = 0; i < GAMES.length; i++) if (GAMES[i].id === id) return GAMES[i]; return null; }
   function gTeams(g) { return g.score ? g.home + " " + g.score + " " + g.away : g.home + " vs " + g.away; }
   function gLong(g) { var d = gDate(g); return DAYS[d.getDay()] + " " + d.getDate() + " " + MONTHS[d.getMonth()] + " " + d.getFullYear(); }
   function gShort(g) { var d = gDate(g); return DAYS[d.getDay()].slice(0, 3) + " " + String(d.getDate()).padStart(2, "0") + "/" + String(d.getMonth() + 1).padStart(2, "0"); }
   function gStatus(g) {
-    if (!g.score) return "Upcoming · " + g.side;
+    if (!g.score) return isOver(g) ? "Played · Result to be confirmed" : "Upcoming · " + g.side;
     var sc = g.score.split("–"), esadeHome = g.home.indexOf("Esade") === 0, us = +(esadeHome ? sc[0] : sc[1]), them = +(esadeHome ? sc[1] : sc[0]);
     return "Final · " + (us > them ? "Esade won " : us < them ? "Esade lost " : "Draw ") + g.score;
   }
   function gameRow(g) {
-    return '<li class="row match-button" data-match-id="' + g.id + '" role="button" tabindex="0" aria-label="View ' + esc(g.sport) + ' match details"><span class="when"><b>' + gShort(g) + "</b>" + (g.score ? "Final" : g.time) + '</span><span class="match"><span class="sport">' + esc(g.sport) + (g.example ? ' <em class="ex">Example</em>' : "") + '</span><div class="teamsline">' + esc(gTeams(g)) + '</div><span class="where">' + esc(g.venue) + "</span></span>" + (g.score ? '<span class="score">' + esc(g.score) + "</span>" : '<span class="tag">' + g.side + "</span>") + "</li>";
+    var played = isOver(g);
+    return '<li class="row match-button" data-match-id="' + g.id + '" role="button" tabindex="0" aria-label="View ' + esc(g.sport) + ' match details"><span class="when"><b>' + gShort(g) + "</b>" + (g.score ? "Final" : played ? "Finished" : g.time) + '</span><span class="match"><span class="sport">' + esc(g.sport) + (g.example ? ' <em class="ex">Example</em>' : "") + '</span><div class="teamsline">' + esc(gTeams(g)) + '</div><span class="where">' + esc(g.venue) + "</span></span>" + (g.score ? '<span class="score">' + esc(g.score) + "</span>" : played ? '<span class="tag tbc" title="Result to be confirmed">Result TBC</span>' : '<span class="tag">' + g.side + "</span>") + "</li>";
   }
-  // Home lists: upcoming = no score yet (soonest first), results = played (latest first).
-  (function () {
-    var up = GAMES.filter(function (g) { return !g.score; }).sort(function (a, b) { return (a.date + a.time).localeCompare(b.date + b.time); });
-    var res = GAMES.filter(function (g) { return g.score; }).sort(function (a, b) { return (b.date + b.time).localeCompare(a.date + a.time); });
-    if ($("list-up")) $("list-up").innerHTML = up.slice(0, 5).map(gameRow).join("");
-    if ($("list-res")) $("list-res").innerHTML = res.slice(0, 5).map(gameRow).join("");
-  })();
+  // Home lists: upcoming = not started + 2 h yet (soonest first), results = played, scored or not (latest first).
+  // Recomputed every minute, so a page left open moves a game to Results on its own.
+  function homeGames() {
+    var up = GAMES.filter(function (g) { return !isOver(g); }).sort(function (a, b) { return startMs(a) - startMs(b); });
+    var res = GAMES.filter(function (g) { return isOver(g); }).sort(function (a, b) { return startMs(b) - startMs(a); });
+    if ($("list-up")) $("list-up").innerHTML = up.length ? up.slice(0, 5).map(gameRow).join("") : '<li class="muted">No upcoming games yet.</li>';
+    if ($("list-res")) $("list-res").innerHTML = res.length ? res.slice(0, 5).map(gameRow).join("") : '<li class="muted">No results yet.</li>';
+    var strip = $("next-strip"), n = up[0];
+    if (strip) {
+      strip.hidden = !n;
+      if (n) strip.querySelector(".wrap").innerHTML = '<p class="eyebrow">Next match · ' + esc(n.sport) + '</p><p class="vs" style="margin:0">' + esc(n.home) + " <b>vs</b> " + esc(n.away) + "</p>" +
+        '<div class="meta"><span>' + esc(gShort(n)) + " · " + esc(n.time) + " · " + esc(n.venue) + '</span><a class="link-arrow" href="#" data-match-id="' + esc(n.id) + '">Match details →</a></div>';
+    }
+  }
 
   // ================= Events (one source: components/legacy/events.js) =================
+  // Upcoming events (soonest first), then any past pre-launch sample kept on purpose (keepVisible), marked as past.
   function upcomingEvents() {
-    var today = ymd(new Date());
-    return EVENTS.filter(function (e) { return e.date >= today || (SHOW_PRELAUNCH_SAMPLES && e.keepVisible); }).sort(function (a, b) { return (a.date + a.time).localeCompare(b.date + b.time); });
+    var up = EVENTS.filter(function (e) { return !isOver(e); }).sort(function (a, b) { return startMs(a) - startMs(b); });
+    var kept = SHOW_PRELAUNCH_SAMPLES ? EVENTS.filter(function (e) { return e.keepVisible && isOver(e); }).sort(function (a, b) { return startMs(b) - startMs(a); }) : [];
+    return up.concat(kept);
   }
+  function homeEvents() { if ($("events") && $("events").querySelector(".events")) $("events").querySelector(".events").innerHTML = upcomingEvents().slice(0, 3).map(eventCard).join(""); }
   function eWhen(e) { return gLong(e) + " · " + e.time; }
   function eTitleHtml(e) { var w = e.title.split(" "); return esc(w.length > 1 ? w.slice(0, -1).join(" ") : w[0]) + (w.length > 1 ? "<br>" + esc(w[w.length - 1]) : "") + "."; }
   function eventCard(e) {
-    return '<article class="event"><div class="title"><p class="eyebrow">' + esc(e.kind) + (e.example ? ' · <em class="ex">Example</em>' : "") + '</p><h3 class="display">' + eTitleHtml(e) + "</h3></div>" +
+    return '<article class="event"><div class="title"><p class="eyebrow">' + esc(e.kind) + (isOver(e) ? " · Past event" : "") + (e.example ? ' · <em class="ex">Example</em>' : "") + '</p><h3 class="display">' + eTitleHtml(e) + "</h3></div>" +
       '<dl><div><dt>When</dt><dd>' + esc(gShort(e)) + " · " + e.time + '</dd></div><div><dt>Where</dt><dd>' + esc(e.place) + '</dd></div><div><dt>Price</dt><dd><b class="price">' + esc(e.price) + "</b></dd></div></dl>" +
       '<p>' + esc(e.summary) + ' <a class="link-arrow" href="#all-events">Details →</a></p></article>';
   }
-  if ($("events") && $("events").querySelector(".events")) $("events").querySelector(".events").innerHTML = upcomingEvents().slice(0, 3).map(eventCard).join("");
   function eventsView() {
     var list = upcomingEvents();
     return '<section class="band"><div class="wrap"><h1 class="display">All<br>events.</h1><p>Runs, tournaments, talks and get-togethers in the Esade Sports community. Everyone is welcome: check the price and sign up below.</p></div></section>' +
       '<section class="sec ev-sec"><div class="wrap"><ol class="ev-list">' + (list.length ? list.map(function (e) {
+        var past = isOver(e);
         return '<li class="ev" id="ev-' + e.id + '"><div class="ev-date"><b>' + gDate(e).getDate() + "</b><span>" + MONTHS[gDate(e).getMonth()].slice(0, 3) + "</span><small>" + e.time + "</small></div>" +
-          '<div class="ev-body"><p class="eyebrow">' + esc(e.kind) + (e.example ? ' · <em class="ex">Example</em>' : "") + '</p><h2 class="ev-title">' + esc(e.title) + "</h2>" +
+          '<div class="ev-body"><p class="eyebrow">' + esc(e.kind) + (past ? " · Past event" : "") + (e.example ? ' · <em class="ex">Example</em>' : "") + '</p><h2 class="ev-title">' + esc(e.title) + "</h2>" +
           (e.tagline ? '<p class="ev-tag">' + esc(e.tagline) + "</p>" : "") + "<p>" + esc(e.summary) + "</p>" + (e.details ? '<p class="muted">' + esc(e.details) + "</p>" : "") +
           '<dl class="ev-facts"><div><dt>When</dt><dd>' + esc(eWhen(e)) + '</dd></div><div><dt>Where</dt><dd>' + esc(e.place) + '</dd></div><div><dt>Organised by</dt><dd>' + esc(e.organiser) + '</dd></div><div><dt>Price</dt><dd><b class="price">' + esc(e.price) + "</b>" + (e.priceNote ? " · " + esc(e.priceNote) : "") + "</dd></div></dl>" +
-          (e.signup ? '<a class="btn btn-blue" href="' + esc(e.signup) + '" target="_blank" rel="noopener noreferrer">Sign up</a>' : '<span class="muted" style="font-size:13px">Sign-ups open soon.</span>') +
-          calMenu({ id: e.id, title: e.title + " · " + e.kind, date: e.date, time: e.time, mins: 120, place: e.place, details: e.summary + (e.signup ? "\nSign up: " + e.signup : "") }) + "</div></li>";
+          (past ? '<span class="muted" style="font-size:13px">This event has taken place.</span>' : (e.signup ? '<a class="btn btn-blue" href="' + esc(e.signup) + '" target="_blank" rel="noopener noreferrer">Sign up</a>' : '<span class="muted" style="font-size:13px">Sign-ups open soon.</span>') +
+          calMenu({ id: e.id, title: e.title + " · " + e.kind, date: e.date, time: e.time, mins: 120, place: e.place, details: e.summary + (e.signup ? "\nSign up: " + e.signup : "") })) + "</div></li>";
       }).join("") : '<li class="muted">No upcoming events yet.</li>') + "</ol></div></section>";
   }
 
@@ -121,7 +143,7 @@ export function initSite(backend, tools) {
     $("match-modal-league").textContent = g.competition;
     $("match-modal-status").textContent = gStatus(g);
     var calBox = $("match-modal-cal");
-    if (calBox) calBox.innerHTML = g.score ? "" : calMenu({ id: g.id, title: g.sport + ": " + g.home + " vs " + g.away, date: g.date, time: g.time, mins: 120, place: g.venue, details: g.competition });
+    if (calBox) calBox.innerHTML = isOver(g) ? "" : calMenu({ id: g.id, title: g.sport + ": " + g.home + " vs " + g.away, date: g.date, time: g.time, mins: 120, place: g.venue, details: g.competition });
     modal.hidden = false;
     document.body.style.overflow = "hidden";
   }
@@ -129,9 +151,9 @@ export function initSite(backend, tools) {
   // ================= Full calendar (#calendar) =================
   var cal = { month: null, view: "month", team: "" };
   function calendarView() {
-    var today = new Date(); today.setHours(0, 0, 0, 0);
+    var tk = madridYmd(0).split("-"), today = new Date(+tk[0], +tk[1] - 1, +tk[2]);
     if (!cal.month) {
-      var next = GAMES.filter(function (g) { return gDate(g) >= today; }).sort(function (a, b) { return a.date.localeCompare(b.date); })[0];
+      var next = GAMES.filter(function (g) { return !isOver(g); }).sort(function (a, b) { return startMs(a) - startMs(b); })[0];
       cal.month = next ? new Date(gDate(next).getFullYear(), gDate(next).getMonth(), 1) : new Date(today.getFullYear(), today.getMonth(), 1);
     }
     var y = cal.month.getFullYear(), m = cal.month.getMonth();
@@ -153,7 +175,7 @@ export function initSite(backend, tools) {
         var dayGames = games.filter(function (g) { return g.date === key; });
         var dayEvents = cal.team ? [] : EVENTS.filter(function (e) { return e.date === key; });
         cells += '<div class="cal-day' + (d.getMonth() !== m ? " out" : "") + (d.getTime() === today.getTime() ? " today" : "") + '"><span class="cal-num">' + d.getDate() + "</span>" +
-          dayGames.map(function (g) { return '<button type="button" class="cal-game' + (g.score ? " played" : "") + '" data-match-id="' + g.id + '"><b>' + (g.score ? g.score : g.time) + "</b> " + esc(g.sport) + (g.example ? " <em>Ex.</em>" : "") + "</button>"; }).join("") +
+          dayGames.map(function (g) { return '<button type="button" class="cal-game' + (isOver(g) ? " played" : "") + '" data-match-id="' + g.id + '"><b>' + (g.score ? g.score : isOver(g) ? "TBC" : g.time) + "</b> " + esc(g.sport) + (g.example ? " <em>Ex.</em>" : "") + "</button>"; }).join("") +
           dayEvents.map(function (e) { return '<a class="cal-game cal-event" href="#all-events"><b>' + e.time + "</b> " + esc(e.title) + "</a>"; }).join("") + "</div>";
       }
       body = '<div class="cal-grid" role="grid"><div class="cal-wd">Mon</div><div class="cal-wd">Tue</div><div class="cal-wd">Wed</div><div class="cal-wd">Thu</div><div class="cal-wd">Fri</div><div class="cal-wd">Sat</div><div class="cal-wd">Sun</div>' + cells + "</div>";
@@ -496,16 +518,16 @@ export function initSite(backend, tools) {
       L.table.map(function (r, i) { return '<tr' + (r[0] === L.club ? ' class="us"' : "") + '><td class="r num">' + (i + 1) + '</td><td class="opp">' + esc(r[0]) + "</td>" + r.slice(1).map(function (v, j) { return '<td class="r num">' + (j === 0 ? "<strong>" + v + "</strong>" : j === diffCol ? sgn(v) : v) + "</td>"; }).join("") + "</tr>"; }).join("") +
       '</tbody></table></div><p class="src">' + (L.tableNote ? "<span>" + esc(L.tableNote) + "</span> " : "") + "<span>Source: " + esc(L.source) + " · updated " + L.updated + "</span></p>";
   }
-  function nextGame(L) { for (var i = 0; i < L.games.length; i++) if (!L.games[i].score) return L.games[i]; return null; }
+  function nextGame(L) { for (var i = 0; i < L.games.length; i++) if (!isOver(L.games[i])) return L.games[i]; return null; }
   function nextStrip(t) {
-    var L = LEAGUE[t.id], D = teamData(t), n = (L && L.games && nextGame(L)) || D.next;
+    var L = LEAGUE[t.id], D = teamData(t), n = (L && L.games && nextGame(L)) || (D.next && !isOver(D.next) ? D.next : null);
     if (!n) return '<section class="tnext"><div class="wrap"><p class="eyebrow">Next game</p><p class="vs" style="margin:0">Esade <b>vs</b> the next opponent</p><span class="when">Date to be confirmed by the captain</span></div></section>';
     return '<section class="tnext"><div class="wrap"><p class="eyebrow">Next game · ' + n.round + '</p><p class="vs" style="margin:0">' + esc(n.home) + " <b>vs</b> " + esc(n.away) + '</p><span class="when">' + n.date + " · " + n.time + " · " + esc(n.venue) + "</span></div></section>";
   }
   function gamesTable(L, list) {
     return '<div class="tscroll"><table class="sched"><thead><tr><th>Date</th><th></th><th>Opponent</th><th>Venue</th><th>Result</th></tr></thead><tbody>' +
       list.map(function (g) {
-        var home = g.home === L.club, opp = home ? g.away : g.home, res = '<span class="muted">' + g.time + "</span>";
+        var home = g.home === L.club, opp = home ? g.away : g.home, res = '<span class="muted">' + (isOver(g) ? "Result to be confirmed" : g.time) + "</span>";
         if (g.score) { var us = home ? g.score[0] : g.score[1], them = home ? g.score[1] : g.score[0]; res = '<span class="res ' + (us > them ? "w" : "l") + '">' + (us > them ? "W" : "L") + " " + us + "–" + them + "</span>"; }
         return "<tr><td>" + g.date + '</td><td class="ha">' + (home ? "HOME" : "AWAY") + '</td><td class="opp">' + (home ? "vs " : "at ") + esc(opp) + "</td><td>" + esc(g.venue) + "</td><td>" + res + "</td></tr>";
       }).join("") + "</tbody></table></div>";
@@ -1429,7 +1451,7 @@ export function initSite(backend, tools) {
   // ---- Waiting for you / My week (overview) ----------------------------------------------------
   // Everything this person should act on, with a link to where it is done. Counts follow the same rules as each page.
   function pl(n, one, many) { return n + " " + (n === 1 ? one : many); }
-  function todayYmd(off) { var d = new Date(); d.setDate(d.getDate() + (off || 0)); return ymd(d); }
+  function todayYmd(off) { return madridYmd(off); }
   function myOpenTasks() {
     if (!live()) return [];
     var out = []; DEPTS.forEach(function (d) { deptTasks(d).forEach(function (t) { if (t.mine && t.status !== "done") out.push({ t: t, d: d }); }); });
@@ -1987,7 +2009,7 @@ export function initSite(backend, tools) {
   // The Board, admins and the view-only account (Eva Morta) see every team, read-only. Checked in convex/tournament.ts.
   var TN_ST = { yes: ["ok", "Attending"], no: ["bad", "Not attending"], none: ["warn", "Not answered"] };
   function tnLongDate(d) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d || ""); return m ? new Date(+m[1], +m[2] - 1, +m[3]).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : ""; }
-  function tnDaysTo(d) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d || ""); if (!m) return null; var t = new Date(); t.setHours(0, 0, 0, 0); return Math.round((new Date(+m[1], +m[2] - 1, +m[3]) - t) / 864e5); }
+  function tnDaysTo(d) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d || ""); if (!m) return null; var t = madridYmd(0).split("-"); return Math.round((Date.UTC(+m[1], +m[2] - 1, +m[3]) - Date.UTC(+t[0], +t[1] - 1, +t[2])) / 864e5); }
   function tnMine() { return hv().role === "captain"; }
   // Teams this view shows: a captain only their own, everyone else every team the server returned.
   function tnTeams() {
@@ -3206,7 +3228,7 @@ export function initSite(backend, tools) {
   document.addEventListener("click", function (e) { document.querySelectorAll("details.more[open]").forEach(function (d) { if (!d.contains(e.target)) d.removeAttribute("open"); }); });
   document.addEventListener("click", function (e) {
     var row = e.target.closest && e.target.closest("[data-match-id]");
-    if (row) openMatch(row.getAttribute("data-match-id"));
+    if (row) { if (row.tagName === "A") e.preventDefault(); openMatch(row.getAttribute("data-match-id")); }
     if (e.target.closest && e.target.closest("[data-match-close]")) closeMatch();
   });
   document.addEventListener("keydown", function (e) {
@@ -3302,6 +3324,7 @@ export function initSite(backend, tools) {
   window.addEventListener("hashchange", function () { state.teamOpen = null; state.tnOpen = null; bellOpen = false; render(); updateTitle(); });
   // A live update that arrived while someone was typing in the Hub is shown once they leave the field.
   hub.addEventListener("focusout", function () { if (LIVE.dirty) setTimeout(function () { if (LIVE.dirty && !hubBusy()) { LIVE.dirty = false; render(); } }, 400); });
+  homeGames(); homeEvents(); setInterval(function () { homeGames(); homeEvents(); }, 60000);
   renderAcct(); render(); loadAlumni(); loadTeamInfo(); loadResults();
   return { setAdmin: setAdmin };
 
