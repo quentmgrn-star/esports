@@ -873,7 +873,9 @@ a { color: inherit; }
 #hub small.reason { color: #b42318; font-style: italic; }
 #hub small.files a { color: var(--blue); font-weight: 600; }
 #hub .add-task { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--mist); }
-#hub .form input { min-width: 0; }
+/* Fields never grow past their grid cell (date pickers used to spill onto the next button) */
+input, select, textarea { min-width: 0; max-width: 100%; }
+#hub .form > div:has(> .btn) { min-width: 0; display: flex; flex-wrap: wrap; gap: 8px; }
 #hub .add-task .at-title, #hub .add-task .at-due, #hub .add-task .at-go { grid-column: span 2; }
 @media (max-width: 800px) { #hub .add-task .at-due, #hub .add-task .at-go { grid-column: 1 / -1; } }
 @media (max-width: 480px) { #hub .form > * { grid-column: 1 / -1 !important; } }
