@@ -1579,9 +1579,16 @@ export function initSite(backend, tools) {
     var w = hub.querySelector(".bell-wrap"); if (!w) return;
     var tmp = document.createElement("div"); tmp.innerHTML = bellHtml(); w.replaceWith(tmp.firstChild); bindBell();
   }
+  // On desktop the menu is position: fixed (the side menu scrolls and would cut it off), so place it under the bell.
+  function placeBell(b) {
+    var m = $("bell-menu"); if (!m || !b) return;
+    if (window.matchMedia("(min-width: 861px)").matches) { var r = b.getBoundingClientRect(); m.style.top = Math.round(r.bottom + 8) + "px"; m.style.left = Math.round(Math.max(8, r.left)) + "px"; }
+    else { m.style.top = ""; m.style.left = ""; }
+  }
   function bindBell() {
     var b = hub.querySelector("[data-bell]"); if (!b) return;
-    b.addEventListener("click", function (e) { e.stopPropagation(); bellOpen = !bellOpen; var m = $("bell-menu"); if (m) m.hidden = !bellOpen; b.setAttribute("aria-expanded", String(bellOpen)); if (bellOpen) { var f = m && m.querySelector("a"); if (f) f.focus(); } });
+    if (bellOpen) placeBell(b);
+    b.addEventListener("click", function (e) { e.stopPropagation(); bellOpen = !bellOpen; var m = $("bell-menu"); if (bellOpen) placeBell(b); if (m) m.hidden = !bellOpen; b.setAttribute("aria-expanded", String(bellOpen)); if (bellOpen) { var f = m && m.querySelector("a"); if (f) f.focus(); } });
     hub.querySelectorAll("[data-bell-go]").forEach(function (a) { a.addEventListener("click", function () { bellOpen = false; var m = $("bell-menu"); if (m) m.hidden = true; b.setAttribute("aria-expanded", "false"); }); });
   }
   document.addEventListener("click", function (e) { if (bellOpen && !(e.target.closest && e.target.closest(".bell-wrap"))) { bellOpen = false; var m = $("bell-menu"); if (m) m.hidden = true; var b = hub.querySelector("[data-bell]"); if (b) b.setAttribute("aria-expanded", "false"); } });

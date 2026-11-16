@@ -495,7 +495,8 @@ a { color: inherit; }
 @media (max-width: 760px) {#hub .roles { grid-template-columns: 1fr; }
 }
 #hub .app { display: grid; grid-template-columns: 240px minmax(0, 1fr); min-height: 100%; }
-#hub .rail { background: var(--navy); color: var(--white); padding: 22px 16px; padding-left: max(16px, env(safe-area-inset-left, 0px)); display: flex; flex-direction: column; gap: 26px; position: sticky; top: env(safe-area-inset-top, 0px); height: 100vh; z-index: 40; } /* above the page so the bell panel opens in front */
+#hub .rail { background: var(--navy); color: var(--white); padding: 22px 16px; padding-left: max(16px, env(safe-area-inset-left, 0px)); display: flex; flex-direction: column; gap: 26px; position: sticky; top: env(safe-area-inset-top, 0px); height: 100vh; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.25) transparent; z-index: 40; } /* above the page so the bell panel opens in front; scrolls on its own when the menu is taller than the window */
+#hub:not([hidden]) ~ .proto { display: none; } /* the Preview strip belongs to the public site, not the Hub */
 #hub .rail .lock { display: flex; align-items: center; gap: 10px; padding-inline: 6px; text-decoration: none; color: var(--white); }
 #hub .rail .lock .mono { width: 38px; }
 #hub .rail .lock span { font-size: 11px; font-weight: 800; letter-spacing: .2em; line-height: 1.3; }
@@ -594,7 +595,7 @@ a { color: inherit; }
 #hub .empty { color: var(--ink-soft); padding: 14px 0; }
 #hub .toast { position: fixed; right: max(20px, env(safe-area-inset-right, 0px)); bottom: calc(20px + env(safe-area-inset-bottom, 0px)); background: var(--navy); color: var(--white); padding: 12px 16px; font-weight: 600; z-index: 80; }
 @media (max-width: 860px) {#hub .app { grid-template-columns: 1fr; }
-#hub .rail { position: sticky; height: auto; padding: 12px max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px)); gap: 10px; z-index: 40; }
+#hub .rail { position: sticky; height: auto; overflow: visible; padding: 12px max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px)); gap: 10px; z-index: 40; }
 #hub .rail .top { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 #hub .rail nav { display: flex; overflow-x: auto; gap: 0; margin-inline: -16px; padding-inline: 16px; scrollbar-width: none; }
 #hub .rail nav a { border-left: 0; border-bottom: 3px solid transparent; white-space: nowrap; padding: 10px 12px; gap: 8px; }
@@ -1187,6 +1188,7 @@ html.kb-active, html.kb-active * { cursor: grabbing !important; user-select: non
 #hub .bell-menu li span { flex: 1; }
 #hub .bell-menu .empty { margin: 0; padding: 6px 16px 16px; color: var(--ink-soft); font-size: 14px; }
 @media (max-width: 860px) { #hub .bell-menu { left: auto; right: 0; } }
+@media (min-width: 861px) { #hub .bell-menu { position: fixed; } } /* escapes the scrolling side menu; top/left set by placeBell() in site.js */
 
 /* Tournament tab (Hub) */
 #hub .tn-deadline { font-size: 14px; color: var(--ink); }
