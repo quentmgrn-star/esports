@@ -1877,6 +1877,8 @@ export function initSite(backend, tools) {
 
   // ---- Goals: semester targets against the real numbers ----------------------------------------
   function termOf(y, s2) { return y + "-" + String((y + 1) % 100).padStart(2, "0") + " S" + (s2 ? 2 : 1); }
+  // Stored keys stay "2026-27 S1" / "S2"; people see "2026-27 Fall" / "2026-27 Spring".
+  function termLabel(t) { return String(t).replace(/ S1$/, " Fall").replace(/ S2$/, " Spring"); }
   function currentTerm() { var d = new Date(), y = d.getFullYear(), m = d.getMonth(); return m >= 8 ? termOf(y, false) : m === 0 ? termOf(y - 1, false) : termOf(y - 1, true); }
   function goalTerm() { return state.goalTerm || currentTerm(); }
   function shiftTerm(t, n) { var m = t.match(/^(\d{4})-\d{2} S([12])$/), i = +m[1] * 2 + (+m[2] - 1) + n; return termOf(Math.floor(i / 2), i % 2 === 1); }
@@ -1885,7 +1887,7 @@ export function initSite(backend, tools) {
   function hubGoals() {
     var term = goalTerm(); watchGoals(term);
     var d = LIVE.goals, head = '<div class="ph-head"><div><h1 class="display">Goals.</h1><p>The Board\'s targets for the semester, with the real number next to each one. Most numbers are counted from the website and the Hub; the rest are typed in by the department.</p></div></div>' +
-      '<section class="panel hist-filters"><div class="chips" role="group" aria-label="Semester"><button class="chip" data-term="' + esc(shiftTerm(term, -1)) + '">' + ico("left") + " " + esc(shiftTerm(term, -1)) + '</button><button class="chip" aria-pressed="true">' + esc(term) + '</button><button class="chip" data-term="' + esc(shiftTerm(term, 1)) + '">' + esc(shiftTerm(term, 1)) + " " + ico("right") + "</button></div></section>";
+      '<section class="panel hist-filters"><div class="chips" role="group" aria-label="Semester"><button class="chip" data-term="' + esc(shiftTerm(term, -1)) + '">' + ico("left") + " " + esc(termLabel(shiftTerm(term, -1))) + '</button><button class="chip" aria-pressed="true">' + esc(termLabel(term)) + '</button><button class="chip" data-term="' + esc(shiftTerm(term, 1)) + '">' + esc(termLabel(shiftTerm(term, 1))) + " " + ico("right") + "</button></div></section>";
     if (!live()) return head + '<section class="panel"><p class="empty">Goals work once you are signed in (shared database).</p></section>';
     if (d === undefined) return head + '<section class="panel"><p class="empty">Loading…</p></section>';
     if (!d) return head + '<section class="panel"><p class="empty">Goals are for the Board and the departments.</p></section>';
@@ -1897,15 +1899,15 @@ export function initSite(backend, tools) {
       return "<tr><td><strong>" + esc(g.title) + '</strong><br><small class="muted">' + esc(g.dept || "Board") + (g.note ? " · " + esc(g.note) : "") + '</small></td><td class="r num">' + esc(fmtGoal(g.target, g.unit)) + '</td><td class="r">' + real + "</td>" +
         '<td><div class="bar"><i style="width:' + p + '%"></i></div><small class="muted">' + (g.value == null ? "No number yet" : Math.round(g.target ? g.value / g.target * 100 : 0) + "% of target") + '</small></td><td><small class="muted">' + esc(d.sources[g.source] || g.source) + "</small></td>" +
         '<td class="r">' + (edit ? '<button type="button" class="btn sm ghost" data-goal-del="' + esc(g._id) + '" aria-label="Remove ' + esc(g.title) + '">' + ico("x") + "</button>" : "") + "</td></tr>";
-    }).join("") + "</tbody></table></div>" : '<p class="empty">No goals for ' + esc(term) + " yet. " + (edit ? "Add the 5 to 7 numbers the Board agreed on." : "The President or a Vice-president adds them once the Board has agreed on them.") + "</p>";
+    }).join("") + "</tbody></table></div>" : '<p class="empty">No goals for ' + esc(termLabel(term)) + " yet. " + (edit ? "Add the 5 to 7 numbers the Board agreed on." : "The President or a Vice-president adds them once the Board has agreed on them.") + "</p>";
     var form = edit ? '<section class="panel"><div class="panel-head"><h2>Add a goal</h2></div><p class="muted" style="margin:0 0 10px;font-size:13px">Ideas (click to fill in, then type the target):</p><div class="chips" style="margin-bottom:14px">' + GOAL_IDEAS.map(function (x, i) { return '<button type="button" class="chip" data-gi="' + i + '">' + esc(x[0]) + "</button>"; }).join("") + "</div>" +
       '<form class="form" id="goal-form"><label style="grid-column:span 2">Goal<input name="title" required maxlength="120" placeholder="e.g. Players on the team sheets"></label>' +
       '<label>Target<input name="target" type="number" min="0" step="any" required></label><label>Unit<input name="unit" maxlength="20" placeholder="players, €, matches"></label>' +
       '<label style="grid-column:span 2">Real number comes from<select name="source">' + Object.keys(d.sources).map(function (k) { return '<option value="' + k + '">' + esc(d.sources[k]) + "</option>"; }).join("") + "</select></label>" +
       '<label>Department<select name="dept"><option value="">Board</option>' + DEPTS.filter(function (x) { return x.id !== "board"; }).map(function (x) { return "<option>" + esc(x.name) + "</option>"; }).join("") + "</select></label>" +
       '<label>Note (optional)<input name="note" maxlength="300"></label><div><button class="btn solid" type="submit">Add goal</button></div></form></section>' : "";
-    return head + '<div class="grid-4">' + stat("Goals", String(gs.length), term) + stat("Reached", String(reached), "target met or beaten") + stat("To watch", String(gs.filter(function (g) { return g.value == null || (g.target && g.value < g.target); }).length), "below target or no number yet") + stat("Counted automatically", String(gs.filter(function (g) { return g.source !== "manual"; }).length), "no typing needed") + "</div>" +
-      '<section class="panel"><div class="panel-head"><h2>Targets and real numbers</h2><span class="muted" style="font-size:12px">' + esc(term) + "</span></div>" + list + "</section>" + form;
+    return head + '<div class="grid-4">' + stat("Goals", String(gs.length), termLabel(term)) + stat("Reached", String(reached), "target met or beaten") + stat("To watch", String(gs.filter(function (g) { return g.value == null || (g.target && g.value < g.target); }).length), "below target or no number yet") + stat("Counted automatically", String(gs.filter(function (g) { return g.source !== "manual"; }).length), "no typing needed") + "</div>" +
+      '<section class="panel"><div class="panel-head"><h2>Targets and real numbers</h2><span class="muted" style="font-size:12px">' + esc(termLabel(term)) + "</span></div>" + list + "</section>" + form;
   }
   function hubOverview() {
     var ts = visTeams(), budget = 0, paid = 0, pend = 0;
@@ -2631,7 +2633,7 @@ export function initSite(backend, tools) {
     var u0 = hv(), audience = u0.role === "associate" ? "Associate report · " + deptName(u0.dept) + " · " + teamsText(u0.teams) : u0.role === "head" ? "Head of " + deptName(u0.dept) + " report · every sport" : u0.role === "captain" ? "Team report · " + teamsText(u0.teams) : "Board report · every sport and department";
     return {
       audience: audience, trend: trend, cats: Object.keys(cats).sort().map(function (k) { return cats[k]; }), sizes: sizes,
-      file: ("esade-sports-" + title + "-" + (r ? r.key : "season-2026-27")).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/-+$/, ""),
+      file: ("esade-sports-" + title + "-" + (r ? termLabel(r.key) : "season-2026-27")).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/-+$/, ""),
       title: title, scope: scope, period: r ? r.label : "Season 2026–27, to date", generated: fmtDay(now),
       example: rows.some(function (e) { return e.example || !live(); }), kpis: kpis, teams: teams, depts: depts,
       rows: rows.map(function (e) { return { date: e.date, team: tLabel(team(e.team)) || e.team, dept: e.dept, item: e.item, cat: e.cat, amount: e.amount, status: EXP_STATUS[e.status][1], by: e.by, decidedBy: e.decidedBy || "", reason: e.reason || "", link: e.link || "" }; }),
@@ -2667,7 +2669,7 @@ export function initSite(backend, tools) {
       var m = now.getMonth(), acad = m >= 8 ? now.getFullYear() : now.getFullYear() - 1, idx = acad * 2 + (m >= 8 || m === 0 ? 0 : 1) + off;
       acad = Math.floor(idx / 2); var sem = idx % 2 + 1;
       s = sem === 1 ? new Date(acad, 8, 1) : new Date(acad + 1, 1, 1); e = sem === 1 ? new Date(acad + 1, 1, 1) : new Date(acad + 1, 8, 1);
-      key = acad + "-" + pad2((acad + 1) % 100) + " S" + sem; label = "Semester " + sem + " · " + acad + "–" + pad2((acad + 1) % 100) + (sem === 1 ? " (Sep–Jan)" : " (Feb–Aug)");
+      key = acad + "-" + pad2((acad + 1) % 100) + " S" + sem; label = (sem === 1 ? "Fall " : "Spring ") + acad + "–" + pad2((acad + 1) % 100) + (sem === 1 ? " (Sep–Jan)" : " (Feb–Aug)");
     }
     return { kind: k, key: key, label: label, start: s.getTime(), end: e.getTime() };
   }
