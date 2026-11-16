@@ -36,7 +36,7 @@ All rules live in one place, `convex/roles.ts` (`getAccess`, `canSee`, `canEdit`
 | Visitor | Any student, no account | Public site only | Sends try-outs, applications, contact messages, alumni profiles, access requests | — |
 | Admin | Emails in `ADMIN_EMAILS` (the builders, for now) | Everything | Everything | Everyone, incl. Board positions and view-only accounts |
 | President / Vice-president | Board, added by an admin (or by the President/a VP) | Everything | Everything | Everyone except the President (only an admin adds, changes or removes the President): /admin > People & requests |
-| Head of department | Board, added by an admin, President or VP | Their department, for every team (e.g. Finance: all budgets and expenses) | Their department's data | Adds only associates of their own department; approves their associates' and captains' requests |
+| Head of department | Board, added by an admin, President or VP | Their department, for every team (e.g. Finance: all budgets and expenses) | Their department's data | Adds and approves associates of their own department, captains and vice-captains |
 | Associate | Requests access, approved by their head | Their department, only for their assigned teams | That data | — |
 | Captain | Requests access, approved by the Board | Their own team(s): messages about their sport, try-outs, team expenses | Their team's data | — |
 | View only | Student Council, Eva Morta (added by an admin, not open yet) | Everything | Nothing | — |

@@ -1355,12 +1355,12 @@ export function initSite(backend, tools) {
   // Sidebar link to the /admin page (association applications, try-outs, messages, organisation, requests...).
   // Only for people who may open the Organisation tab there: admins, President and VPs. Follows "Demo as":
   // shown only while viewing as Admin or as President / Vice-president. /admin checks access again in Convex.
-  // Plus "Add people" (/admin#people): admins and President/VPs add anyone, heads add their department's associates.
+  // Plus "Add people" (/admin#people): admins and President/VPs add anyone, heads add their department's associates, captains and vice-captains.
   function adminNavLink() {
     var u = state.user || {}, sc = (captain && captain.scope) || {}, real = !!admin || !!sc.exec;
     if (real && (u.role === "admin" || u.role === "exec"))
       return '<a href="/admin" class="nav-admin">Admin: applications &amp; requests</a><a href="/admin#people">Add people</a>';
-    if (u.role === "head" && (!!admin || (sc.heads || []).length)) return '<a href="/admin#people" class="nav-admin">Add associates</a>';
+    if (u.role === "head" && (!!admin || (sc.heads || []).length)) return '<a href="/admin#people" class="nav-admin">Add people</a>';
     return "";
   }
   // People responsible for a team in each department (captain view, team detail).

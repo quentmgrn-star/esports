@@ -686,7 +686,6 @@ export function initI18n() {
     "Reports": ["Informes","Informes"],
     "Admin: applications & requests": ["Admin: candidatures i sol·licituds","Admin: candidaturas y solicitudes"],
     "Add people": ["Afegir persones","Añadir personas"],
-    "Add associates": ["Afegir associats","Añadir asociados"],
     "Reports.": ["Informes.","Informes."],
     "Expenses ledger": ["Registre de despeses","Registro de gastos"],
     "Ideas & logistics": ["Idees i logística","Ideas y logística"],

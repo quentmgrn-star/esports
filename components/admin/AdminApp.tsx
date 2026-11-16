@@ -2322,14 +2322,14 @@ function Requests({ me, rows }: { me: NonNullable<Me>; rows: MemberRow[] | undef
   const add = useMutation(api.org.addMember);
   const [tab, setTab] = useState<"requested" | "approved" | "closed">("requested");
   const [error, setError] = useState("");
-  // Admin, President and VPs add anyone; heads add associates of their own department only (checked again in Convex: org.canAdd).
+  // Admin, President and VPs add anyone; heads add associates of their own department, captains and vice-captains (checked again in Convex: org.canAdd).
   const addsAnyone = me.isAdmin || me.exec;
   // Only an admin adds (or removes) the President.
   const kinds: AddKind[] = me.isAdmin
     ? ["president", "vice-president", "head", "associate", "captain", "vicecaptain", "viewer"]
     : me.exec
       ? ["vice-president", "head", "associate", "captain", "vicecaptain", "viewer"]
-      : ["associate"];
+      : ["associate", "captain", "vicecaptain"];
   const depts = addsAnyone ? DEPARTMENT_LIST : me.heads;
   const [f, setF] = useState({ email: "", name: "", kind: kinds[0], department: depts[0] ?? "", teams: [] as string[] });
   const isBoard = f.kind === "president" || f.kind === "vice-president" || f.kind === "head";
@@ -2375,7 +2375,7 @@ function Requests({ me, rows }: { me: NonNullable<Me>; rows: MemberRow[] | undef
           ? "As admin you can add, approve or remove anyone, including the President, vice-presidents and heads of department."
           : me.exec
             ? "As President or vice-president you can add, approve or remove anyone except the President (only an admin can change the President)."
-            : `As head of ${me.heads.join(", ")} you add and approve your department's associates, and approve captain requests.`}{" "}
+            : `As head of ${me.heads.join(", ")} you add and approve your department's associates, captains and vice-captains.`}{" "}
         People request access on the Members page of the website; once approved they create their account on /admin with the
         same email.
       </p>
@@ -2386,7 +2386,7 @@ function Requests({ me, rows }: { me: NonNullable<Me>; rows: MemberRow[] | undef
         <p className="adm-p" style={{ marginTop: 0 }}>
           {addsAnyone
             ? `Add ${me.isAdmin ? "a President, " : ""}vice-presidents, heads of department, associates, captains or a view-only account. They are approved straight away.`
-            : `As head of ${me.heads.join(", ")} you can add associates to your department. They are approved straight away.`}
+            : `As head of ${me.heads.join(", ")} you can add associates to your department, captains and vice-captains. They are approved straight away.`}
         </p>
         <div className="adm-filters" style={{ padding: 0 }}>
           <label className="field">
@@ -2399,7 +2399,7 @@ function Requests({ me, rows }: { me: NonNullable<Me>; rows: MemberRow[] | undef
           </label>
           <label className="field">
             Role
-            <select value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value as AddKind })} disabled={kinds.length === 1}>
+            <select value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value as AddKind })}>
               {kinds.map((k) => (
                 <option key={k} value={k}>
                   {ADD_LABEL[k]}
