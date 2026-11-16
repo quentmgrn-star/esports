@@ -495,7 +495,7 @@ a { color: inherit; }
 @media (max-width: 760px) {#hub .roles { grid-template-columns: 1fr; }
 }
 #hub .app { display: grid; grid-template-columns: 240px minmax(0, 1fr); min-height: 100%; }
-#hub .rail { background: var(--navy); color: var(--white); padding: 22px 16px; padding-left: max(16px, env(safe-area-inset-left, 0px)); display: flex; flex-direction: column; gap: 26px; position: sticky; top: env(safe-area-inset-top, 0px); height: 100vh; }
+#hub .rail { background: var(--navy); color: var(--white); padding: 22px 16px; padding-left: max(16px, env(safe-area-inset-left, 0px)); display: flex; flex-direction: column; gap: 26px; position: sticky; top: env(safe-area-inset-top, 0px); height: 100vh; z-index: 40; } /* above the page so the bell panel opens in front */
 #hub .rail .lock { display: flex; align-items: center; gap: 10px; padding-inline: 6px; text-decoration: none; color: var(--white); }
 #hub .rail .lock .mono { width: 38px; }
 #hub .rail .lock span { font-size: 11px; font-weight: 800; letter-spacing: .2em; line-height: 1.3; }

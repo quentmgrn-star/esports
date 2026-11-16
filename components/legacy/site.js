@@ -1549,7 +1549,7 @@ export function initSite(backend, tools) {
   function bindBell() {
     var b = hub.querySelector("[data-bell]"); if (!b) return;
     b.addEventListener("click", function (e) { e.stopPropagation(); bellOpen = !bellOpen; var m = $("bell-menu"); if (m) m.hidden = !bellOpen; b.setAttribute("aria-expanded", String(bellOpen)); if (bellOpen) { var f = m && m.querySelector("a"); if (f) f.focus(); } });
-    hub.querySelectorAll("[data-bell-go]").forEach(function (a) { a.addEventListener("click", function () { bellOpen = false; }); });
+    hub.querySelectorAll("[data-bell-go]").forEach(function (a) { a.addEventListener("click", function () { bellOpen = false; var m = $("bell-menu"); if (m) m.hidden = true; b.setAttribute("aria-expanded", "false"); }); });
   }
   document.addEventListener("click", function (e) { if (bellOpen && !(e.target.closest && e.target.closest(".bell-wrap"))) { bellOpen = false; var m = $("bell-menu"); if (m) m.hidden = true; var b = hub.querySelector("[data-bell]"); if (b) b.setAttribute("aria-expanded", "false"); } });
   document.addEventListener("keydown", function (e) { if (e.key === "Escape" && bellOpen) { bellOpen = false; var m = $("bell-menu"); if (m) m.hidden = true; var b = hub.querySelector("[data-bell]"); if (b) { b.setAttribute("aria-expanded", "false"); b.focus(); } } });
@@ -2534,7 +2534,7 @@ export function initSite(backend, tools) {
         var why = e.status === "rejected" && e.reason ? '<br><small class="reason">“' + esc(e.reason) + "”</small>" : "";
         var reopened = (e.history || []).some(function (x) { return x.action === "reopened"; }) ? ' <span class="pill info">Reconsidered</span>' : "";
         return '<tr><td class="num muted">' + e.date.slice(5).split("-").reverse().join("/") + "</td>" + (multi ? '<td class="tname">' + esc(tLabel(team(e.team)) || e.team) + "</td>" : "") +
-          "<td>" + esc(e.item) + (e.example ? ' <span class="pill">Example</span>' : "") + (compact ? "" : '<br><small class="muted">' + esc(e.cat) + " · " + esc(e.dept === "Media & Marketing" ? "Marketing budget" : e.dept === "Operations" ? "Operations budget" : e.dept) + " · by " + esc(e.by) + "</small>") + (files && !compact ? '<br><small class="files">' + files + "</small>" : "") + (compact ? "" : histList(e)) +
+          "<td>" + esc(e.item) + (e.example ? ' <span class="pill">Example</span>' : "") + (compact ? "" : '<br><small class="muted">' + esc(e.cat) + " · " + esc(e.dept === "Media & Marketing" ? "Marketing budget" : e.dept + " budget") + " · by " + esc(e.by) + "</small>") + (files && !compact ? '<br><small class="files">' + files + "</small>" : "") + (compact ? "" : histList(e)) +
           '</td><td class="r num"><strong>' + EUR.format(e.amount) + "</strong></td><td>" + pill(EXP_STATUS, e.status) + reopened + esadeLine(e) + who + why + "</td>" +
           (act ? '<td class="r">' + btns + "</td>" : "") + "</tr>";
       }).join("") + "</tbody></table></div>";
@@ -2545,7 +2545,8 @@ export function initSite(backend, tools) {
   function hubExpenses() {
     var list = visExp(), u = hv();
     var shown = state.hubFilter === "all" ? list : list.filter(function (e) { return e.status === state.hubFilter; });
-    var lines = '<option value="Operations"' + (u.dept === "med" ? "" : " selected") + '>Operations</option><option value="Media & Marketing"' + (u.dept === "med" ? " selected" : "") + ">Marketing</option>";
+    var mine = { med: "Media & Marketing", par: "Partnerships", it: "IT" }[u.dept] || "Operations";
+    var lines = [["Operations", "Operations"], ["Media & Marketing", "Marketing"], ["Partnerships", "Partnerships"], ["IT", "IT"]].map(function (l) { return '<option value="' + l[0] + '"' + (l[0] === mine ? " selected" : "") + ">" + l[1] + "</option>"; }).join("");
     var form = can("submit") ? '<section class="panel"><div class="panel-head"><h2>Request a payment</h2><span class="muted" style="font-size:12px">The association pays directly. No captain fronts money.</span></div><form class="form" id="req">' +
       (visTeams().length > 1 ? '<label for="r-team">Team<select id="r-team">' + visTeams().map(function (t) { return '<option value="' + t.id + '">' + esc(tLabel(t)) + "</option>"; }).join("") + "</select></label>" : "") +
       '<label for="r-item" style="grid-column:span 2">What is it for<input id="r-item" required maxlength="140" placeholder="e.g. Referee fees, November"></label>' +

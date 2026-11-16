@@ -671,6 +671,8 @@ export function initI18n() {
     "Media & Marketing": ["Media & Marketing","Media & Marketing"],
     "Operations": ["Operacions","Operaciones"],
     "Partnerships": ["Partnerships","Partnerships"],
+    "Marketing": ["Màrqueting","Marketing"],
+    "IT": ["IT","IT"],
     "President + Vice-Presidents": ["President + vicepresidents","Presidente + vicepresidentes"],
     "Head of Finance": ["Cap de Finances","Jefe de Finanzas"],
     "Head of Media & Marketing": ["Cap de Media & Marketing","Jefe de Media & Marketing"],
