@@ -1338,7 +1338,7 @@ export function initSite(backend, tools) {
   }
   function pill(map, k) { return '<span class="pill ' + map[k][0] + '">' + map[k][1] + "</span>"; }
   function stat(k, v, s) { return '<div class="stat"><p class="eyebrow">' + k + '</p><span class="v num">' + v + "</span><small>" + s + "</small></div>"; }
-  var HUBV = [["hub-overview", "Overview"], ["hub-chat", "Chat"], ["hub-teams", "Teams"], ["hub-tournament", "Tournament"], ["hub-handover", "Team handover"], ["hub-team-editor", "Team editor"], ["hub-applications", "Sports applications"], ["hub-assoc-apps", "Association applications"], ["hub-messages", "Messages"], ["hub-captains", "Captains"], ["hub-ideas", "Ideas & logistics"], ["hub-expenses", "Expenses ledger"], ["hub-partners", "Partnerships"], ["hub-departments", "Departments"], ["hub-goals", "Goals"], ["hub-history", "History"], ["hub-report", "Reports"]];
+  var HUBV = [["hub-overview", "Overview"], ["hub-chat", "Chat"], ["hub-teams", "Teams"], ["hub-tournament", "Tournament"], ["hub-handover", "Team handover"], ["hub-team-editor", "Team editor"], ["hub-applications", "Sports applications"], ["hub-assoc-apps", "Association applications"], ["hub-messages", "Contact messages"], ["hub-captains", "Captains"], ["hub-ideas", "Ideas & logistics"], ["hub-expenses", "Expenses ledger"], ["hub-partners", "Partnerships"], ["hub-departments", "Departments"], ["hub-goals", "Goals"], ["hub-history", "History"], ["hub-report", "Reports"]];
 
   function hubShell(view, inner) {
     var partnerBadge = ((LIVE.inbox || {}).inquiries || 0) + partnerDueCount(), taskBadge = hRO() ? 0 : newTaskCount();
@@ -1689,7 +1689,7 @@ export function initSite(backend, tools) {
     return '<span class="st-select st-' + m.status + '"><select data-msg="' + esc(m._id) + '" aria-label="Status of the message from ' + esc(m.name) + '">' + Object.keys(MSG_STATUS).map(function (k) { return '<option value="' + k + '"' + (k === m.status ? " selected" : "") + ">" + MSG_STATUS[k][1] + "</option>"; }).join("") + "</select></span>";
   }
   function hubMessages() {
-    var head = '<div class="ph-head"><div><h1 class="display">Messages.</h1><p>Everything sent through the contact form on the website. Click a message to read it in full and reply: the reply is emailed to the sender and the message moves to Sent.</p></div></div>';
+    var head = '<div class="ph-head"><div><h1 class="display">Contact messages.</h1><p>Only the messages sent through the contact form on the website (your internal conversations are in Chat). Click a message to read it in full and reply: the reply is emailed to the sender and the message moves to Sent.</p></div></div>';
     if (!live()) return head + '<section class="panel"><p class="empty">Messages show once you are signed in.</p></section>';
     if (LIVE.messages == null) return head + '<section class="panel"><p class="empty">Loading…</p></section>';
     head += mailWarnPanel(["contact"]);
@@ -3053,9 +3053,9 @@ export function initSite(backend, tools) {
   function addTaskForm(d) {
     if (!canAddTask(d.id)) return "";
     var ppl = deptMembers(d.id);
-    return '<form class="form add-task" data-add-task="' + d.id + '"><label style="grid-column:span 2">New task<input name="title" required maxlength="120" placeholder="e.g. Book courts for the spring try-outs"></label><label>Who works on it<select name="owner"><option value="">Not assigned yet</option>' + ppl.map(function (n) { return '<option value="' + esc(n[1] + "|" + n[0]) + '">' + esc(n[0]) + "</option>"; }).join("") + "</select></label>" +
-      (live() ? '<label>Team (optional)<select name="team"><option value="">Whole department</option>' + TEAMS.map(function (t) { return '<option value="' + t.id + '">' + esc(tLabel(t)) + "</option>"; }).join("") + '</select></label><label>Due (optional)<input name="due" type="date"></label>' : "") +
-      '<div><button class="btn solid" type="submit">Add task</button></div>' + (live() && !ppl.length ? '<p class="muted" style="grid-column:1/-1;margin:0;font-size:12px">Nobody is approved in this department yet: approve associates in the members area (/admin), then assign tasks to them.</p>' : "") + "</form>";
+    return '<form class="form add-task" data-add-task="' + d.id + '"><label class="at-title">New task<input name="title" required maxlength="120" placeholder="e.g. Book courts for the spring try-outs"></label><label>Who works on it<select name="owner"><option value="">Not assigned yet</option>' + ppl.map(function (n) { return '<option value="' + esc(n[1] + "|" + n[0]) + '">' + esc(n[0]) + "</option>"; }).join("") + "</select></label>" +
+      (live() ? '<label>Team (optional)<select name="team"><option value="">Whole department</option>' + TEAMS.map(function (t) { return '<option value="' + t.id + '">' + esc(tLabel(t)) + "</option>"; }).join("") + '</select></label><label class="at-due">Due (optional)<input name="due" type="date"></label>' : "") +
+      '<div class="at-go"><button class="btn solid" type="submit">Add task</button></div>' + (live() && !ppl.length ? '<p class="muted" style="grid-column:1/-1;margin:0;font-size:12px">Nobody is approved in this department yet: approve associates in the members area (/admin), then assign tasks to them.</p>' : "") + "</form>";
   }
   function hubDepts() {
     var open = null; visDepts().forEach(function (d) { if (d.id === state.deptOpen) open = d; });

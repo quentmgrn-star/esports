@@ -873,6 +873,10 @@ a { color: inherit; }
 #hub small.reason { color: #b42318; font-style: italic; }
 #hub small.files a { color: var(--blue); font-weight: 600; }
 #hub .add-task { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--mist); }
+#hub .form input { min-width: 0; }
+#hub .add-task .at-title, #hub .add-task .at-due, #hub .add-task .at-go { grid-column: span 2; }
+@media (max-width: 800px) { #hub .add-task .at-due, #hub .add-task .at-go { grid-column: 1 / -1; } }
+@media (max-width: 480px) { #hub .form > * { grid-column: 1 / -1 !important; } }
 #hub .dept-title h2 a { color: inherit; text-decoration: none; }
 #hub .dept-title h2 a:hover { text-decoration: underline; }
 #hub .people > div small { display: block; }
