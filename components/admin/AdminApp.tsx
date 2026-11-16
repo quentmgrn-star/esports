@@ -601,7 +601,14 @@ function AuthForm({ notice = "" }: { notice?: string }) {
         mode === "signin"
           ? await authClient.signIn.email({ email, password })
           : await authClient.signUp.email({ email, password, name: name || email });
-      if (res.error) setError(describeError(res.error));
+      if (res.error) {
+        // First-timers often press "Sign in" before creating their account: say what to do, not only "Invalid email or password".
+        const firstTime =
+          mode === "signin" && (res.error.status === 401 || /invalid email or password/i.test(res.error.message || ""))
+            ? ' First time here? Click "No account yet? Create one" below and use the email the Board approved.'
+            : "";
+        setError(describeError(res.error) + firstTime);
+      }
     } catch (err) {
       setError(`Could not reach the server (${err instanceof Error ? err.message : String(err)}).`);
     }
@@ -656,8 +663,8 @@ function AuthForm({ notice = "" }: { notice?: string }) {
       )}
       <p className="adm-p">
         {mode === "signin"
-          ? "Admin area of Esade Sports. Sign in with your admin account."
-          : "Only approved emails can create an admin account."}
+          ? "Members area for approved captains, Board members and associates. First time? Create your account first (link below)."
+          : "Use the exact email the Board approved (or an admin added). Not approved yet? Send a request on the Members page first."}
       </p>
       <form className="adm-form" onSubmit={submit}>
         {mode === "signup" && (
