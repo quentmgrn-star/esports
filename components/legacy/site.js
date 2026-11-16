@@ -1338,7 +1338,7 @@ export function initSite(backend, tools) {
   }
   function pill(map, k) { return '<span class="pill ' + map[k][0] + '">' + map[k][1] + "</span>"; }
   function stat(k, v, s) { return '<div class="stat"><p class="eyebrow">' + k + '</p><span class="v num">' + v + "</span><small>" + s + "</small></div>"; }
-  var HUBV = [["hub-overview", "Overview"], ["hub-chat", "Chat"], ["hub-teams", "Teams"], ["hub-tournament", "Tournament"], ["hub-handover", "Team handover"], ["hub-team-editor", "Team editor"], ["hub-applications", "Sports applications"], ["hub-assoc-apps", "Association applications"], ["hub-messages", "Messages"], ["hub-captains", "Captains"], ["hub-ideas", "Ideas & logistics"], ["hub-expenses", "Expenses ledger"], ["hub-partners", "Partnerships"], ["hub-departments", "Departments"], ["hub-goals", "Goals"], ["hub-history", "History"], ["hub-report", "Reports"]];
+  var HUBV = [["hub-overview", "Overview"], ["hub-chat", "Chat"], ["hub-teams", "Teams"], ["hub-tournament", "Tournament"], ["hub-handover", "Team handover"], ["hub-team-editor", "Team editor"], ["hub-applications", "Sports applications"], ["hub-assoc-apps", "Association applications"], ["hub-messages", "Contact messages"], ["hub-captains", "Captains"], ["hub-ideas", "Ideas & logistics"], ["hub-expenses", "Expenses ledger"], ["hub-partners", "Partnerships"], ["hub-departments", "Departments"], ["hub-goals", "Goals"], ["hub-history", "History"], ["hub-report", "Reports"]];
 
   function hubShell(view, inner) {
     var partnerBadge = ((LIVE.inbox || {}).inquiries || 0) + partnerDueCount(), taskBadge = hRO() ? 0 : newTaskCount();
@@ -1689,7 +1689,7 @@ export function initSite(backend, tools) {
     return '<span class="st-select st-' + m.status + '"><select data-msg="' + esc(m._id) + '" aria-label="Status of the message from ' + esc(m.name) + '">' + Object.keys(MSG_STATUS).map(function (k) { return '<option value="' + k + '"' + (k === m.status ? " selected" : "") + ">" + MSG_STATUS[k][1] + "</option>"; }).join("") + "</select></span>";
   }
   function hubMessages() {
-    var head = '<div class="ph-head"><div><h1 class="display">Messages.</h1><p>Everything sent through the contact form on the website. Click a message to read it in full and reply: the reply is emailed to the sender and the message moves to Sent.</p></div></div>';
+    var head = '<div class="ph-head"><div><h1 class="display">Contact messages.</h1><p>Only the messages sent through the contact form on the website (your internal conversations are in Chat). Click a message to read it in full and reply: the reply is emailed to the sender and the message moves to Sent.</p></div></div>';
     if (!live()) return head + '<section class="panel"><p class="empty">Messages show once you are signed in.</p></section>';
     if (LIVE.messages == null) return head + '<section class="panel"><p class="empty">Loading…</p></section>';
     head += mailWarnPanel(["contact"]);

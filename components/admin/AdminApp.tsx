@@ -773,7 +773,7 @@ type Section = "applications" | "tryouts" | "messages" | "organisation" | "reque
 const SECTION_TITLE: Record<Section, string> = {
   applications: "Applications",
   tryouts: "Try-outs & coaches",
-  messages: "Messages",
+  messages: "Contact messages",
   organisation: "Organisation",
   requests: "People & requests",
   chat: "Chat",
@@ -863,7 +863,7 @@ function EmailProblems({ readOnly }: { readOnly: boolean }) {
 function Dashboard({ me }: { me: NonNullable<Me> }) {
   const d = deptsOf(me);
   const seesTryouts = me.full || me.teams.length > 0 || d.includes("Operations");
-  const seesMessages = seesTryouts || d.includes("Partnerships");
+  const seesMessages = seesTryouts || me.board; // admins, President, VPs and every head of department
   const seesApplications = me.full || me.heads.length > 0;
   const approves = me.board && !me.readOnly;
   // Organisation (every member and email): admins, President and VPs only.
