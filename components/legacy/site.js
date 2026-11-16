@@ -1180,7 +1180,7 @@ export function initSite(backend, tools) {
     if (k === "goals") return r !== "captain";
     if (k === "board") return r === "admin" || r === "exec" || r === "head"; // website messages + association applications
     if (k === "tournament") return r !== "associate"; // captains (own team), Board, admins, view-only (Eva Morta)
-    if (k === "chat") return r === "admin" || r === "exec" || r === "head" || r === "associate"; // the association's chat (no captains, no view-only)
+    if (k === "chat") return r === "admin" || r === "exec" || r === "head" || r === "associate" || r === "captain"; // the association's chat (no view-only)
     return false;
   }
   function tryoutCount() { if (!live()) return visibleSportsApplications().length; return LIVE.tryouts ? visTryouts().filter(function (a) { return (a.status || "New") === "New"; }).length : (LIVE.inbox || {}).tryouts || 0; }
@@ -1786,18 +1786,19 @@ export function initSite(backend, tools) {
   // Board chat (Board + admins), one chat per department (its head and associates, plus President / VPs / admins)
   // and direct messages between any two members. Convex decides what this account may open; "Demo as"
   // hides the group chats the previewed role would not have. Direct messages are always your own.
-  function chatAccount() { var sc = captain && captain.scope; return !!admin || !!(sc && (sc.exec || (sc.heads || []).length || (sc.assoc || []).length)); }
+  function chatAccount() { var sc = captain && captain.scope; return !!admin || !!(sc && (sc.exec || (sc.heads || []).length || (sc.assoc || []).length || (sc.teams || []).length)); }
   function chatGroups() {
     var u = hv(), c = LIVE.chats; if (!c) return [];
     return c.groups.filter(function (g) {
       if (g.id === "board") return u.role === "admin" || u.role === "exec" || u.role === "head";
+      if (g.id === "captains") return u.role === "admin" || u.role === "exec" || u.role === "head" || u.role === "captain";
       return hFull() || DEPT_ID[g.id.slice(5)] === u.dept;
     });
   }
   function chatDms() { var c = LIVE.chats; return c ? c.dms.slice().sort(function (a, b) { return (b.lastAt - a.lastAt) || a.name.localeCompare(b.name); }) : []; }
   function chatUnread() { if (!can("chat") || !live()) return 0; return chatGroups().concat(chatDms()).reduce(function (n, x) { return n + (x.unread || 0); }, 0); }
   function chatFind(id) { return chatGroups().concat(chatDms()).filter(function (x) { return x.id === id; })[0]; }
-  function chatTitle(x) { return x.id === "board" ? "Board" : x.id.indexOf("dept:") === 0 ? x.label + " team" : x.name; }
+  function chatTitle(x) { return x.id === "board" ? "Board" : x.id === "captains" ? "Captains" : x.id.indexOf("dept:") === 0 ? x.label + " team" : x.name; }
   function fmtWhen(ms) {
     var d = new Date(ms), n = new Date(), t = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
     return d.toDateString() === n.toDateString() ? t : d.getDate() + " " + MONTHS[d.getMonth()] + (d.getFullYear() !== n.getFullYear() ? " " + d.getFullYear() : "") + ", " + t;
@@ -1822,7 +1823,7 @@ export function initSite(backend, tools) {
         '<small class="muted">' + (x.lastAt ? esc(clip((x.lastBy ? x.lastBy.split(" ")[0] + ": " : "") + x.lastText, 46)) : esc(x.role || "No messages yet")) + "</small></button>";
     };
     return '<p class="chat-group">Group chats</p>' + (gs.length ? gs.map(item).join("") : '<p class="empty">No group chat for this view.</p>') +
-      '<p class="chat-group">Direct messages</p>' + (ds.length ? ds.map(item).join("") : '<p class="empty">Nobody else is in the association yet. People show up here once they are approved in <a href="/admin">/admin</a>.</p>');
+      '<p class="chat-group">Direct messages</p>' + (ds.length ? ds.map(item).join("") : '<p class="empty">Nobody to message yet. People show up here once they are approved in <a href="/admin">/admin</a>.</p>');
   }
   function chatLog() {
     var m = LIVE.chatMsgs;
@@ -1846,8 +1847,8 @@ export function initSite(backend, tools) {
     return true;
   }
   function hubChat() {
-    var head = '<div class="ph-head"><div><h1 class="display">Chat.</h1><p>Talk to anyone in the association: your department\'s group chat, the Board chat, or a direct message to one person.</p></div></div>';
-    if (!live() || !chatAccount()) return head + '<section class="panel"><p class="empty">The chat opens once you are signed in with a Board or associate account.</p></section>';
+    var head = '<div class="ph-head"><div><h1 class="display">Chat.</h1><p>' + (hv().role === "captain" ? "Talk to the other captains, or send a direct message to your team's associates, the heads of department or the Board." : "Talk to anyone in the association: your department's group chat, the Board chat, the captains' chat, or a direct message to one person.") + '</p></div></div>';
+    if (!live() || !chatAccount()) return head + '<section class="panel"><p class="empty">The chat opens once you are signed in with a Board, associate or captain account.</p></section>';
     if (LIVE.chats == null) { chatWatch(null); return head + '<section class="panel"><p class="empty">Loading…</p></section>'; }
     if (state.chatId && !chatFind(state.chatId)) state.chatId = null;
     if (!state.chatId) { var first = chatGroups()[0] || chatDms()[0]; state.chatId = first ? first.id : null; }
@@ -1855,7 +1856,7 @@ export function initSite(backend, tools) {
     chatWatch(cur ? cur.id : null);
     if (cur && cur.unread && document.visibilityState !== "hidden") Promise.resolve(backend.run("chatRead", { channel: cur.id })).catch(function () {});
     var main = cur
-      ? '<div class="chat-head"><h2>' + esc(chatTitle(cur)) + "</h2>" + (cur.role ? '<small class="muted">' + esc(cur.role) + "</small>" : cur.id === "board" ? '<small class="muted">President, vice-presidents, heads of department and admins</small>' : '<small class="muted">Head, associates, President, vice-presidents and admins</small>') + "</div>" +
+      ? '<div class="chat-head"><h2>' + esc(chatTitle(cur)) + "</h2>" + (cur.role ? '<small class="muted">' + esc(cur.role) + "</small>" : cur.id === "board" ? '<small class="muted">President, vice-presidents, heads of department and admins</small>' : cur.id === "captains" ? '<small class="muted">Every team captain, plus the President, vice-presidents, heads of department and admins</small>' : '<small class="muted">Head, associates, President, vice-presidents and admins</small>') + "</div>" +
         '<div id="chat-log" class="chat-log" aria-live="polite">' + chatLog() + "</div>" +
         '<form id="chat-form" class="chat-form" data-ch="' + esc(cur.id) + '"><textarea id="chat-text" aria-label="Message" rows="2" maxlength="2000" placeholder="Write a message… (Enter to send, Shift+Enter for a new line)" required></textarea><button class="btn btn-blue" type="submit">Send</button></form>'
       : '<p class="empty">Pick a chat on the left.</p>';

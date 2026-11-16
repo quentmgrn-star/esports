@@ -2467,7 +2467,7 @@ function Requests({ me, rows }: { me: NonNullable<Me>; rows: MemberRow[] | undef
   );
 }
 
-type ChatChannel = { id: string; label: string; kind: string; lastAt: number };
+type ChatChannel = { id: string; label: string; kind: string; lastAt: number; role?: string };
 type ChatMsg = {
   _id: string;
   _creationTime: number;
@@ -2525,9 +2525,12 @@ function Chat() {
   const groups: [string, string][] = [
     ["general", "Everyone"],
     ["board", "Board"],
+    ["captains", "Captains"],
     ["dept", "Departments"],
     ["sport", "Teams"],
+    ["dm", "Direct messages"],
   ];
+  const cur = channels?.find((c) => c.id === current);
   return (
     <div className="adm-chat">
       <aside className="adm-chat-channels" aria-label="Channels">
@@ -2538,8 +2541,15 @@ function Chat() {
             <div key={kind}>
               <p className="adm-chat-group">{title}</p>
               {list.map((c) => (
-                <button key={c.id} type="button" aria-pressed={c.id === current} onClick={() => setCurrent(c.id)}>
-                  # {c.label}
+                <button key={c.id} type="button" aria-pressed={c.id === current} onClick={() => setCurrent(c.id)} title={c.role}>
+                  {c.kind === "dm" ? (
+                    <span>
+                      {c.label}
+                      {c.role && <small className="adm-chat-role">{c.role}</small>}
+                    </span>
+                  ) : (
+                    `# ${c.label}`
+                  )}
                   {c.id !== current && c.lastAt > getSeen(c.id) && <span className="adm-dot" aria-label="New messages" />}
                 </button>
               ))}
@@ -2626,7 +2636,7 @@ function Chat() {
             }}
             rows={2}
             maxLength={2000}
-            placeholder={`Message #${channels?.find((c) => c.id === current)?.label ?? ""}`}
+            placeholder={cur?.kind === "dm" ? `Message ${cur.label}` : `Message #${cur?.label ?? ""}`}
             aria-label="Message"
           />
           <button className="btn btn-blue" type="submit" disabled={!text.trim()}>
@@ -2635,8 +2645,9 @@ function Chat() {
         </form>
         )}
         <p className="adm-sub">
-          Be kind and keep it about Esade Sports. Messages are seen by everyone in the channel; the Board and admins can remove
-          messages.
+          {cur?.kind === "dm"
+            ? "Direct message: only the two of you see it."
+            : "Be kind and keep it about Esade Sports. Messages are seen by everyone in the channel; the Board and admins can remove messages."}
         </p>
       </section>
     </div>

@@ -1,17 +1,19 @@
 import { ConvexError, v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { DEPARTMENTS, canSee, requireAccess, getAccess, type Access } from "./roles";
 import { sportOfTeam } from "./teamList";
 import { TEAMS } from "./teamList";
+import { canUse as canUseDm, contacts, dmId } from "./hubChat";
 
 // Channels: General (everyone with an account), Board (admin, president, VPs, heads; viewers read),
-// one per department (people who see that department) and one per sport (its captains, the heads,
+// Captains (every captain, plus the Board; viewers read), one per department (people who see that department) and one per sport (its captains, the heads,
 // associates assigned to a team of that sport, and full access).
 const SPORTS = [...new Set(TEAMS.map((t) => t.sport))];
-type Channel = { id: string; label: string; kind: "general" | "board" | "dept" | "sport" };
+type Channel = { id: string; label: string; kind: "general" | "board" | "captains" | "dept" | "sport" | "dm" };
 const ALL: Channel[] = [
   { id: "general", label: "General", kind: "general" },
   { id: "board", label: "Board", kind: "board" },
+  { id: "captains", label: "Captains", kind: "captains" },
   ...DEPARTMENTS.map((d) => ({ id: `dept:${d}`, label: d, kind: "dept" as const })),
   ...SPORTS.map((s) => ({ id: `sport:${s}`, label: s, kind: "sport" as const })),
 ];
@@ -20,13 +22,19 @@ const ALL: Channel[] = [
 function canRead(a: Access, c: Channel): boolean {
   if (c.kind === "general") return true;
   if (c.kind === "board") return a.board || a.full;
+  if (c.kind === "captains") return a.board || a.full || a.teams.length > 0;
   if (c.kind === "dept") return canSee(a, { dept: c.id.slice(5) });
   const sport = c.id.slice(6);
   return canSee(a, { sport, captains: true }) || a.heads.length > 0 || a.assoc.some((x) => x.teams.some((t) => sportOfTeam(t) === sport));
 }
 // The Board (admin, president, VPs, heads) can remove any message in channels they read.
 const moderates = (a: Access) => a.board && !a.readOnly;
-function channel(a: Access, id: string): Channel {
+// Direct messages ("dm:<a>|<b>") follow the Hub rules in convex/hubChat.ts: only the two people in it.
+async function channel(ctx: QueryCtx | MutationCtx, a: Access, id: string): Promise<Channel> {
+  if (id.startsWith("dm:")) {
+    if (!(await canUseDm(ctx, a, id))) throw new ConvexError("You don't have access to this chat.");
+    return { id, label: "Direct message", kind: "dm" };
+  }
   const c = ALL.find((x) => x.id === id);
   if (!c || !canRead(a, c)) throw new ConvexError("You don't have access to this channel.");
   return c;
@@ -37,7 +45,11 @@ export const channels = query({
   handler: async (ctx) => {
     const a = await getAccess(ctx);
     if (!a) return null;
-    const mine = ALL.filter((c) => canRead(a, c));
+    const people = await contacts(ctx, a);
+    const mine: Channel[] = [
+      ...ALL.filter((c) => canRead(a, c)),
+      ...people.map((p) => ({ id: dmId(a.email, p.email), label: p.name, kind: "dm" as const, role: p.role })),
+    ];
     return Promise.all(
       mine.map(async (c) => {
         const last = await ctx.db.query("chatMessages").withIndex("by_channel", (q) => q.eq("channel", c.id)).order("desc").first();
@@ -52,9 +64,9 @@ export const list = query({
   handler: async (ctx, args) => {
     const a = await getAccess(ctx);
     if (!a) return null;
-    channel(a, args.channel);
+    const c = await channel(ctx, a, args.channel);
     const rows = await ctx.db.query("chatMessages").withIndex("by_channel", (q) => q.eq("channel", args.channel)).order("desc").take(200);
-    return rows.reverse().map((m) => ({ ...m, mine: m.authorEmail === a.email, canDelete: !a.readOnly && (m.authorEmail === a.email || moderates(a)), canPost: !a.readOnly }));
+    return rows.reverse().map((m) => ({ ...m, mine: m.authorEmail === a.email, canDelete: !a.readOnly && (m.authorEmail === a.email || (moderates(a) && c.kind !== "dm")), canPost: !a.readOnly }));
   },
 });
 
@@ -63,7 +75,7 @@ export const send = mutation({
   handler: async (ctx, args) => {
     const a = await requireAccess(ctx);
     if (a.readOnly) throw new ConvexError("Your access is view-only.");
-    channel(a, args.channel);
+    await channel(ctx, a, args.channel);
     const body = args.body.trim().slice(0, 2000);
     if (!body) throw new ConvexError("Write a message first.");
     await ctx.db.insert("chatMessages", { channel: args.channel, authorEmail: a.email, authorName: a.name || a.email, authorRole: a.label, body });
@@ -89,8 +101,9 @@ export const remove = mutation({
     const a = await requireAccess(ctx);
     const m = await ctx.db.get(id);
     if (!m) return;
-    if (a.readOnly || (m.authorEmail !== a.email && !moderates(a))) throw new ConvexError("Not authorised.");
-    channel(a, m.channel);
+    if (a.readOnly) throw new ConvexError("Not authorised.");
+    const c = await channel(ctx, a, m.channel);
+    if (m.authorEmail !== a.email && (!moderates(a) || c.kind === "dm")) throw new ConvexError("Not authorised.");
     await ctx.db.delete(id);
   },
 });
