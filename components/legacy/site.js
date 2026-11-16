@@ -868,7 +868,7 @@ export function initSite(backend, tools) {
   function initials(a) { return esc((a.first || "?").charAt(0) + (a.last || "").charAt(0)); }
   function avatar(a) { return '<div class="av">' + (a.photo ? '<img src="' + a.photo + '" alt="">' : initials(a)) + "</div>"; }
   function alumniBand(extra) {
-    return '<section class="band"><div class="wrap"><h1 class="display">A community<br>beyond sports.</h1><p>Part of an Esade alumni network ranked #6 in Europe by the <a href="https://rankings.ft.com/rankings/3006/mba-2026" target="_blank" rel="noopener">Financial Times</a>. Search the Esade Sports alumni network like a professional directory. Anyone can browse profiles. Alumni add their own profile, and it appears once the Esade Sports team has checked it.</p>' + (extra || "") + "</div></section>";
+    return '<section class="band"><div class="wrap"><h1 class="display">A community<br>beyond sports.</h1><p>Part of an Esade alumni network ranked #6 in Europe by the <a href="https://www.esade.edu/en/news/esade-full-time-mba-ranked-7th-in-the-world-by-the-financial-times" target="_blank" rel="noopener">Financial Times</a>. Search the Esade Sports alumni network like a professional directory. Anyone can browse profiles. Alumni add their own profile, and it appears once the Esade Sports team has checked it.</p>' + (extra || "") + "</div></section>";
   }
   // Graduation years: 1991 up to next year's class, newest first.
   function gradYears() { var out = [], top = new Date().getFullYear() + 1; for (var y = top; y >= 1991; y--) out.push(y); return out; }

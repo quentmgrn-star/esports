@@ -243,7 +243,7 @@ export const SITE_MARKUP = `
         </div>
         <a class="link-arrow" href="#alumni">Open the Alumni corner →</a>
       </div>
-      <p class="alumni-teaser-text">Our community goes beyond sport. Former players, captains and associates keep a profile and stay in touch, as part of an Esade alumni network ranked #6 in Europe by the <a href="https://rankings.ft.com/rankings/3006/mba-2026" target="_blank" rel="noopener">Financial Times</a>. Find alumni from your sport, see what they do now and reach out.</p>
+      <p class="alumni-teaser-text">Our community goes beyond sport. Former players, captains and associates keep a profile and stay in touch, as part of an Esade alumni network ranked #6 in Europe by the <a href="https://www.esade.edu/en/news/esade-full-time-mba-ranked-7th-in-the-world-by-the-financial-times" target="_blank" rel="noopener">Financial Times</a>. Find alumni from your sport, see what they do now and reach out.</p>
     </div>
   </section>
 
