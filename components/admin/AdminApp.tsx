@@ -190,6 +190,22 @@ type Me = {
 // Same rules as convex/roles.ts (the server enforces them; this only decides which tabs to show).
 const deptsOf = (me: NonNullable<Me>) => [...me.heads, ...me.assoc.map((x) => x.department)];
 const roleLabel = (me: NonNullable<Me>) => me.label || (me.isAdmin ? "Admin" : "Member");
+// Set when a sign-in or sign-up succeeds on this page; read once when the account has loaded.
+const JUST_SIGNED_IN = "es-just-signed-in";
+function markJustSignedIn() {
+  try {
+    sessionStorage.setItem(JUST_SIGNED_IN, "1");
+  } catch {}
+}
+function takeJustSignedIn(): boolean {
+  try {
+    const v = sessionStorage.getItem(JUST_SIGNED_IN) === "1";
+    sessionStorage.removeItem(JUST_SIGNED_IN);
+    return v;
+  } catch {
+    return false;
+  }
+}
 
 export default function AdminApp() {
   return (
@@ -216,7 +232,7 @@ function HeaderStatus() {
   return (
     <div className="adm-status">
       <a href="/">← Public site</a>
-      {me?.isAdmin && <a href="/#hub-overview">Hub</a>}
+      {me?.label && <a href="/#hub-overview">Hub</a>}
       {email ? (
         <>
           <span className="adm-badge">
@@ -285,6 +301,12 @@ function Gate() {
   if (!isAuthenticated || !me) return <AuthForm notice={notice} />;
   // Signed in with a temporary password set by an admin: choose your own first.
   if (mustChange) return <ChooseOwnPassword />;
+  // Right after signing in or creating an account, everyone except admins, the President and VPs
+  // goes to the Hub (their home). /admin stays reachable from the Hub for requests, try-outs, etc.
+  if (takeJustSignedIn() && me.label && !me.isAdmin && !me.exec) {
+    window.location.replace("/#hub-overview");
+    return <Panel title="Opening the Hub">Taking you to the Hub…</Panel>;
+  }
   if (!me.label) {
     return (
       <Panel title="No access">
@@ -601,6 +623,7 @@ function AuthForm({ notice = "" }: { notice?: string }) {
         mode === "signin"
           ? await authClient.signIn.email({ email, password })
           : await authClient.signUp.email({ email, password, name: name || email });
+      if (!res.error) markJustSignedIn();
       if (res.error) {
         // First-timers often press "Sign in" before creating their account: say what to do, not only "Invalid email or password".
         const firstTime =
@@ -864,11 +887,9 @@ function Dashboard({ me }: { me: NonNullable<Me> }) {
           <h1 className="display adm-title">{SECTION_TITLE[section]}</h1>
         </div>
         <div className="adm-user">
-          {me.isAdmin && (
-            <a className="btn btn-blue" href="/#hub-overview">
-              Open the Hub
-            </a>
-          )}
+          <a className="btn btn-blue" href="/#hub-overview">
+            Open the Hub
+          </a>
           <SignOut />
         </div>
       </div>
@@ -882,6 +903,12 @@ function Dashboard({ me }: { me: NonNullable<Me> }) {
             </button>
           ))}
       </nav>
+      {tabs.filter(([, show]) => show).length === 1 && (
+        <p className="adm-p">
+          Your pages (tasks, My week, reports, chat and more) are in the <a href="/#hub-overview">Hub</a>. This page only has the
+          team chat.
+        </p>
+      )}
       <EmailProblems readOnly={me.readOnly} />
       {me.readOnly && (
         <p className="adm-p adm-readonly">View-only access: you can see everything, but not change anything.</p>

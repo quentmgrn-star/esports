@@ -301,9 +301,19 @@ export function initSite(backend, tools) {
 
   // ================= Header account area =================
   var captain = null; // signed-in captain (not admin): badge + inbox link, no Hub
+  // /admin has something for this member beyond the chat (same rules as the tabs in components/admin/AdminApp.tsx):
+  // admins, President/VPs, heads, captains, view-only, and associates in Operations or Partnerships.
+  // Other associates (e.g. Finance) have everything in the Hub, so the Hub is their only home.
+  function membersAreaUseful() {
+    if (admin) return true;
+    var sc = captain && captain.scope;
+    if (!sc) return false;
+    return !!(sc.exec || sc.viewer || (sc.heads || []).length || (sc.teams || []).length ||
+      (sc.assoc || []).some(function (x) { return x.department === "Operations" || x.department === "Partnerships"; }));
+  }
   function adminBar() {
-    if (captain) return '<a class="admin-badge" href="/admin" title="Signed in as ' + esc(captain.email) + ' · open the members area"><i>' + esc(captain.label || "Member") + '</i><span>' + esc(captain.name || captain.email.split("@")[0]) + '</span></a>' +
-      '<a href="#hub-overview">Hub</a><a href="/admin">Members area</a><button type="button" class="signout" data-signout>Sign out</button>';
+    if (captain) return '<a class="admin-badge" href="#hub-overview" title="Signed in as ' + esc(captain.email) + ' · open the Hub"><i>' + esc(captain.label || "Member") + '</i><span>' + esc(captain.name || captain.email.split("@")[0]) + '</span></a>' +
+      '<a href="#hub-overview">Hub</a>' + (membersAreaUseful() ? '<a href="/admin">Members area</a>' : "") + '<button type="button" class="signout" data-signout>Sign out</button>';
     if (!admin) return "";
     return '<a class="admin-badge" href="/admin" title="Signed in as ' + esc(admin.email) + ' · open the admin area"><i>Admin</i><span>' + esc(admin.name || admin.email.split("@")[0]) + '</span></a>' +
       '<a href="#hub-overview">Hub</a><button type="button" class="signout" data-signout>Sign out</button>';
@@ -385,7 +395,7 @@ export function initSite(backend, tools) {
       : views.length > 1 ? '<label class="field" for="hub-view">Open the Hub as<select id="hub-view">' + views.map(function (v, i) { return '<option value="' + i + '">' + esc(viewLabel(v)) + "</option>"; }).join("") + "</select></label>"
       : '<p>' + (views[0] ? "You will see the Hub as " + esc(viewLabel(views[0])) + "." : "Your role is still being set up.") + "</p>";
     return '<div class="acc"><p class="eyebrow">Signed in</p><strong>Esade Sports Hub</strong><p>You are signed in as ' + esc(me.email) + (captain && captain.label ? " (" + esc(captain.label) + ")" : "") + '.</p><div class="opts">' + body + "</div>" +
-      (views.length ? '<button class="btn btn-blue" data-go="hub">Open the Hub</button>' : "") + ' <a class="btn btn-ghost-navy" href="/admin">Members area</a></div>';
+      (views.length ? '<button class="btn btn-blue" data-go="hub">Open the Hub</button>' : "") + (membersAreaUseful() || !views.length ? ' <a class="btn btn-ghost-navy" href="/admin">Members area</a>' : "") + "</div>";
   }
   function bindSignin() {
     bindRequest();
@@ -1308,7 +1318,7 @@ export function initSite(backend, tools) {
     }).join("") + adminNavLink();
     var u = state.user, me = admin || captain, multi = !!admin || allowedViews().length > 1;
     return '<div class="app"><aside class="rail"><div class="top"><a class="lock" href="#home" aria-label="Back to Esade Sports home">' + mono(38) + '<span>ESADE SPORTS<br>HUB</span></a><div class="history" aria-label="Page navigation"><button type="button" data-history="back" aria-label="Go back">' + ico("left") + '</button><button type="button" data-history="forward" aria-label="Go forward">' + ico("right") + '</button>' + (live() ? bellHtml() : "") + '</div>' +
-      '<div class="who"><p class="eyebrow">Signed in' + (admin ? " as admin" : "") + '</p><strong>' + esc(me.email) + "</strong><small>Viewing as " + esc(viewLabel(u)) + (hRO() ? " · read-only" : "") + "</small>" + (multi ? '<a class="back-site" href="#signin">Change view</a>' : "") + '<a class="back-site" href="/admin">Requests &amp; applications</a><a class="back-site" href="#home">← Public site</a><button type="button" data-signout>Sign out</button>' + langSwitch() + '</div></div>' +
+      '<div class="who"><p class="eyebrow">Signed in' + (admin ? " as admin" : "") + '</p><strong>' + esc(me.email) + "</strong><small>Viewing as " + esc(viewLabel(u)) + (hRO() ? " · read-only" : "") + "</small>" + (multi ? '<a class="back-site" href="#signin">Change view</a>' : "") + (membersAreaUseful() ? '<a class="back-site" href="/admin">Requests &amp; applications</a>' : "") + '<a class="back-site" href="#home">← Public site</a><button type="button" data-signout>Sign out</button>' + langSwitch() + '</div></div>' +
       '<nav aria-label="Hub">' + nav + "</nav></aside>" +
       '<main class="main">' + teamBar(u) + (onTeamPages(u) ? activityPanel(u.teams[0]) : "") + (admin && !onTeamPages(u) ? demoBar(u) : admin || opensAnyTeam() || live() ? "" : '<div class="banner"><b>Prototype</b><span>Example figures and tasks, saved in this browser only.</span></div>') + inner + "</main></div>";
   }
