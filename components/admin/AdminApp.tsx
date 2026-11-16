@@ -187,6 +187,7 @@ type Me = {
   readOnly: boolean;
   board: boolean;
   label: string;
+  seesMail: boolean; // admins, President, VPs, IT: "Email not sent" warnings and email statuses
 } | null;
 // Same rules as convex/roles.ts (the server enforces them; this only decides which tabs to show).
 const deptsOf = (me: NonNullable<Me>) => [...me.heads, ...me.assoc.map((x) => x.department)];
@@ -783,6 +784,10 @@ const SECTION_TITLE: Record<Section, string> = {
 
 // Confirmation email to the person who filled in the form (convex/mail.ts stores "sent" or why not).
 // Older submissions (before 15 Nov 2026) have no status.
+// Only admins, President, VPs and IT see it (Convex also strips the status for everyone else).
+function useSeesMail() {
+  return !!(useQuery(api.admin.me, {}) as { seesMail?: boolean } | null | undefined)?.seesMail;
+}
 function ConfirmEmail({ status }: { status?: string }) {
   if (!status) return <>Not recorded</>;
   if (status === "sent") return <>Sent</>;
@@ -790,8 +795,7 @@ function ConfirmEmail({ status }: { status?: string }) {
 }
 
 // Warning box at the top of /admin: confirmation emails that did not reach the person.
-// Convex (admin.emailProblems) only returns the ones this account handles: its department, its team,
-// or all of them for admins, President, VPs and IT.
+// Convex (admin.emailProblems) returns them only to admins, President, VPs and the IT department.
 type MailRow = { key: string; at: number; form: string; name: string; email: string; about: string; why: string; canRetry: boolean; handledBy?: string; handledAt?: number };
 function EmailProblems({ readOnly }: { readOnly: boolean }) {
   const rows = useQuery(api.admin.emailProblems, {}) as MailRow[] | undefined;
@@ -1254,6 +1258,7 @@ function MessageDetail({
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
   const reply = `mailto:${m.email}?subject=${encodeURIComponent("Re: " + m.subject)}`;
+  const seesMail = useSeesMail();
   const send = useMutation(api.admin.replyToMessage);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
@@ -1308,16 +1313,20 @@ function MessageDetail({
             <dt>Sent to</dt>
             <dd>{m.sport ? `Captains of ${m.sport}` : "Admins (general message)"}</dd>
           </div>
-          <div>
-            <dt>Email copy</dt>
-            <dd>{m.emailStatus ?? "Pending"}</dd>
-          </div>
-          <div>
-            <dt>Confirmation to sender</dt>
-            <dd>
-              <ConfirmEmail status={m.confirmEmail} />
-            </dd>
-          </div>
+          {seesMail && (
+            <>
+              <div>
+                <dt>Email copy</dt>
+                <dd>{m.emailStatus ?? "Pending"}</dd>
+              </div>
+              <div>
+                <dt>Confirmation to sender</dt>
+                <dd>
+                  <ConfirmEmail status={m.confirmEmail} />
+                </dd>
+              </div>
+            </>
+          )}
         </dl>
         <h3 className="adm-h3">Message</h3>
         <p className="adm-motivation">{m.message}</p>
@@ -1374,6 +1383,7 @@ function MessageDetail({
 
 function Detail({ app, onClose }: { app: Application; onClose: () => void }) {
   const saveNotes = useMutation(api.admin.setApplicationNotes);
+  const seesMail = useSeesMail();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     document.addEventListener("keydown", onKey);
@@ -1407,7 +1417,7 @@ function Detail({ app, onClose }: { app: Application; onClose: () => void }) {
     ["Accepts redirection", app.acceptsRedirect ? "Yes" : "No"],
     ["Confirms accuracy", app.confirmsAccuracy ? "Yes" : "No"],
     ["Submitted", new Date(app._creationTime).toLocaleString("en-GB")],
-    ["Confirmation email", <ConfirmEmail status={app.confirmEmail} />],
+    ...(seesMail ? ([["Confirmation email", <ConfirmEmail status={app.confirmEmail} />]] as [string, React.ReactNode][]) : []),
   ];
 
   return (
@@ -1717,6 +1727,7 @@ function Tryouts({ me, canMove }: { me: NonNullable<Me>; canMove: boolean }) {
 
 function TeamAppDetail({ app, onClose }: { app: TeamApp; onClose: () => void }) {
   const saveNotes = useMutation(api.admin.setTeamApplicationNotes);
+  const seesMail = useSeesMail();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     document.addEventListener("keydown", onKey);
@@ -1732,7 +1743,7 @@ function TeamAppDetail({ app, onClose }: { app: TeamApp; onClose: () => void }) 
     ["Level", app.level || "—"],
     ["Wants to play", app.kind === "coach" ? "—" : app.track === "social" ? "Just for fun (no try-out)" : "Competitive squad (try-outs)"],
     ["Submitted", new Date(app._creationTime).toLocaleString("en-GB")],
-    ["Confirmation email", <ConfirmEmail status={app.confirmEmail} />],
+    ...(seesMail ? ([["Confirmation email", <ConfirmEmail status={app.confirmEmail} />]] as [string, React.ReactNode][]) : []),
   ];
   return (
     <div className="match-modal">
