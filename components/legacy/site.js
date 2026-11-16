@@ -1765,7 +1765,7 @@ export function initSite(backend, tools) {
     (a.moreDocLinks || []).forEach(function (d) { links.push('<a href="' + esc(d.url) + '" target="_blank" rel="noopener">' + esc(d.name) + "</a>"); });
     if (a.videoUrl) links.push('<a href="' + esc(a.videoUrl) + '" target="_blank" rel="noopener">Video</a>');
     if (a.linkedin) links.push('<a href="' + esc(a.linkedin) + '" target="_blank" rel="noopener">LinkedIn</a>');
-    return '<article class="kb-card stg-' + st + '"' + (ro ? "" : ' data-card="' + esc(a._id) + '" data-col="' + appCol(a) + '" title="Drag to another column to change the stage"') + ">" +
+    return '<article class="kb-card stg-' + st + '" data-app-open="' + esc(a._id) + '" tabindex="0"' + (ro ? ' title="Open the full application"' : ' data-card="' + esc(a._id) + '" data-col="' + appCol(a) + '" title="Click to open the full application, drag to another column to change the stage"') + ">" +
       "<strong>" + esc(name) + mailFailPill(a) + "</strong><small>" + esc(a.programme) + " · " + esc(a.year) + "</small><small>" + esc(a.pref1) + (a.pref2 ? " · then " + esc(a.pref2) : "") + "</small>" +
       '<div class="kb-foot">' + stageChip(st) + '<small class="num">' + esc(fmtDay(a._creationTime)) + "</small></div>" +
       '<div class="kb-foot"><span>' + links.join(" · ") + "</span>" + (ro ? "" : appStageSelect(a)) + "</div>" +
@@ -1779,27 +1779,53 @@ export function initSite(backend, tools) {
     }).join("") + "</div>";
   }
   function hubAssocApps() {
-    var head = '<div class="ph-head"><div><h1 class="display">Association applications.</h1><p>Students applying to join a department. Heads see the applicants who chose their department; the President, VPs and admins see everyone. Notes stay in <a href="/admin">Requests &amp; applications</a>.</p></div></div>';
+    var head = '<div class="ph-head"><div><h1 class="display">Association applications.</h1><p>Students applying to join a department. Heads see the applicants who chose their department; the President, VPs and admins see everyone. Click an applicant to open the full application and add notes.</p></div></div>';
     if (!live()) return head + '<section class="panel"><p class="empty">Applications show once you are signed in.</p></section>';
     if (LIVE.assocApps == null) return head + '<section class="panel"><p class="empty">Loading…</p></section>';
     head += mailWarnPanel(["association"]);
     var all = visApps(), f = state.aFilter || "all", board = state.aView !== "table";
     var inTab = function (a, t) { var st = a.stage || "applied"; return t === "all" || (t === "decision" ? ["offer", "accepted", "declined", "rejected"].indexOf(st) > -1 : st === t); };
     var rows = all.filter(function (a) { return inTab(a, f); });
+    var open = all.filter(function (a) { return a._id === state.appOpen; })[0], dlg = open ? appDialog(open) : "";
     var bar = '<div class="kb-bar"><div class="kb-switch" role="group" aria-label="Layout"><button type="button" data-aview="board" aria-pressed="' + board + '">Board</button><button type="button" data-aview="table" aria-pressed="' + !board + '">Table</button></div>' +
       (board ? '<p class="kb-hint">' + (hRO() ? "View only." : "Drag a card into another column to move the applicant to that stage (on a phone: press and hold, then drag).") + "</p>" : "") + "</div>";
-    if (board) return head + '<section class="panel">' + bar + (all.length ? appBoard(all) : '<p class="empty">No applications yet.</p>') + "</section>";
+    if (board) return head + '<section class="panel">' + bar + (all.length ? appBoard(all) : '<p class="empty">No applications yet.</p>') + "</section>" + dlg;
     return head + '<section class="panel">' + bar + '<div class="chips" role="group" aria-label="Stage">' + APP_TABS.map(function (x) { var n = all.filter(function (a) { return inTab(a, x[0]); }).length; return '<button class="chip" data-af="' + x[0] + '" aria-pressed="' + (f === x[0]) + '">' + x[1] + " (" + n + ")</button>"; }).join("") + "</div>" +
       (rows.length ? '<div class="table-wrap"><table><thead><tr><th>Applicant</th><th>Studies</th><th>Departments</th><th>Motivation</th><th>Files</th><th>Received</th><th>Stage</th></tr></thead><tbody>' + rows.map(function (a) {
         var st = a.stage || "applied", name = a.firstName + " " + a.lastName;
-        return '<tr class="stg-row stg-' + st + '"><td><strong>' + esc(name) + '</strong>' + mailFailPill(a) + '<br><small><a href="mailto:' + esc(a.email) + '">' + esc(a.email) + "</a><br>" + esc(a.phone) + (a.linkedin ? '<br><a href="' + esc(a.linkedin) + '" target="_blank" rel="noopener">LinkedIn</a>' : "") + "</small></td>" +
+        return '<tr class="msg-row stg-row stg-' + st + '" data-app-open="' + esc(a._id) + '" tabindex="0" title="Open the full application"><td><strong>' + esc(name) + '</strong>' + mailFailPill(a) + '<br><small><a href="mailto:' + esc(a.email) + '">' + esc(a.email) + "</a><br>" + esc(a.phone) + (a.linkedin ? '<br><a href="' + esc(a.linkedin) + '" target="_blank" rel="noopener">LinkedIn</a>' : "") + "</small></td>" +
           "<td>" + esc(a.programme) + '<br><small class="muted">' + esc(a.year) + "</small></td>" +
           "<td>" + esc(a.pref1) + (a.pref2 ? '<br><small class="muted">then ' + esc(a.pref2) + "</small>" : "") + "</td>" +
           '<td>' + (a.motivation.length > 120 ? '<details><summary><small class="muted">' + esc(clip(a.motivation, 120)) + '</small></summary><p style="white-space:pre-wrap;margin:6px 0 0">' + esc(a.motivation) + "</p></details>" : '<small class="muted" style="white-space:pre-wrap">' + esc(a.motivation) + "</small>") + "</td>" +
           "<td>" + (a.cvUrl ? '<a href="' + esc(a.cvUrl) + '" target="_blank" rel="noopener">CV</a>' : "") + (a.moreDocLinks || []).map(function (d) { return '<br><a href="' + esc(d.url) + '" target="_blank" rel="noopener">' + esc(d.name) + "</a>"; }).join("") + (a.videoUrl ? '<br><a href="' + esc(a.videoUrl) + '" target="_blank" rel="noopener">Video</a>' : "") + "</td>" +
           '<td class="num muted">' + esc(fmtDay(a._creationTime)) + "</td>" +
           "<td>" + (hRO() ? stageChip(st) : appStageSelect(a)) + "</td></tr>";
-      }).join("") + "</tbody></table></div>" : '<p class="empty">' + (all.length ? "No application at this stage." : "No applications yet.") + "</p>") + "</section>";
+      }).join("") + "</tbody></table></div>" : '<p class="empty">' + (all.length ? "No application at this stage." : "No applications yet.") + "</p>") + "</section>" + dlg;
+  }
+  // The full application, opened by clicking a card (board) or a row (table).
+  function appDialog(a) {
+    var name = a.firstName + " " + a.lastName, st = a.stage || "applied", ro = hRO();
+    var files = [];
+    if (a.cvUrl) files.push('<a href="' + esc(a.cvUrl) + '" target="_blank" rel="noopener">CV</a>');
+    (a.moreDocLinks || []).forEach(function (d) { files.push('<a href="' + esc(d.url) + '" target="_blank" rel="noopener">' + esc(d.name) + "</a>"); });
+    if (a.videoUrl) files.push('<a href="' + esc(a.videoUrl) + '" target="_blank" rel="noopener">Video</a>');
+    var row = function (k, v) { return "<div><dt>" + k + "</dt><dd>" + v + "</dd></div>"; };
+    return '<div class="match-modal"><div class="match-backdrop" data-app-close></div><section class="match-dialog msg-dialog" role="dialog" aria-modal="true" aria-labelledby="app-title">' +
+      '<button class="match-close" type="button" data-app-close aria-label="Close">×</button>' +
+      '<p class="eyebrow" style="color:var(--blue)">Association application · ' + esc(a.pref1) + (a.pref2 ? " then " + esc(a.pref2) : "") + '</p><h2 id="app-title">' + esc(name) + "</h2>" +
+      '<dl class="match-details">' + row("Email", '<a href="mailto:' + esc(a.email) + '">' + esc(a.email) + "</a>") + (a.phone ? row("Phone", esc(a.phone)) : "") +
+      row("Studies", esc(a.programme) + " · " + esc(a.year)) + row("1st choice", esc(a.pref1)) + (a.pref2 ? row("2nd choice", esc(a.pref2)) : "") +
+      row("Open to another department", a.acceptsRedirect ? "Yes" : "No") +
+      (a.linkedin ? row("LinkedIn", '<a href="' + esc(a.linkedin) + '" target="_blank" rel="noopener">Open profile</a>') : "") +
+      row("Files", files.length ? files.join(" · ") : "None") +
+      row("Received", esc(new Date(a._creationTime).toLocaleString("en-GB"))) +
+      row("Stage", ro ? stageChip(st) : appStageSelect(a)) + (a.stageChangedAt ? row("Stage changed", esc(fmtDay(a.stageChangedAt))) : "") +
+      (a.confirmEmail ? row("Confirmation email", a.confirmEmail === "sent" ? "Sent" : mailFailPill(a)) : "") + "</dl>" +
+      '<h3 class="msg-h3">Motivation</h3><p class="msg-body">' + esc(a.motivation || "Not given") + "</p>" +
+      (ro ? (a.notes ? '<h3 class="msg-h3">Notes</h3><p class="msg-body">' + esc(a.notes) + "</p>" : "") :
+        '<form id="app-notes" data-id="' + esc(a._id) + '" class="msg-form"><label for="app-notes-text" class="msg-h3">Notes (only people who can see this application read them)</label><textarea id="app-notes-text" name="notes" rows="4" maxlength="5000" placeholder="e.g. Interview on Tuesday, strong in Excel">' + esc(a.notes || "") + "</textarea>" +
+        '<div class="msg-actions"><button type="submit" class="btn solid">Save notes</button><a class="btn" href="mailto:' + esc(a.email) + '">Email ' + esc(a.firstName) + "</a></div></form>") +
+      "</section></div>";
   }
   // Dropping a card: move it right away, then save (the live data re-draws the board; on an error it snaps back).
   enableBoardDrag(hub, function (id, col, card, column) {
@@ -3313,6 +3339,17 @@ export function initSite(backend, tools) {
       btn.disabled = true; btn.textContent = "Sending…";
       pRun("replyMessage", { id: mr.getAttribute("data-id"), text: t }, "Reply sent.").then(function () { mr.elements.text.value = ""; render(); }, function () { btn.disabled = false; btn.textContent = "Send reply"; });
     });
+    hub.querySelectorAll("[data-app-open]").forEach(function (el) {
+      var openApp = function () { state.appOpen = el.getAttribute("data-app-open"); render(); };
+      el.addEventListener("click", function (e) { if (e.target.closest("a, select, button, details, input, textarea")) return; openApp(); });
+      el.addEventListener("keydown", function (e) { if ((e.key === "Enter" || e.key === " ") && e.target === el) { e.preventDefault(); openApp(); } });
+    });
+    hub.querySelectorAll("[data-app-close]").forEach(function (b) { b.addEventListener("click", function () { state.appOpen = null; render(); }); });
+    var anf = $("app-notes");
+    if (anf) anf.addEventListener("submit", function (ev) {
+      ev.preventDefault(); var btn = anf.querySelector("button[type=submit]"); btn.disabled = true;
+      pRun("setAppNotes", { id: anf.getAttribute("data-id"), notes: anf.elements.notes.value }, "Notes saved.").then(function () { btn.disabled = false; anf.elements.notes.blur(); }, function () { btn.disabled = false; });
+    });
     hub.querySelectorAll("[data-app-stage]").forEach(function (sel) { sel.addEventListener("change", function () { pRun("setAppStage", { id: sel.getAttribute("data-app-stage"), stage: sel.value }, "Stage updated."); }); });
     hub.querySelectorAll("[data-inq]").forEach(function (sel) { sel.addEventListener("change", function () { pRun("setInquiry", { id: sel.getAttribute("data-inq"), status: sel.value }, "Status updated."); }); });
     hub.querySelectorAll("[data-inq-add]").forEach(function (b) { b.addEventListener("click", function () {
@@ -3591,6 +3628,7 @@ export function initSite(backend, tools) {
     if (e.key === "Escape" && state.rosterEdit) { state.rosterEdit = null; render(); }
     if (e.key === "Escape" && state.msgOpen && location.hash === "#hub-messages") { state.msgOpen = null; render(); }
     if (e.key === "Escape" && state.tryOpen && location.hash === "#hub-applications") { state.tryOpen = null; render(); }
+    if (e.key === "Escape" && state.appOpen && location.hash === "#hub-assoc-apps") { state.appOpen = null; render(); }
   });
   var pf = $("partner-form");
   pf.addEventListener("submit", function (e) {
