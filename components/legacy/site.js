@@ -318,12 +318,16 @@ export function initSite(backend, tools) {
     return '<a class="admin-badge" href="/admin" title="Signed in as ' + esc(admin.email) + ' · open the admin area"><i>Admin</i><span>' + esc(admin.name || admin.email.split("@")[0]) + '</span></a>' +
       '<a href="#hub-overview">Hub</a><button type="button" class="signout" data-signout>Sign out</button>';
   }
-  // The Industry Platform preview is for the Eva Morta / Student Council presentation: admins and
-  // view-only accounts see it; students (and admins demoing the student view) don't.
+  // The Industry Platform preview and the "What Esade gains" column are for the Eva Morta / Student Council
+  // presentation: admins and view-only accounts see them; students (and admins demoing the student view) don't.
   var demoPublic = false;
   function industryVisibility() {
-    var el = $("industry"); if (!el) return;
-    el.hidden = !((admin && !demoPublic) || (captain && captain.scope && captain.scope.viewer));
+    var show = !!((admin && !demoPublic) || (captain && captain.scope && captain.scope.viewer));
+    var el = $("industry"); if (el) el.hidden = !show;
+    // "What Esade gains" (Why join section) follows the same rule; students only see "What you get".
+    var ge = $("why-esade"), gr = $("why-grid");
+    if (ge) ge.hidden = !show;
+    if (gr) gr.classList.toggle("solo", !show);
   }
   function renderAcct() {
     industryVisibility();

@@ -139,7 +139,7 @@ export const SITE_MARKUP = `
   <section class="sec why-sec" id="why" aria-labelledby="why-title">
     <div class="wrap">
       <div class="sec-head"><div><h2 class="h2" id="why-title">Why join Esade Sports</h2></div></div>
-      <div class="why-grid">
+      <div class="why-grid solo" id="why-grid">
         <div class="why-col">
           <h3>What you get</h3>
           <ul class="why-list">
@@ -149,7 +149,8 @@ export const SITE_MARKUP = `
             <li><b>A network that lasts</b><span>Stay in touch through the Alumni corner, part of an Esade alumni network ranked #6 in Europe by the Financial Times.</span></li>
           </ul>
         </div>
-        <div class="why-col">
+        <!-- Shown only to Eva Morta / Student Council (view-only accounts) and admins: see industryVisibility() in site.js -->
+        <div class="why-col" id="why-esade" hidden>
           <h3>What Esade gains</h3>
           <ul class="why-list">
             <li><b>Esade on the field</b><span>Official teams represent the school in Barcelona's university and amateur leagues.</span></li>

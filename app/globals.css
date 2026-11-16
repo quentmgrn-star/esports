@@ -1046,10 +1046,12 @@ a { text-underline-offset: .18em; text-decoration-thickness: 1.5px; }
 /* Why join + two ways to play (home) */
 .why-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; border-top: 2px solid var(--navy); }
 .why-col { padding: 24px 28px 8px 0; }
+.why-grid.solo { grid-template-columns: minmax(0, 1fr); }
+.why-grid.solo .why-list { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 28px; }
 .why-col + .why-col { padding-left: 28px; border-left: 1px solid var(--line); }
 .why-col h3 { font-size: 22px; font-weight: 900; font-style: italic; text-transform: uppercase; margin: 0 0 14px; letter-spacing: -0.01em; }
 .why-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
-.why-list li { display: grid; gap: 2px; }
+.why-list li { display: grid; gap: 2px; align-content: start; }
 .why-list b { font-weight: 800; }
 .why-list span { color: var(--ink-soft); }
 .play-ways { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 32px; }
@@ -1061,7 +1063,7 @@ a { text-underline-offset: .18em; text-decoration-thickness: 1.5px; }
 .fun-link { margin: 12px 0 0; font-size: 14px; }
 .fun-link a { font-weight: 700; }
 @media (max-width: 800px) {
-  .why-grid, .play-ways { grid-template-columns: 1fr; }
+  .why-grid, .play-ways, .why-grid.solo .why-list { grid-template-columns: 1fr; }
   .why-col + .why-col { padding-left: 0; border-left: 0; border-top: 1px solid var(--line); }
 }
 
