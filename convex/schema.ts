@@ -1,6 +1,7 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { stageValidator } from "./stages";
+import { filesV } from "./files";
 
 // isExample / dataStatus "example" marks placeholder content that captains still need to replace.
 export default defineSchema({
@@ -89,7 +90,8 @@ export default defineSchema({
     confirmEmail: v.optional(v.string()), // confirmation email to the person: "sent" or why not (convex/mail.ts)
     email: v.string(), // lowercase
     name: v.string(),
-    role: v.union(v.literal("board"), v.literal("associate"), v.literal("captain"), v.literal("viewer")),
+    // vicecaptain = same access as a captain for their team(s), shown as "Vice-captain"
+    role: v.union(v.literal("board"), v.literal("associate"), v.literal("captain"), v.literal("vicecaptain"), v.literal("viewer")),
     // board only: president / vice-president (see everything) or head (of `department`)
     position: v.optional(v.union(v.literal("president"), v.literal("vice-president"), v.literal("head"))),
     department: v.optional(v.string()),
@@ -204,6 +206,7 @@ export default defineSchema({
     pref2: v.optional(v.string()),
     motivation: v.string(),
     cvId: v.id("_storage"),
+    moreDocs: v.optional(filesV), // other PDFs sent with the CV (cover letter, certificates…)
     videoId: v.optional(v.id("_storage")),
     acceptsRedirect: v.boolean(),
     confirmsAccuracy: v.boolean(),
@@ -230,6 +233,7 @@ export default defineSchema({
     email: v.string(), // lowercase
     name: v.optional(v.string()),
     teams: v.array(v.string()),
+    vice: v.optional(v.array(v.string())), // the teams (among `teams`) where they are vice-captain
   }).index("by_email", ["email"]),
 
   // Footer "Contact" form. Public insert only (forms.submitContactMessage); read and status changes are admin-only.
@@ -264,8 +268,9 @@ export default defineSchema({
     by: v.string(), // "Name (role)"
     byEmail: v.string(),
     link: v.optional(v.string()),
-    fileId: v.optional(v.id("_storage")),
+    fileId: v.optional(v.id("_storage")), // older requests: one file
     fileName: v.optional(v.string()),
+    files: v.optional(filesV), // several attachments (PDFs, images)
     decidedBy: v.optional(v.string()),
     decidedByEmail: v.optional(v.string()),
     decidedAt: v.optional(v.number()),
@@ -432,9 +437,10 @@ export default defineSchema({
     kind: v.union(v.literal("summary"), v.literal("comment")),
     text: v.string(),
     link: v.optional(v.string()),
-    fileId: v.optional(v.id("_storage")),
+    fileId: v.optional(v.id("_storage")), // older posts: one file
     fileName: v.optional(v.string()),
     fileType: v.optional(v.string()),
+    files: v.optional(filesV), // several attachments (PDFs, images)
     by: v.string(),
     byEmail: v.string(),
     at: v.number(),

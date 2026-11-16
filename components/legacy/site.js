@@ -28,6 +28,32 @@ export function initSite(backend, tools) {
   function mono(w) { return '<svg class="mono" style="width:' + w + 'px" viewBox="0 0 132 72" aria-hidden="true"><use href="#es"/></svg>'; }
   function toast(msg) { var t = document.createElement("div"); t.className = "toast"; t.setAttribute("role", "status"); t.textContent = msg; document.body.appendChild(t); setTimeout(function () { t.remove(); }, 2200); }
 
+  // Several files on one form (PDFs, images). Picked files are kept here until the form is sent, so they
+  // survive Hub redraws; each box lists them with a × to remove one. pickBox(key, accept, label) draws it.
+  var PICKS = {};
+  function picked(k) { return PICKS[k] || []; }
+  function pickList(k) { return picked(k).map(function (f, i) { return "<li>" + esc(f.name) + ' <small class="muted">' + Math.max(1, Math.round(f.size / 1024)) + ' KB</small><button type="button" class="mpick-rm" data-pick-rm="' + esc(k) + '" data-i="' + i + '" aria-label="Remove ' + esc(f.name) + '">×</button></li>'; }).join(""); }
+  function pickBox(k, accept, label) { return '<div class="mpick" data-pick="' + esc(k) + '"><label class="btn sm ghost mpick-add">' + esc(label) + '<input type="file" hidden multiple accept="' + accept + '" data-pick-in="' + esc(k) + '"></label><ul class="mpick-list">' + pickList(k) + "</ul></div>"; }
+  function pickRedraw(k) { document.querySelectorAll('[data-pick="' + k + '"] .mpick-list').forEach(function (u) { u.innerHTML = pickList(k); }); }
+  document.addEventListener("change", function (e) {
+    var k = e.target.getAttribute && e.target.getAttribute("data-pick-in"); if (!k) return;
+    var cur = picked(k).slice();
+    Array.prototype.forEach.call(e.target.files || [], function (f) { if (!cur.some(function (x) { return x.name === f.name && x.size === f.size; })) cur.push(f); });
+    if (cur.length > 10) { toast("Up to 10 files at once."); cur = cur.slice(0, 10); }
+    PICKS[k] = cur; e.target.value = ""; pickRedraw(k);
+  });
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest && e.target.closest("[data-pick-rm]"); if (!b) return;
+    e.preventDefault(); var k = b.getAttribute("data-pick-rm"), i = +b.getAttribute("data-i");
+    PICKS[k] = picked(k).filter(function (_, j) { return j !== i; }); pickRedraw(k);
+  });
+  function tooBig(files, mb) { return files.some(function (f) { return f.size > mb * 1024 * 1024; }); }
+  // Live: upload each file to Convex storage. Prototype: read each one in the browser.
+  function uploadAll(files) { return Promise.all(files.map(function (f) { return Promise.resolve(backend.uploadFile(f)).then(function (id) { return { id: id, name: f.name, type: f.type || undefined }; }); })); }
+  function readAll(files) { return Promise.all(files.map(function (f) { return new Promise(function (ok) { var rd = new FileReader(); rd.onload = function () { ok({ name: f.name, type: f.type, data: rd.result, url: rd.result }); }; rd.readAsDataURL(f); }); })); }
+  // Every attachment of an expense or task update (older ones have a single `file`).
+  function filesOf(x) { return x.files && x.files.length ? x.files : x.file ? [x.file] : []; }
+
   // ================= Games (one source: components/legacy/games.js) =================
   var DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -358,9 +384,9 @@ export function initSite(backend, tools) {
   // (associates: their head of department; captains: the Board). Board positions are added by the admin.
   var REQ_DEPTS = ["Finance", "Media & Marketing", "Operations", "Partnerships", "IT"]; // same as convex/roles.ts
   function requestBlock() {
-    return '<form class="acc req" id="req-form" novalidate><p class="eyebrow">New here?</p><strong>Request access</strong><p>Associates and captains: send a request. Once it is approved, sign in with the same email to create your account.</p>' +
+    return '<form class="acc req" id="req-form" novalidate><p class="eyebrow">New here?</p><strong>Request access</strong><p>Associates, captains and vice-captains: send a request. Once it is approved, sign in with the same email to create your account.</p>' +
       '<div class="fgrid">' + fieldI("rq-name", "Full name", "", 'required autocomplete="name"') + fieldI("rq-email", "Email", "", 'required type="email" autocomplete="email"') +
-      '<label class="field" for="rq-role">I am<select id="rq-role"><option value="associate">An associate of a department</option><option value="captain">A team captain</option></select></label>' +
+      '<label class="field" for="rq-role">I am<select id="rq-role"><option value="associate">An associate of a department</option><option value="captain">A team captain</option><option value="vicecaptain">A team vice-captain</option></select></label>' +
       '<label class="field" for="rq-dept" id="rq-dept-wrap">Department<select id="rq-dept">' + REQ_DEPTS.map(function (d) { return "<option>" + esc(d) + "</option>"; }).join("") + "</select></label></div>" +
       '<div class="field" id="rq-teams-wrap"><span id="rq-teams-label">Team(s) you work with</span><div class="checks">' + TEAMS.map(function (t, i) { return '<label for="rq-t-' + i + '"><input type="checkbox" id="rq-t-' + i + '" value="' + t.id + '">' + esc(tLabel(t)) + "</label>"; }).join("") + "</div></div>" +
       '<label class="field full" for="rq-note">Note <small>(optional)</small><textarea id="rq-note" rows="2" maxlength="500" placeholder="E.g. elected captain in October"></textarea></label>' +
@@ -370,7 +396,7 @@ export function initSite(backend, tools) {
   function bindRequest() {
     var f = $("req-form"); if (!f) return;
     var role = $("rq-role");
-    role.addEventListener("change", function () { var c = role.value === "captain"; $("rq-dept-wrap").hidden = c; $("rq-teams-label").textContent = c ? "Your team(s)" : "Team(s) you work with"; });
+    role.addEventListener("change", function () { var c = role.value !== "associate"; $("rq-dept-wrap").hidden = c; $("rq-teams-label").textContent = c ? "Your team(s)" : "Team(s) you work with"; });
     f.addEventListener("submit", function (e) {
       e.preventDefault();
       var err = $("rq-err"), name = $("rq-name").value.trim(), email = $("rq-email").value.trim(), teams = [];
@@ -379,8 +405,8 @@ export function initSite(backend, tools) {
       if (msg) { err.textContent = msg; err.hidden = false; return; }
       err.hidden = true;
       var btn = $("rq-send"); btn.disabled = true; btn.textContent = "Sending…";
-      function done() { f.innerHTML = '<p class="eyebrow">Request sent</p><strong>Thank you</strong><p>' + (role.value === "captain" ? "The Board" : "The head of " + esc($("rq-dept") ? $("rq-dept").value : "your department")) + " will review your request. Once approved, sign in with " + esc(email) + " to create your account.</p>"; }
-      var data = { name: name, email: email, role: role.value, department: role.value === "captain" ? undefined : $("rq-dept").value, teams: teams, note: $("rq-note").value.trim() || undefined, website: $("rq-website").value || undefined, lang: window.__lang };
+      function done() { f.innerHTML = '<p class="eyebrow">Request sent</p><strong>Thank you</strong><p>' + (role.value !== "associate" ? "The Board" : "The head of " + esc($("rq-dept") ? $("rq-dept").value : "your department")) + " will review your request. Once approved, sign in with " + esc(email) + " to create your account.</p>"; }
+      var data = { name: name, email: email, role: role.value, department: role.value !== "associate" ? undefined : $("rq-dept").value, teams: teams, note: $("rq-note").value.trim() || undefined, website: $("rq-website").value || undefined, lang: window.__lang };
       if (!backend || !backend.requestAccess) { done(); return; }
       Promise.resolve(backend.requestAccess(data)).then(done, function (x) {
         console.error(x); btn.disabled = false; btn.textContent = "Send request";
@@ -715,7 +741,7 @@ export function initSite(backend, tools) {
       '<section class="al"><div class="wrap body"><form class="pform" id="assoc-form" novalidate>' +
       '<div class="fsec"><h2>Personal information</h2><div class="fgrid">' + fieldI("as-first", "First name", "", "required autocomplete=\"given-name\"") + fieldI("as-last", "Last name", "", "required autocomplete=\"family-name\"") + fieldI("as-email", "Email", "", 'type="email" required autocomplete="email"') + phoneField("as-phone", "Phone number", true) + progSelect("as-programme", "Programme", "") + '<label class="field" for="as-year">Year<select id="as-year" required><option value="">Choose your year</option>' + YEARS.map(function (y) { return '<option value="' + y + '">' + y + '</option>'; }).join('') + '</select></label>' + fieldI("as-linkedin", "LinkedIn profile", "", 'type="url" placeholder="https://linkedin.com/in/..."') + '</div></div>' +
       '<div class="fsec"><h2>Department preferences</h2><p class="muted" style="margin:0">You may apply to a maximum of two departments. Preference 1 is your strongest choice.</p><div class="fgrid"><label class="field" for="as-pref1">Preference 1<select id="as-pref1" required><option value="">Choose a department</option>' + opts + '</select></label><label class="field" for="as-pref2">Preference 2 <small>(optional)</small><select id="as-pref2"><option value="">No second preference</option>' + opts + '</select></label></div><label class="field full" for="as-motivation">Why do you want to join Esade Sports and why these departments?<textarea id="as-motivation" rows="6" required placeholder="Tell us what motivates you, what you could contribute and why you ranked these departments."></textarea></label></div>' +
-      '<div class="fsec"><h2>Application materials</h2><div class="fgrid"><label class="field" for="as-cv">CV <small>(PDF required)</small><input id="as-cv" type="file" accept="application/pdf,.pdf" required></label><label class="field" for="as-video">Motivation video <small>(optional)</small><input id="as-video" type="file" accept="video/mp4,video/quicktime,.mp4,.mov"></label></div><p class="muted" style="margin:10px 0 0;font-size:13px">Video: MP4 or MOV, around 60–90 seconds. Explain who you are, why Esade Sports interests you and why your department preferences fit you.</p></div>' +
+      '<div class="fsec"><h2>Application materials</h2><div class="fgrid"><div class="field">CV and other PDFs <small>(the first PDF is your CV; you can add a cover letter, certificates…)</small>' + pickBox("as-cv", "application/pdf,.pdf", "+ Add PDFs") + "</div>" + '<label class="field" for="as-video">Motivation video <small>(optional)</small><input id="as-video" type="file" accept="video/mp4,video/quicktime,.mp4,.mov"></label></div><p class="muted" style="margin:10px 0 0;font-size:13px">Video: MP4 or MOV, around 60–90 seconds. Explain who you are, why Esade Sports interests you and why your department preferences fit you.</p></div>' +
       '<div class="fsec"><label class="consent" for="as-redirect"><input type="checkbox" id="as-redirect" required><span>I understand that the Board may redirect my application to another department if it is a better fit for my profile and the association’s needs.</span></label><label class="consent" for="as-consent"><input type="checkbox" id="as-consent" required><span>I confirm that the information and documents submitted are accurate and may be reviewed by the Esade Sports recruitment team.</span></label></div>' +
       '<p class="err" id="as-err" hidden></p><div class="form-actions"><button class="btn btn-blue" type="submit">Submit application</button><span class="muted" style="font-size:13px">Your application will be reviewed by the Board and relevant department Heads.</span></div></form>' +
       '<div class="locked" id="as-done" hidden><h2>Thanks for applying to Esade Sports</h2><p id="as-done-p">Your ranked preferences and application materials are ready for review.</p><a class="btn btn-ghost-navy" href="#home">Back to home</a></div></div></section>';
@@ -769,16 +795,16 @@ export function initSite(backend, tools) {
   function bindAssociateApply() {
     var f = $("assoc-form"); if (!f) return;
     f.addEventListener("submit", function (e) {
-      e.preventDefault(); var err = $("as-err"), cv = $("as-cv").files[0], video = $("as-video").files[0], p1 = $("as-pref1").value, p2 = $("as-pref2").value;
+      e.preventDefault(); var err = $("as-err"), pdfs = picked("as-cv"), cv = pdfs[0], video = $("as-video").files[0], p1 = $("as-pref1").value, p2 = $("as-pref2").value;
       if (!$("as-first").value.trim() || !$("as-last").value.trim() || !$("as-email").value.trim() || !$("as-programme").value.trim() || !$("as-year").value || !p1 || !$("as-motivation").value.trim() || !cv || !$("as-redirect").checked || !$("as-consent").checked) { err.textContent = "Please complete your personal information, rank at least one department, upload your CV and accept both acknowledgements."; err.hidden = false; return; }
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test($("as-email").value.trim())) { err.textContent = "Please enter a valid email address."; err.hidden = false; return; }
       var asPhone = phoneValue("as-phone", true);
       if (asPhone.error) { err.textContent = asPhone.error; err.hidden = false; return; }
       if (p1 === p2) { err.textContent = "Choose two different departments, or leave Preference 2 empty."; err.hidden = false; return; }
-      if (cv && cv.type !== "application/pdf" && !/\.pdf$/i.test(cv.name)) { err.textContent = "Please upload your CV as a PDF."; err.hidden = false; return; }
+      if (pdfs.some(function (x) { return x.type !== "application/pdf" && !/\.pdf$/i.test(x.name); })) { err.textContent = "Please upload your CV and documents as PDFs."; err.hidden = false; return; }
       if (video && !/^video\/(mp4|quicktime)$/.test(video.type) && !/\.(mp4|mov)$/i.test(video.name)) { err.textContent = "Please upload the motivation video as an MP4 or MOV file."; err.hidden = false; return; }
       err.hidden = true;
-      function done() { f.hidden = true; $("as-done").hidden = false; $("as-done-p").textContent = "Preference 1: " + deptName(p1) + (p2 ? ". Preference 2: " + deptName(p2) + "." : ".") + " The Board may redirect your application to another department if appropriate."; }
+      function done() { PICKS["as-cv"] = []; f.hidden = true; $("as-done").hidden = false; $("as-done-p").textContent = "Preference 1: " + deptName(p1) + (p2 ? ". Preference 2: " + deptName(p2) + "." : ".") + " The Board may redirect your application to another department if appropriate."; }
       if (!backend || !backend.submitAssociationApplication) { done(); return; }
       var btn = f.querySelector('button[type="submit"]'); btn.disabled = true; btn.textContent = "Sending…";
       backend.submitAssociationApplication({
@@ -786,7 +812,7 @@ export function initSite(backend, tools) {
         programme: $("as-programme").value.trim(), year: $("as-year").value, linkedin: $("as-linkedin").value.trim() || undefined,
         pref1: deptName(p1), pref2: p2 ? deptName(p2) : undefined, motivation: $("as-motivation").value.trim(),
         acceptsRedirect: $("as-redirect").checked, confirmsAccuracy: $("as-consent").checked, lang: window.__lang
-      }, { cv: cv, video: video }).then(done, function (x) {
+      }, { cv: cv, more: pdfs.slice(1), video: video }).then(done, function (x) {
         console.error(x); btn.disabled = false; btn.textContent = "Submit application";
         err.textContent = "Your application could not be sent. Please check your connection and try again."; err.hidden = false;
       });
@@ -1138,7 +1164,7 @@ export function initSite(backend, tools) {
   // Work summaries / comments on tasks: the department's own head and associates (+ President, VPs, admins).
   function canPostTask(deptId) { var u = hv(); return !hRO() && (u.role === "admin" || u.role === "exec" || ((u.role === "head" || u.role === "associate") && u.dept === deptId)); }
   function taskUpdatesFor(key) {
-    if (live()) return (LIVE.tupd || []).filter(function (r) { return r.taskKey === key; }).map(function (r) { return { kind: r.kind, text: r.text, link: r.link, by: r.by, at: r.at, file: r.fileUrl ? { url: r.fileUrl, name: r.fileName || "File", type: r.fileType || "" } : null }; });
+    if (live()) return (LIVE.tupd || []).filter(function (r) { return r.taskKey === key; }).map(function (r) { return { kind: r.kind, text: r.text, link: r.link, by: r.by, at: r.at, files: r.fileLinks || [] }; });
     return (state.tupd || []).filter(function (r) { return r.taskKey === key; });
   }
   function canSetTask(deptId) { var u = hv(); return can("tasks") && (u.role === "admin" || u.role === "exec" || u.dept === deptId); }
@@ -1276,7 +1302,7 @@ export function initSite(backend, tools) {
   }
   function totals(id) { var o = { paid: 0, pending: 0 }; allExp().forEach(function (e) { if (e.team !== id) return; if (e.status === "paid") o.paid += e.amount; else if (e.status !== "rejected") o.pending += e.amount; }); return o; }
   function captainForTeam(id) {
-    if (live()) { var row = ((LIVE.people || {}).teams || []).filter(function (x) { return x.id === id; })[0], c = row && row.captains[0]; return c ? { first: c.name || c.email, last: "", email: c.email, team: id, role: "Captain", active: true } : null; }
+    if (live()) { var row = ((LIVE.people || {}).teams || []).filter(function (x) { return x.id === id; })[0], c = row && (row.captains.filter(function (x) { return !x.vice; })[0] || row.captains[0]); return c ? { first: c.name || c.email, last: "", email: c.email, team: id, role: "Captain", active: true } : null; }
     for (var i = 0; i < state.captains.length; i++) if (state.captains[i].team === id && state.captains[i].active && state.captains[i].role === "Captain") return state.captains[i]; return null; }
   function captainName(c) { return c ? (c.first + (c.last ? " " + c.last : "")) : "Unassigned"; }
   function sportsApplicationsFolder(id) { return "Applications for sports/" + id; }
@@ -1459,7 +1485,7 @@ export function initSite(backend, tools) {
   var ESADE_FIN_EMAIL = ""; // Esade finance office address: fill in when known; the email opens in the person's own mail app
   function esadeMail(e) {
     var lines = ["Hello,", "", "Esade Sports asks for approval of the following expense:", "", "Team: " + (tLabel(team(e.team)) || e.team), "Budget line: " + e.dept, "What: " + e.item + " (" + e.cat + ")", "Amount: " + EUR.format(e.amount), "Requested by: " + e.by + ", " + e.date];
-    if (e.file) lines.push("Invoice / PDF: " + (/^https:/.test(e.file.data) ? e.file.data : e.file.name + " (attached)"));
+    filesOf(e).forEach(function (x) { lines.push("Invoice / PDF: " + (/^https:/.test(x.data) ? x.data : x.name + " (attached)")); });
     if (e.link) lines.push("Link: " + e.link);
     lines.push("", "Thank you,", myName(), "Esade Sports · Finance");
     return "mailto:" + ESADE_FIN_EMAIL + "?subject=" + encodeURIComponent("Expense approval: " + e.item + " (" + EUR.format(e.amount) + ")") + "&body=" + encodeURIComponent(lines.join("\n"));
@@ -1475,7 +1501,7 @@ export function initSite(backend, tools) {
   function esadeBox(e) {
     var id = String(e.id), s = e.esade, b = "";
     if (state.esadeRefusing === id) return '<div class="reject-box"><textarea id="er-' + id + '" rows="2" placeholder="What did Esade say? (required)" aria-label="Esade\'s answer"></textarea><div><button class="btn sm solid" data-esade-confirm="' + id + '">Save</button> <button class="btn sm" data-reject-cancel>Cancel</button></div></div>';
-    var inv = e.file ? '<a class="btn sm ghost" href="' + esc(e.file.data) + '" target="_blank" rel="noopener" download="' + esc(e.file.name) + '">' + ico("down") + " Invoice</a>" : "";
+    var inv = filesOf(e).map(function (x, i, all) { return '<a class="btn sm ghost" href="' + esc(x.data) + '" target="_blank" rel="noopener" download="' + esc(x.name) + '" title="' + esc(x.name) + '">' + ico("down") + (all.length > 1 ? " File " + (i + 1) : " Invoice") + "</a>"; }).join("");
     if (!s) b = '<a class="btn sm" href="' + esc(esadeMail(e)) + '">Email to Esade</a>' + inv + '<button class="btn sm" data-esade="sent" data-id="' + id + '">Mark sent</button>';
     else if (s === "sent") b = '<a class="btn sm ghost" href="' + esc(esadeMail(e)) + '">Email again</a><button class="btn sm" data-esade="accepted" data-id="' + id + '">Esade accepted</button><button class="btn sm" data-esade="refused" data-id="' + id + '">Esade refused</button>';
     else if (s === "refused") b = '<button class="btn sm ghost" data-esade="accepted" data-id="' + id + '">Esade accepted after all</button>';
@@ -1733,6 +1759,7 @@ export function initSite(backend, tools) {
     var st = a.stage || "applied", name = a.firstName + " " + a.lastName, ro = hRO();
     var links = ['<a href="mailto:' + esc(a.email) + '">Email</a>'];
     if (a.cvUrl) links.push('<a href="' + esc(a.cvUrl) + '" target="_blank" rel="noopener">CV</a>');
+    (a.moreDocLinks || []).forEach(function (d) { links.push('<a href="' + esc(d.url) + '" target="_blank" rel="noopener">' + esc(d.name) + "</a>"); });
     if (a.videoUrl) links.push('<a href="' + esc(a.videoUrl) + '" target="_blank" rel="noopener">Video</a>');
     if (a.linkedin) links.push('<a href="' + esc(a.linkedin) + '" target="_blank" rel="noopener">LinkedIn</a>');
     return '<article class="kb-card stg-' + st + '"' + (ro ? "" : ' data-card="' + esc(a._id) + '" data-col="' + appCol(a) + '" title="Drag to another column to change the stage"') + ">" +
@@ -1766,7 +1793,7 @@ export function initSite(backend, tools) {
           "<td>" + esc(a.programme) + '<br><small class="muted">' + esc(a.year) + "</small></td>" +
           "<td>" + esc(a.pref1) + (a.pref2 ? '<br><small class="muted">then ' + esc(a.pref2) + "</small>" : "") + "</td>" +
           '<td>' + (a.motivation.length > 120 ? '<details><summary><small class="muted">' + esc(clip(a.motivation, 120)) + '</small></summary><p style="white-space:pre-wrap;margin:6px 0 0">' + esc(a.motivation) + "</p></details>" : '<small class="muted" style="white-space:pre-wrap">' + esc(a.motivation) + "</small>") + "</td>" +
-          "<td>" + (a.cvUrl ? '<a href="' + esc(a.cvUrl) + '" target="_blank" rel="noopener">CV</a>' : "") + (a.videoUrl ? '<br><a href="' + esc(a.videoUrl) + '" target="_blank" rel="noopener">Video</a>' : "") + "</td>" +
+          "<td>" + (a.cvUrl ? '<a href="' + esc(a.cvUrl) + '" target="_blank" rel="noopener">CV</a>' : "") + (a.moreDocLinks || []).map(function (d) { return '<br><a href="' + esc(d.url) + '" target="_blank" rel="noopener">' + esc(d.name) + "</a>"; }).join("") + (a.videoUrl ? '<br><a href="' + esc(a.videoUrl) + '" target="_blank" rel="noopener">Video</a>' : "") + "</td>" +
           '<td class="num muted">' + esc(fmtDay(a._creationTime)) + "</td>" +
           "<td>" + (hRO() ? stageChip(st) : appStageSelect(a)) + "</td></tr>";
       }).join("") + "</tbody></table></div>" : '<p class="empty">' + (all.length ? "No application at this stage." : "No applications yet.") + "</p>") + "</section>";
@@ -2401,7 +2428,7 @@ export function initSite(backend, tools) {
   function errText(x, d) { var m = String((x && x.data) || (x && x.message) || ""), m2 = m.match(/ConvexError: (.*)/); return (m2 ? m2[1] : x && x.data ? m : "") || d || "Something went wrong. Try again."; }
   function fromServer(r) {
     return { id: r._id, team: r.team, dept: r.dept, item: r.item, cat: r.cat, amount: r.amount, by: r.by, byEmail: r.byEmail, date: r.date, status: r.status, link: r.link,
-      file: r.fileUrl ? { name: r.fileName || "Attachment", data: r.fileUrl } : null, decidedBy: r.decidedBy, decidedByEmail: r.decidedByEmail, reason: r.reason, esade: r.esade, esadeAt: r.esadeAt, esadeNote: r.esadeNote,
+      files: (r.fileLinks || []).map(function (x) { return { name: x.name, data: x.url, type: x.type }; }), decidedBy: r.decidedBy, decidedByEmail: r.decidedByEmail, reason: r.reason, esade: r.esade, esadeAt: r.esadeAt, esadeNote: r.esadeNote,
       history: r.history || [], example: r.isExample, sv: { d: r.canDecide, p: r.canPay, r: r.canReconsider, e: r.canEsade } };
   }
   function hubBusy() { var a = document.activeElement; if (hub.querySelector("form.dirty[data-ho-form]")) return true; return !!(a && hub.contains(a) && (a.tagName === "TEXTAREA" || (a.tagName === "INPUT" && a.type !== "button" && a.type !== "submit") || a.tagName === "SELECT")); }
@@ -2554,7 +2581,7 @@ export function initSite(backend, tools) {
           if (canPayE(e)) btns = '<button class="btn sm solid" data-act="paid" data-id="' + id + '">Mark paid</button>';
           if (canReconE(e)) btns += (btns ? " " : "") + '<button class="btn sm ghost" data-act="reconsider" data-id="' + id + '">Reconsider</button>';
         }
-        var files = (e.link ? '<a href="' + esc(e.link) + '" target="_blank" rel="noopener">Link ' + ico("out") + '</a>' : "") + (e.file ? (e.link ? " · " : "") + '<a href="' + esc(e.file.data) + '" target="_blank" rel="noopener" download="' + esc(e.file.name) + '">' + esc(e.file.name) + "</a>" : "");
+        var files = (e.link ? '<a href="' + esc(e.link) + '" target="_blank" rel="noopener">Link ' + ico("out") + '</a>' : "") + filesOf(e).map(function (x, i) { return (e.link || i ? " · " : "") + '<a href="' + esc(x.data) + '" target="_blank" rel="noopener" download="' + esc(x.name) + '">' + esc(x.name) + "</a>"; }).join("");
         var who = e.decidedBy && e.status !== "requested" ? '<br><small class="muted">' + (e.status === "rejected" ? "Rejected" : "Validated") + " by " + esc(e.decidedBy) + "</small>" : "";
         var why = e.status === "rejected" && e.reason ? '<br><small class="reason">“' + esc(e.reason) + "”</small>" : "";
         var reopened = (e.history || []).some(function (x) { return x.action === "reopened"; }) ? ' <span class="pill info">Reconsidered</span>' : "";
@@ -2577,7 +2604,7 @@ export function initSite(backend, tools) {
       '<label for="r-item" style="grid-column:span 2">What is it for<input id="r-item" required maxlength="140" placeholder="e.g. Referee fees, November"></label>' +
       '<label for="r-dept">Budget line<select id="r-dept">' + lines + '</select></label><label for="r-cat">Category<select id="r-cat"><option>League fees</option><option>Facilities</option><option>Kit</option><option>Material</option><option>Travel</option><option>Media</option><option>Promotion</option><option>Events</option></select></label>' +
       '<label for="r-amt">Amount (€)<input id="r-amt" type="number" min="1" step="1" required inputmode="numeric" placeholder="0"></label>' +
-      '<label for="r-link" style="grid-column:span 2">Link to the product or quote (optional)<input id="r-link" type="url" placeholder="https://..."></label><label for="r-file">Unpaid invoice, quote or PDF (Finance forwards it to Esade)<input id="r-file" type="file" accept="image/*,application/pdf"></label>' +
+      '<label for="r-link" style="grid-column:span 2">Link to the product or quote (optional)<input id="r-link" type="url" placeholder="https://..."></label><div class="mpick-field">Unpaid invoices, quotes or PDFs (Finance forwards them to Esade)' + pickBox("r-file", "image/*,application/pdf", "+ Add files") + "</div>" + '' +
       '<div><button class="btn solid" type="submit" id="r-send" style="width:100%">Send request</button></div></form></section>' : "";
     var ex = "";
     if (admin && live() && LIVE.exp) ex = LIVE.exp.some(function (e) { return e.example; })
@@ -2948,9 +2975,9 @@ export function initSite(backend, tools) {
   function hubCaptains() {
     if (live()) {
       var trs = TEAMS.map(function (t) { var row = ((LIVE.people || {}).teams || []).filter(function (x) { return x.id === t.id; })[0], cs = row ? row.captains : [];
-        return '<tr><td class="tname">' + esc(tLabel(t)) + "</td><td>" + (cs.length ? cs.map(function (c) { return "<strong>" + esc(c.name || c.email) + '</strong><br><small class="muted">' + esc(c.email) + "</small>"; }).join("<br>") : '<span class="muted">No captain approved yet</span>') + "</td></tr>"; }).join("");
-      return '<div class="ph-head"><div><h1 class="display">Captains.</h1><p>The approved captain of every team. Captains request access on the Members page; the Board approves them in the members area.</p></div></div>' +
-        '<section class="panel"><div class="panel-head"><h2>Captains by team</h2><a class="btn sm" href="/admin">Approve or add captains</a></div><div class="table-wrap"><table><thead><tr><th>Team</th><th>Captain</th></tr></thead><tbody>' + trs + "</tbody></table></div></section>";
+        return '<tr><td class="tname">' + esc(tLabel(t)) + "</td><td>" + (cs.length ? cs.map(function (c) { return "<strong>" + esc(c.name || c.email) + "</strong>" + (c.vice ? ' <span class="pill">Vice-captain</span>' : "") + '<br><small class="muted">' + esc(c.email) + "</small>"; }).join("<br>") : '<span class="muted">No captain approved yet</span>') + "</td></tr>"; }).join("");
+      return '<div class="ph-head"><div><h1 class="display">Captains.</h1><p>The approved captain and vice-captains of every team. Vice-captains have the same access as the captain for their team. Captains request access on the Members page; the Board approves them in the members area.</p></div></div>' +
+        '<section class="panel"><div class="panel-head"><h2>Captains by team</h2><a class="btn sm" href="/admin">Approve or add captains and vice-captains</a></div><div class="table-wrap"><table><thead><tr><th>Team</th><th>Captain and vice-captains</th></tr></thead><tbody>' + trs + "</tbody></table></div></section>";
     }
     var active = state.captains.filter(function (c) { return c.active; }), edit = !hRO();
     var rows = active.map(function (c) {
@@ -2970,11 +2997,11 @@ export function initSite(backend, tools) {
     var ups = taskUpdatesFor(t.key), n = ups.length, d = deptName(deptId) || (deptId === "board" ? "Board" : deptId), open = state.taskOpen === t.key;
     var base = taskRowBase(t, deptId);
     var list = ups.map(function (u) {
-      var f = u.file ? (/^image\//.test(u.file.type || "") ? '<a href="' + esc(u.file.url) + '" target="_blank" rel="noopener"><img class="tu-img" src="' + esc(u.file.url) + '" alt="' + esc(u.file.name) + '"></a>' : '<a href="' + esc(u.file.url) + '" target="_blank" rel="noopener" download="' + esc(u.file.name) + '">' + esc(u.file.name) + "</a>") : "";
+      var f = filesOf(u).map(function (x) { return /^image\//.test(x.type || "") ? '<a href="' + esc(x.url) + '" target="_blank" rel="noopener"><img class="tu-img" src="' + esc(x.url) + '" alt="' + esc(x.name) + '"></a>' : '<a class="tu-file" href="' + esc(x.url) + '" target="_blank" rel="noopener" download="' + esc(x.name) + '">' + esc(x.name) + "</a>"; }).join(" ");
       return '<li class="tu ' + u.kind + '"><div class="tu-head"><span class="pill ' + (u.kind === "summary" ? "info" : "") + '">' + (u.kind === "summary" ? "Work summary" : "Comment") + "</span><b>" + esc(u.by) + '</b><small class="muted">' + esc(fmtWhen(u.at)) + "</small></div>" + (u.text ? "<p>" + esc(u.text) + "</p>" : "") + (u.link ? '<p><a href="' + esc(u.link) + '" target="_blank" rel="noopener">' + esc(u.link.replace(/^https:\/\//, "").slice(0, 60)) + " " + ico("out") + "</a></p>" : "") + f + "</li>";
     }).join("");
     var form = canPostTask(deptId) ? '<form class="tu-form" data-tu="' + esc(t.key) + '" data-tu-dept="' + esc(d) + '"><div class="tu-kind"><label><input type="radio" name="kind" value="summary" checked> Work summary</label><label><input type="radio" name="kind" value="comment"> Comment</label></div>' +
-      '<textarea name="text" rows="2" maxlength="2000" placeholder="What was done, what is next, what you need" aria-label="Update"></textarea><div class="tu-row"><input name="link" type="text" inputmode="url" placeholder="Link (optional)" aria-label="Link"><input name="file" type="file" accept="image/*,application/pdf" aria-label="Image or PDF"><button class="btn sm solid" type="submit">Post</button></div></form>' : "";
+      '<textarea name="text" rows="2" maxlength="2000" placeholder="What was done, what is next, what you need" aria-label="Update"></textarea><div class="tu-row"><input name="link" type="text" inputmode="url" placeholder="Link (optional)" aria-label="Link"><button class="btn sm solid" type="submit">Post</button></div>' + pickBox("tu:" + t.key, "image/*,application/pdf", "+ Images or PDFs") + "</form>" : "";
     return base.replace(/<\/li>$/, "") + '<details class="tupd"' + (open ? " open" : "") + ' data-tkey="' + esc(t.key) + '"><summary>' + (n ? n + " update" + (n === 1 ? "" : "s") : "Add a work summary") + "</summary>" + (list ? '<ul class="tu-list">' + list + "</ul>" : "") + form + "</details></li>";
   }
   function addTaskForm(d) {
@@ -3099,24 +3126,23 @@ export function initSite(backend, tools) {
     hub.querySelectorAll("form[data-tu]").forEach(function (f) { f.addEventListener("submit", function (ev) {
       ev.preventDefault();
       var key = f.getAttribute("data-tu"), dept = f.getAttribute("data-tu-dept"), kind = (f.querySelector("input[name=kind]:checked") || {}).value || "summary";
-      var text = f.elements.text.value.trim(), link = f.elements.link.value.trim(), file = f.elements.file.files[0];
+      var text = f.elements.text.value.trim(), link = f.elements.link.value.trim(), pk = "tu:" + key, files = picked(pk);
       if (link && !/^https?:\/\//i.test(link)) link = "https://" + link;
       if (link) link = link.replace(/^http:/i, "https:");
-      if (!text && !link && !file) { f.elements.text.focus(); toast("Write a summary or a comment."); return; }
+      if (!text && !link && !files.length) { f.elements.text.focus(); toast("Write a summary or a comment."); return; }
       state.taskOpen = key;
       var btn = f.querySelector("button[type=submit]");
       if (live()) {
-        if (file && file.size > 10 * 1024 * 1024) { toast("The file is too big (max 10 MB)."); return; }
+        if (tooBig(files, 10)) { toast("A file is too big (max 10 MB each)."); return; }
         btn.disabled = true;
-        Promise.resolve(file ? backend.uploadFile(file) : null).then(function (fid) {
-          return backend.addTaskUpdate({ taskKey: key, dept: dept, kind: kind, text: text, link: link || undefined, fileId: fid || undefined, fileName: file ? file.name : undefined, fileType: file ? file.type : undefined });
-        }).then(function () { toast("Posted. Your department can see it."); render(); }, function (x) { btn.disabled = false; toast(errText(x)); });
+        uploadAll(files).then(function (up) {
+          return backend.addTaskUpdate({ taskKey: key, dept: dept, kind: kind, text: text, link: link || undefined, files: up.length ? up : undefined });
+        }).then(function () { PICKS[pk] = []; toast("Posted. Your department can see it."); render(); }, function (x) { btn.disabled = false; toast(errText(x)); });
         return;
       }
-      function done(att) { (state.tupd = state.tupd || []).push({ taskKey: key, dept: dept, kind: kind, text: text, link: link || undefined, file: att, by: meLabel(), at: Date.now() }); save(); render(); toast("Posted. Your department can see it."); }
-      if (!file) { done(null); return; }
-      if (file.size > 1.5 * 1024 * 1024) { toast("The file is too big for the prototype (max 1.5 MB)."); return; }
-      var rd = new FileReader(); rd.onload = function () { done({ url: rd.result, name: file.name, type: file.type }); }; rd.readAsDataURL(file);
+      function done(att) { PICKS[pk] = []; (state.tupd = state.tupd || []).push({ taskKey: key, dept: dept, kind: kind, text: text, link: link || undefined, files: att, by: meLabel(), at: Date.now() }); save(); render(); toast("Posted. Your department can see it."); }
+      if (tooBig(files, 1.5)) { toast("A file is too big for the prototype (max 1.5 MB each)."); return; }
+      readAll(files).then(done);
     }); });
     hub.querySelectorAll("[data-esade]").forEach(function (b) { b.addEventListener("click", function () {
       var id = b.getAttribute("data-id"), st = b.getAttribute("data-esade");
@@ -3205,25 +3231,24 @@ export function initSite(backend, tools) {
     }); });
     var f = $("req"); if (f) f.addEventListener("submit", function (ev) {
       ev.preventDefault(); var amt = Math.round(+$("r-amt").value), item = $("r-item").value.trim(); if (!item || !(amt > 0)) return;
-      var link = $("r-link").value.trim(), file = $("r-file").files[0], tm = $("r-team") ? $("r-team").value : firstTeam(), dept = $("r-dept").value, cat = $("r-cat").value;
+      var link = $("r-link").value.trim(), files = picked("r-file"), tm = $("r-team") ? $("r-team").value : firstTeam(), dept = $("r-dept").value, cat = $("r-cat").value;
       if (link && !/^https?:\/\//i.test(link)) link = "https://" + link;
       if (link) link = link.replace(/^http:/i, "https:");
       if (live()) {
-        if (file && file.size > 10 * 1024 * 1024) { toast("The file is too big (max 10 MB)."); return; }
+        if (tooBig(files, 10)) { toast("A file is too big (max 10 MB each)."); return; }
         var btn = $("r-send"); btn.disabled = true; btn.textContent = "Sending…";
-        Promise.resolve(file ? backend.uploadFile(file) : null).then(function (fid) {
-          return backend.requestExpense({ team: tm, dept: dept, item: item, cat: cat, amount: amt, link: link || undefined, fileId: fid || undefined, fileName: file ? file.name : undefined });
-        }).then(function () { state.hubFilter = "all"; toast("Request sent to Finance."); render(); }, function (x) { btn.disabled = false; btn.textContent = "Send request"; toast(errText(x)); });
+        uploadAll(files).then(function (up) {
+          return backend.requestExpense({ team: tm, dept: dept, item: item, cat: cat, amount: amt, link: link || undefined, files: up.length ? up : undefined });
+        }).then(function () { PICKS["r-file"] = []; state.hubFilter = "all"; toast("Request sent to Finance."); render(); }, function (x) { btn.disabled = false; btn.textContent = "Send request"; toast(errText(x)); });
         return;
       }
       function done(att) {
         var now = Date.now(), d = new Date(now), day = d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
-        state.expenses.push({ id: state.nextId++, team: tm, dept: dept, item: item, cat: cat, amount: amt, by: meLabel(), date: day, status: "requested", link: link || undefined, file: att || undefined, history: [{ action: "requested", by: meLabel(), at: now }] });
-        state.hubFilter = "all"; save(); render(); toast("Request sent to Finance.");
+        state.expenses.push({ id: state.nextId++, team: tm, dept: dept, item: item, cat: cat, amount: amt, by: meLabel(), date: day, status: "requested", link: link || undefined, files: att, history: [{ action: "requested", by: meLabel(), at: now }] });
+        PICKS["r-file"] = []; state.hubFilter = "all"; save(); render(); toast("Request sent to Finance.");
       }
-      if (!file) { done(null); return; }
-      if (file.size > 1.5 * 1024 * 1024) { toast("The file is too big for the prototype (max 1.5 MB)."); return; }
-      var r = new FileReader(); r.onload = function () { done({ name: file.name, type: file.type, data: r.result }); }; r.readAsDataURL(file);
+      if (tooBig(files, 1.5)) { toast("A file is too big for the prototype (max 1.5 MB each)."); return; }
+      readAll(files).then(done);
     });
     hub.querySelectorAll("[data-captain-deactivate]").forEach(function (b) { b.addEventListener("click", function () {
       var id = +b.getAttribute("data-captain-deactivate"); state.captains.forEach(function (c) { if (c.id === id) c.active = false; }); save(); render(); toast("Captain deactivated.");

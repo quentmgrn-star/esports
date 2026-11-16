@@ -7,6 +7,7 @@ import { canEdit, canSee, getAccess, isExecEditor, requireAccess, type Access, t
 import { logActivity } from "./activity";
 import { TEAMS, teamLabel } from "./teamList";
 import { internal } from "./_generated/api";
+import { fileLinks } from "./files";
 
 // Every rule below goes through canSee / canEdit in convex/roles.ts.
 const deny = (a: Access) => new ConvexError(a.readOnly ? "Your access is view-only." : "Not authorised.");
@@ -72,6 +73,7 @@ export const listAssociationApplications = query({
       apps.map(async (a) => ({
         ...a,
         cvUrl: await ctx.storage.getUrl(a.cvId),
+        moreDocLinks: await fileLinks(ctx, { files: a.moreDocs }),
         videoUrl: a.videoId ? await ctx.storage.getUrl(a.videoId) : null,
       })),
     );
@@ -191,7 +193,7 @@ export const listCaptains = query({
 
 // Add a captain, or replace the teams of an existing one (same email).
 export const saveCaptain = mutation({
-  args: { email: v.string(), name: v.optional(v.string()), teams: v.array(v.string()) },
+  args: { email: v.string(), name: v.optional(v.string()), teams: v.array(v.string()), vice: v.optional(v.boolean()) },
   handler: async (ctx, args) => {
     await requireExecEdit(ctx);
     const email = args.email.trim().toLowerCase();
@@ -200,8 +202,11 @@ export const saveCaptain = mutation({
     if (teams.length === 0) throw new ConvexError("Choose at least one team.");
     const name = args.name?.trim().slice(0, 100) || undefined;
     const existing = await ctx.db.query("captains").withIndex("by_email", (q) => q.eq("email", email)).unique();
-    if (existing) await ctx.db.patch(existing._id, { name: name ?? existing.name, teams });
-    else await ctx.db.insert("captains", { email, name, teams });
+    // vice: true = vice-captain of all these teams; false = captain; not sent = keep what they were
+    const viceTeams = args.vice === undefined ? (existing?.vice ?? []).filter((t) => teams.includes(t)) : args.vice ? teams : [];
+    const vice = viceTeams.length ? viceTeams : undefined;
+    if (existing) await ctx.db.patch(existing._id, { name: name ?? existing.name, teams, vice });
+    else await ctx.db.insert("captains", { email, name, teams, vice });
   },
 });
 
@@ -288,8 +293,8 @@ async function allProblems(ctx: QueryCtx | MutationCtx): Promise<Problem[]> {
       out.push({ key: `alumniProfiles:${x._id}`, cat: "alumni", canRetry: true, at: x._creationTime, form: "Alumni profile", name: `${x.first} ${x.last}`, email: x.email, about: "", why: x.confirmEmail!, who: () => false });
   for (const x of await ctx.db.query("members").collect())
     if (notSent(x.confirmEmail))
-      out.push({ key: `members:${x._id}`, cat: "access", canRetry: true, at: x._creationTime, form: "Hub access request", name: x.name, email: x.email, about: x.role === "captain" ? "Captain" : `${x.department ?? ""} associate`, why: x.confirmEmail!,
-        who: (a) => (x.role === "captain" || !x.department ? a.board : a.heads.includes(x.department)) });
+      out.push({ key: `members:${x._id}`, cat: "access", canRetry: true, at: x._creationTime, form: "Hub access request", name: x.name, email: x.email, about: x.role === "captain" ? "Captain" : x.role === "vicecaptain" ? "Vice-captain" : `${x.department ?? ""} associate`, why: x.confirmEmail!,
+        who: (a) => (x.role === "captain" || x.role === "vicecaptain" || !x.department ? a.board : a.heads.includes(x.department)) });
   for (const x of await ctx.db.query("partnerInquiries").collect())
     if (notSent(x.confirmEmail))
       out.push({ key: `partnerInquiries:${x._id}`, cat: "partner", canRetry: true, at: x._creationTime, form: "Partner enquiry", name: x.name, email: x.email, about: x.company, why: x.confirmEmail!,
@@ -377,7 +382,7 @@ export const resendEmail = mutation({
       if (x) { await ctx.db.patch(x._id, { confirmEmail: "sending" }); await send({ to: x.email, name: x.first, kind: "alumni" }); }
     } else if (table === "members") {
       const x = await ctx.db.get(ctx.db.normalizeId("members", raw)!);
-      if (x) { await ctx.db.patch(x._id, { confirmEmail: "sending" }); await send({ to: x.email, name: first(x.name), kind: "access", about: x.role === "captain" ? "captain" : `${x.department} associate` }); }
+      if (x) { await ctx.db.patch(x._id, { confirmEmail: "sending" }); await send({ to: x.email, name: first(x.name), kind: "access", about: x.role === "captain" ? "captain" : x.role === "vicecaptain" ? "vice-captain" : `${x.department} associate` }); }
     }
   },
 });

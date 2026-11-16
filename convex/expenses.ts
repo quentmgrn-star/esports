@@ -3,6 +3,7 @@ import { mutation, query, type MutationCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { DEPARTMENTS, canEdit, canSee, getAccess, requireAccess, type Access } from "./roles";
 import { logActivity } from "./activity";
+import { cleanFiles, fileLinks, filesV } from "./files";
 import { TEAMS } from "./teamList";
 
 // Expenses ledger. Who sees what (convex/roles.ts):
@@ -36,6 +37,7 @@ export const list = query({
       out.push({
         ...e,
         fileUrl: e.fileId ? await ctx.storage.getUrl(e.fileId) : null,
+        fileLinks: await fileLinks(ctx, e),
         canDecide: e.status === "requested" && decides(a, e.team),
         canEsade: e.status === "requested" && decides(a, e.team),
         canPay: e.status === "validated" && pays(a),
@@ -56,6 +58,7 @@ export const request = mutation({
     link: v.optional(v.string()),
     fileId: v.optional(v.id("_storage")),
     fileName: v.optional(v.string()),
+    files: v.optional(filesV),
   },
   handler: async (ctx, x) => {
     const a = await requireAccess(ctx);
@@ -83,6 +86,7 @@ export const request = mutation({
       link: link ? link.slice(0, 500) : undefined,
       fileId: x.fileId,
       fileName: x.fileName ? clip(x.fileName, 120) : undefined,
+      files: cleanFiles(x.files),
       history: [{ action: "requested", by: who(a), at: now }],
       isExample: false,
     });

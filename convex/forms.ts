@@ -1,5 +1,6 @@
 import { ConvexError, v } from "convex/values";
 import { mutation } from "./_generated/server";
+import { cleanFiles, filesV } from "./files";
 import { internal } from "./_generated/api";
 import { teamLabel } from "./teamList";
 
@@ -97,6 +98,7 @@ export const submitAssociationApplication = mutation({
     pref2: v.optional(v.string()),
     motivation: v.string(),
     cvId: v.id("_storage"),
+    moreDocs: v.optional(filesV),
     videoId: v.optional(v.id("_storage")),
     acceptsRedirect: v.boolean(),
     confirmsAccuracy: v.boolean(),
@@ -115,6 +117,7 @@ export const submitAssociationApplication = mutation({
       linkedin: args.linkedin ? clean(args.linkedin, 300) : undefined,
       motivation: clean(args.motivation, 5000),
       pref2: args.pref2 || undefined,
+      moreDocs: cleanFiles(args.moreDocs),
     };
     if (!a.firstName || !a.lastName || !a.email || !a.phone || !a.programme || !a.year || !a.motivation) {
       throw new ConvexError("Missing required fields.");

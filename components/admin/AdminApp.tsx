@@ -24,6 +24,7 @@ type Application = {
   acceptsRedirect: boolean;
   confirmsAccuracy: boolean;
   cvUrl: string | null;
+  moreDocLinks?: { url: string; name: string }[];
   videoUrl: string | null;
   stage?: Stage;
   stageChangedAt?: number;
@@ -1385,6 +1386,19 @@ function Detail({ app, onClose }: { app: Application; onClose: () => void }) {
     ["Preference 1", app.pref1],
     ["Preference 2", app.pref2 || "—"],
     ["CV", app.cvUrl ? <a href={app.cvUrl} target="_blank" rel="noopener noreferrer">Open CV (PDF)</a> : "—"],
+    [
+      "Other PDFs",
+      app.moreDocLinks?.length
+        ? app.moreDocLinks.map((d, i) => (
+            <span key={d.url}>
+              {i > 0 && " · "}
+              <a href={d.url} target="_blank" rel="noopener noreferrer">
+                {d.name}
+              </a>
+            </span>
+          ))
+        : "—",
+    ],
     ["Video", app.videoUrl ? <a href={app.videoUrl} target="_blank" rel="noopener noreferrer">Open video</a> : "—"],
     ["Accepts redirection", app.acceptsRedirect ? "Yes" : "No"],
     ["Confirms accuracy", app.confirmsAccuracy ? "Yes" : "No"],
@@ -1757,7 +1771,7 @@ function TeamAppDetail({ app, onClose }: { app: TeamApp; onClose: () => void }) 
 }
 
 // ---------- Captains (admins only) ----------
-type Captain = { _id: string; email: string; name?: string; teams: string[] };
+type Captain = { _id: string; email: string; name?: string; teams: string[]; vice?: string[] };
 
 function Captains() {
   const captains = useQuery(api.admin.listCaptains, {}) as Captain[] | undefined;
@@ -1766,6 +1780,7 @@ function Captains() {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [teams, setTeams] = useState<string[]>([]);
+  const [vice, setVice] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -1775,10 +1790,11 @@ function Captains() {
     setError("");
     setBusy(true);
     try {
-      await save({ email, name: name || undefined, teams });
+      await save({ email, name: name || undefined, teams, vice });
       setEmail("");
       setName("");
       setTeams([]);
+      setVice(false);
     } catch (err) {
       setError(err instanceof Error ? err.message.replace(/^.*ConvexError:\s*/, "") : String(err));
     }
@@ -1789,7 +1805,7 @@ function Captains() {
     <>
       <form className="adm-captain-form" onSubmit={submit}>
         <h2 className="adm-h3" style={{ marginTop: 0 }}>
-          Add a captain
+          Add a captain or vice-captain
         </h2>
         <p className="adm-p">
           The captain then creates an account on /admin with this email. They see the messages about their sport and the
@@ -1814,6 +1830,9 @@ function Captains() {
             </label>
           ))}
         </fieldset>
+        <label className="adm-check" style={{ display: "block", margin: "10px 0" }}>
+          <input type="checkbox" checked={vice} onChange={(e) => setVice(e.target.checked)} /> Vice-captain (same access as the captain)
+        </label>
         {error && <p className="err">{error}</p>}
         <button className="btn btn-blue" type="submit" disabled={busy || !email || teams.length === 0}>
           {busy ? "Saving…" : "Save captain"}
@@ -1824,7 +1843,7 @@ function Captains() {
         <table className="adm-table">
           <thead>
             <tr>
-              <th>Captain</th>
+              <th>Captain / vice-captain</th>
               <th>Teams</th>
               <th />
             </tr>
@@ -1836,7 +1855,9 @@ function Captains() {
                   <strong>{c.name || c.email}</strong>
                   {c.name && <span className="adm-sub">{c.email}</span>}
                 </td>
-                <td>{c.teams.map(teamLabel).join(", ")}</td>
+                <td>
+                  {c.teams.map((t) => teamLabel(t) + ((c.vice ?? []).includes(t) ? " (vice-captain)" : "")).join(", ")}
+                </td>
                 <td style={{ textAlign: "right" }}>
                   <button
                     className="btn btn-ghost-navy"
@@ -1845,6 +1866,7 @@ function Captains() {
                       setEmail(c.email);
                       setName(c.name ?? "");
                       setTeams(c.teams);
+                      setVice(c.teams.length > 0 && c.teams.every((t) => (c.vice ?? []).includes(t)));
                       window.scrollTo({ top: 0, behavior: "smooth" });
                     }}
                   >
@@ -2034,7 +2056,7 @@ type MemberRow = {
   _id: string;
   email: string;
   name: string;
-  role: "board" | "associate" | "captain" | "viewer";
+  role: "board" | "associate" | "captain" | "vicecaptain" | "viewer";
   position?: Position;
   department?: string;
   teams?: string[];
@@ -2045,7 +2067,7 @@ type MemberRow = {
   decidedAt?: number;
 };
 type Position = "president" | "vice-president" | "head";
-const ROLE_LABEL = { board: "Board", associate: "Associate", captain: "Captain", viewer: "View only (Student Council)" };
+const ROLE_LABEL = { board: "Board", associate: "Associate", captain: "Captain", vicecaptain: "Vice-captain", viewer: "View only (Student Council)" };
 const POSITION_LABEL: Record<Position, string> = { president: "President", "vice-president": "Vice-president", head: "Head of department" };
 const whereOf = (m: Pick<MemberRow, "role" | "department" | "teams" | "position">) =>
   [m.role === "board" ? POSITION_LABEL[m.position ?? "head"] : "", m.department ?? "", (m.teams ?? []).map(teamLabel).join(", ")]
@@ -2195,7 +2217,7 @@ function Organisation({ me }: { me: NonNullable<Me> }) {
         admins: Person[];
         exec: Person[];
         departments: { name: string; heads: Person[]; associates: Person[] }[];
-        teams: { id: string; captains: Person[] }[];
+        teams: { id: string; captains: (Person & { vice?: boolean })[] }[];
         viewers: Person[];
       }
     | null
@@ -2260,7 +2282,9 @@ function Organisation({ me }: { me: NonNullable<Me> }) {
                   .map((t) => {
                     const squad = TEAMS.find((x) => x.id === t.id)?.squad;
                     return t.captains.length ? (
-                      t.captains.map((p) => <PersonLine key={t.id + p.email} p={p} tag={squad} reset={canReset(p)} />)
+                      t.captains.map((p) => (
+                        <PersonLine key={t.id + p.email} p={p} tag={p.vice ? `${squad} · vice-captain` : squad} reset={canReset(p)} />
+                      ))
                     ) : (
                       <li key={t.id} className="adm-sub">
                         {squad}: no captain yet
@@ -2284,11 +2308,11 @@ function Requests({ me, rows }: { me: NonNullable<Me>; rows: MemberRow[] | undef
   const add = useMutation(api.org.addMember);
   const [tab, setTab] = useState<"requested" | "approved" | "closed">("requested");
   const [error, setError] = useState("");
-  const roles: MemberRow["role"][] = me.isAdmin ? ["board", "associate", "captain", "viewer"] : ["associate", "captain"];
+  const roles: MemberRow["role"][] = me.isAdmin ? ["board", "associate", "captain", "vicecaptain", "viewer"] : ["associate", "captain", "vicecaptain"];
   const depts = me.isAdmin || me.exec ? DEPARTMENT_LIST : me.heads;
   const [f, setF] = useState({ email: "", name: "", role: roles[0], position: "head" as Position, department: depts[0] ?? "", teams: [] as string[] });
   const needsDept = f.role === "associate" || (f.role === "board" && f.position === "head");
-  const needsTeams = f.role === "associate" || f.role === "captain";
+  const needsTeams = f.role === "associate" || f.role === "captain" || f.role === "vicecaptain";
   const [busy, setBusy] = useState(false);
   const list = (rows ?? []).filter((r) => (tab === "closed" ? r.status === "rejected" || r.status === "revoked" : r.status === tab));
   async function act(id: string, decision: "approved" | "rejected" | "revoked") {
@@ -2324,7 +2348,7 @@ function Requests({ me, rows }: { me: NonNullable<Me>; rows: MemberRow[] | undef
         {me.isAdmin
           ? "As admin you approve the Board (president, vice-presidents, heads of department) and can approve anyone."
           : me.exec
-            ? "As president or vice-president you approve associates and captains."
+            ? "As president or vice-president you approve associates, captains and vice-captains."
             : `As head of ${me.heads.join(", ")} you approve your department's associates, and captain requests.`}{" "}
         People request access on the Members page of the website; once approved they create their account on /admin with the
         same email.

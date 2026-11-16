@@ -8,10 +8,12 @@ import { internal } from "./_generated/api";
 
 // Who approves what (no one approves their own request; view-only people approve nothing):
 //   Admin ............................ everyone, including Board positions and viewers
-//   President / Vice-president ....... associates and captains
+//   President / Vice-president ....... associates, captains and vice-captains
 //   Head of department ............... associates of their own department, and captain requests
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const roleV = v.union(v.literal("board"), v.literal("associate"), v.literal("captain"), v.literal("viewer"));
+const roleV = v.union(v.literal("board"), v.literal("associate"), v.literal("captain"), v.literal("vicecaptain"), v.literal("viewer"));
+// Captains and vice-captains have the same access to their team(s).
+export const isCaptainRole = (role: string) => role === "captain" || role === "vicecaptain";
 const positionV = v.optional(v.union(v.literal("president"), v.literal("vice-president"), v.literal("head")));
 type Member = Doc<"members">;
 
@@ -19,7 +21,7 @@ export function canDecide(a: Access, m: Pick<Member, "role" | "department" | "em
   if (m.email === a.email || a.readOnly) return false;
   if (a.isAdmin) return true;
   if (m.role === "associate") return a.exec || (!!m.department && a.heads.includes(m.department));
-  if (m.role === "captain") return a.exec || a.heads.length > 0;
+  if (isCaptainRole(m.role)) return a.exec || a.heads.length > 0;
   return false; // Board positions and viewers: admin only
 }
 
@@ -32,23 +34,28 @@ function clean(args: { email: string; name: string; role: Member["role"]; positi
   const needsDept = args.role === "associate" || position === "head";
   const department = needsDept ? args.department : undefined;
   if (needsDept && (!department || !DEPARTMENTS.includes(department))) throw new ConvexError("Choose a department.");
-  const needsTeams = args.role === "associate" || args.role === "captain";
+  const needsTeams = args.role === "associate" || isCaptainRole(args.role);
   const teams = needsTeams ? [...new Set(args.teams ?? [])].filter((t) => TEAMS.some((x) => x.id === t)) : undefined;
   if (needsTeams && !teams?.length) throw new ConvexError("Choose at least one team.");
   return { email, name, role: args.role, position, department, teams };
 }
 
-// Approved captains are also kept in the captains table (it drives messages and try-outs access).
-async function addCaptainTeams(ctx: MutationCtx, email: string, name: string, teams: string[]) {
+// Approved captains and vice-captains are also kept in the captains table (it drives messages,
+// try-outs, chat and every other captain access). `vice` lists the teams where they are vice-captain.
+async function addCaptainTeams(ctx: MutationCtx, email: string, name: string, teams: string[], vice = false) {
   const row = await ctx.db.query("captains").withIndex("by_email", (q) => q.eq("email", email)).unique();
-  if (row) await ctx.db.patch(row._id, { teams: [...new Set([...row.teams, ...teams])], name: row.name ?? name });
-  else await ctx.db.insert("captains", { email, name, teams });
+  const old = row?.vice ?? [];
+  const viceTeams = vice ? [...new Set([...old, ...teams])] : old.filter((t) => !teams.includes(t));
+  const v = viceTeams.length ? viceTeams : undefined;
+  if (row) await ctx.db.patch(row._id, { teams: [...new Set([...row.teams, ...teams])], name: row.name ?? name, vice: v });
+  else await ctx.db.insert("captains", { email, name, teams, vice: v });
 }
 async function removeCaptainTeams(ctx: MutationCtx, email: string, teams: string[]) {
   const row = await ctx.db.query("captains").withIndex("by_email", (q) => q.eq("email", email)).unique();
   if (!row) return;
   const left = row.teams.filter((t) => !teams.includes(t));
-  if (left.length) await ctx.db.patch(row._id, { teams: left });
+  const vice = (row.vice ?? []).filter((t) => left.includes(t));
+  if (left.length) await ctx.db.patch(row._id, { teams: left, vice: vice.length ? vice : undefined });
   else await ctx.db.delete(row._id);
 }
 
@@ -57,7 +64,7 @@ export const requestAccess = mutation({
   args: {
     email: v.string(),
     name: v.string(),
-    role: v.union(v.literal("associate"), v.literal("captain")),
+    role: v.union(v.literal("associate"), v.literal("captain"), v.literal("vicecaptain")),
     department: v.optional(v.string()),
     teams: v.optional(v.array(v.string())), // associates: the teams they work with; captains: their team(s)
     note: v.optional(v.string()),
@@ -72,7 +79,7 @@ export const requestAccess = mutation({
     if (mine.some((r) => r.status === "requested" && r.role === m.role && r.department === m.department && (r.teams ?? []).join() === (m.teams ?? []).join()))
       throw new ConvexError("This request is already waiting for approval.");
     const id = await ctx.db.insert("members", { ...m, note: args.note?.trim().slice(0, 500) || undefined, status: "requested", requestedAt: Date.now() });
-    const as = m.role === "captain" ? "captain" : `${m.department} associate`;
+    const as = m.role === "captain" ? "captain" : m.role === "vicecaptain" ? "vice-captain" : `${m.department} associate`;
     await ctx.scheduler.runAfter(0, internal.mail.confirm, { to: m.email, name: m.name.split(" ")[0], kind: "access", about: as, lang: args.lang, table: "members", id });
     return true;
   },
@@ -86,7 +93,7 @@ export const addMember = mutation({
     const m = clean(args);
     if (!canDecide(a, m)) throw new ConvexError("You can't add this person with this role.");
     await ctx.db.insert("members", { ...m, status: "approved", requestedAt: Date.now(), decidedBy: a.email, decidedAt: Date.now() });
-    if (m.role === "captain") await addCaptainTeams(ctx, m.email, m.name, m.teams!);
+    if (isCaptainRole(m.role)) await addCaptainTeams(ctx, m.email, m.name, m.teams!, m.role === "vicecaptain");
   },
 });
 
@@ -101,8 +108,8 @@ export const decide = mutation({
     if (decision === "revoked" && m.status !== "approved") throw new ConvexError("Only approved members can be removed.");
     if (decision !== "revoked" && m.status !== "requested") throw new ConvexError("This request was already decided.");
     await ctx.db.patch(id, { status: decision, decidedBy: a.email, decidedAt: Date.now() });
-    if (m.role === "captain" && m.teams) {
-      if (decision === "approved") await addCaptainTeams(ctx, m.email, m.name, m.teams);
+    if (isCaptainRole(m.role) && m.teams) {
+      if (decision === "approved") await addCaptainTeams(ctx, m.email, m.name, m.teams, m.role === "vicecaptain");
       if (decision === "revoked") await removeCaptainTeams(ctx, m.email, m.teams);
     }
   },
@@ -147,7 +154,11 @@ export const overview = query({
     const captains = await ctx.db.query("captains").collect();
     const teams = TEAMS.map((t) => ({
       id: t.id,
-      captains: captains.filter((c) => c.teams.includes(t.id)).map((c) => ({ name: c.name ?? null, email: c.email })),
+      // captains first, then vice-captains
+      captains: captains
+        .filter((c) => c.teams.includes(t.id))
+        .map((c) => ({ name: c.name ?? null, email: c.email, vice: (c.vice ?? []).includes(t.id) }))
+        .sort((x, y) => Number(x.vice) - Number(y.vice)),
     }));
     // The full list (admins, view-only accounts, every email) is the /admin Organisation tab:
     // admins, the President and the Vice-presidents only. Everyone else gets what the Hub needs.

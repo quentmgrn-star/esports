@@ -9,7 +9,7 @@ import { sportOfTeam } from "./teamList";
 //   President / Vice-president (Board) ........... everything, can edit everything
 //   Head of department (Board) ................... their department, for every team
 //   Associate .................................... their department, only their assigned teams
-//   Captain ...................................... their own team(s)
+//   Captain / Vice-captain ....................... their own team(s)
 //   Viewer (Student Council, Eva Morta) .......... everything, read-only
 export const DEPARTMENTS = ["Finance", "Media & Marketing", "Operations", "Partnerships", "IT"];
 
@@ -49,12 +49,15 @@ function teamMatch(teams: string[], r: Resource) {
 // Admin, president and vice-presidents: edit everything.
 export const isExecEditor = (a: Access) => !a.readOnly && (a.isAdmin || a.exec);
 
-export async function captainTeams(ctx: QueryCtx | MutationCtx, email: string): Promise<string[]> {
-  const row = await ctx.db
+async function captainRow(ctx: QueryCtx | MutationCtx, email: string) {
+  return ctx.db
     .query("captains")
     .withIndex("by_email", (q) => q.eq("email", email.trim().toLowerCase()))
     .unique();
-  return row?.teams ?? [];
+}
+// Teams someone captains or vice-captains (same access).
+export async function captainTeams(ctx: QueryCtx | MutationCtx, email: string): Promise<string[]> {
+  return (await captainRow(ctx, email))?.teams ?? [];
 }
 
 async function approvedRows(ctx: QueryCtx | MutationCtx, email: string) {
@@ -71,7 +74,9 @@ export async function getAccess(ctx: QueryCtx | MutationCtx): Promise<Access | n
   if (!user) return null;
   const email = user.email.toLowerCase();
   const isAdmin = isAdminEmail(email);
-  const teams = await captainTeams(ctx, email);
+  const capRow = await captainRow(ctx, email);
+  const teams = capRow?.teams ?? [];
+  const onlyVice = teams.length > 0 && teams.every((t) => (capRow?.vice ?? []).includes(t));
   const rows = await approvedRows(ctx, email);
   const exec = rows.some((r) => r.role === "board" && (r.position === "president" || r.position === "vice-president"));
   const heads = rows.filter((r) => r.role === "board" && (r.position ?? "head") === "head" && r.department).map((r) => r.department!);
@@ -92,7 +97,7 @@ export async function getAccess(ctx: QueryCtx | MutationCtx): Promise<Access | n
         : assoc.length
           ? `Associate · ${assoc.map((x) => x.department).join(", ")}`
           : teams.length
-            ? `Captain · ${[...sportsOf(teams)].join(", ")}`
+            ? `${onlyVice ? "Vice-captain" : "Captain"} · ${[...sportsOf(teams)].join(", ")}`
             : "Student Council (view only)";
   const full = isAdmin || exec || viewer;
   const readOnly = viewer && !isAdmin && !exec && !heads.length && !assoc.length && !teams.length;

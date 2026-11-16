@@ -209,7 +209,7 @@ export default function EsadeSite() {
       // Public results typed in the Hub (shown on the team pages).
       listResults: () => client.query(api.results.listPublic, {}),
       // Uploads the CV (and optional video) to Convex storage, then stores the application.
-      submitAssociationApplication: async (a: Record<string, unknown>, files: { cv: File; video?: File }) => {
+      submitAssociationApplication: async (a: Record<string, unknown>, files: { cv: File; more?: File[]; video?: File }) => {
         const upload = async (file: File) => {
           const url: string = await client.mutation(api.forms.generateUploadUrl, {});
           const res = await fetch(url, {
@@ -221,8 +221,10 @@ export default function EsadeSite() {
           return ((await res.json()) as { storageId: string }).storageId;
         };
         const cvId = await upload(files.cv);
+        // Other PDFs sent with the CV (cover letter, certificates…)
+        const moreDocs = await Promise.all((files.more ?? []).map(async (f) => ({ id: await upload(f), name: f.name, type: f.type || undefined })));
         const videoId = files.video ? await upload(files.video) : undefined;
-        return client.mutation(api.forms.submitAssociationApplication, { ...a, cvId, videoId } as never);
+        return client.mutation(api.forms.submitAssociationApplication, { ...a, cvId, moreDocs: moreDocs.length ? moreDocs : undefined, videoId } as never);
       },
     };
     // Excel and PowerPoint downloads (loaded on click; they work with or without Convex).

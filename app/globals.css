@@ -991,7 +991,7 @@ a { text-underline-offset: .18em; text-decoration-thickness: 1.5px; }
 #hub .tu-kind { display: flex; gap: 14px; font-size: 13px; }
 #hub .tu-kind label { display: inline-flex; gap: 5px; align-items: center; }
 #hub .tu-form textarea, #hub .tu-form input[name=link] { width: 100%; border: 1.5px solid var(--line); background: var(--white); padding: 7px 9px; font: inherit; font-size: 14px; }
-#hub .tu-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; }
+#hub .tu-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
 #hub .tu-row input[type=file] { font-size: 12px; max-width: 200px; }
 @media (max-width: 640px) { #hub .tu-row { grid-template-columns: 1fr; } #hub .tu-row input[type=file] { max-width: none; } }
 
@@ -1303,3 +1303,14 @@ html.kb-active, html.kb-active * { cursor: grabbing !important; user-select: non
 #hub .ho-unsaved { display: none; font-size: 12px; font-weight: 600; color: var(--warn); }
 #hub .ho-form.dirty .ho-unsaved { display: inline; }
 @media (max-width: 760px) { .toast, #hub .toast { left: 16px; right: 16px; } }
+
+/* Several files on one form (site.js pickBox): "+ Add files" button, then the list with a × per file. */
+.mpick { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 6px; }
+.mpick-add { cursor: pointer; }
+.mpick-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13px; max-width: 100%; }
+.mpick-list:empty { display: none; }
+.mpick-list li { text-transform: none; letter-spacing: normal; font-weight: 500; display: flex; align-items: center; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
+.mpick-rm { border: 0; background: none; color: inherit; font-size: 18px; line-height: 1; padding: 0 4px; cursor: pointer; opacity: .7; }
+.mpick-rm:hover { opacity: 1; }
+.mpick-field { display: flex; flex-direction: column; gap: 4px; }
+#hub .tu-file { display: inline-block; margin-right: 8px; }

@@ -43,7 +43,10 @@ async function everyone(ctx: QueryCtx | MutationCtx): Promise<Person[]> {
     if (!c.teams.length) continue;
     const p = get(c.email, c.name || rows.find((m) => m.email === c.email)?.name || c.email);
     p.capTeams = c.teams;
-    add(p, `Captain · ${c.teams.map(teamLabel).join(", ")}`);
+    const vice = c.vice ?? [];
+    const cap = c.teams.filter((t) => !vice.includes(t));
+    if (cap.length) add(p, `Captain · ${cap.map(teamLabel).join(", ")}`);
+    if (vice.length) add(p, `Vice-captain · ${vice.map(teamLabel).join(", ")}`);
   }
   for (const e of adminEmails()) {
     const p = get(e, e);
