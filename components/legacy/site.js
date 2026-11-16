@@ -2101,15 +2101,27 @@ export function initSite(backend, tools) {
     if (tnMine()) {
       body = ts.length ? ts.map(function (t) { return tnTeamPanel(t); }).join("") : '<section class="panel"><p class="empty">No team linked to your account yet.</p></section>';
     } else {
+      // Admins, President/VPs, heads and the view-only account first pick a tournament from the list.
+      // Only one tournament exists for now (the Convex `tournaments` row); add more entries here later.
+      if (!state.tnEv) return tnList(d, c);
       var open = state.tnOpen, ot = ts.filter(function (t) { return t.team === open; })[0];
       if (ot) return head(d.event) + '<p class="tn-back"><button type="button" class="btn sm" data-tn-back>← All teams</button></p>' + tnTeamPanel(ot, true) + tnConfirmed([ot]);
-      body = '<section class="panel"><div class="panel-head"><h2>Every team</h2><button type="button" class="btn sm solid" data-tn-csv' + (c.yes ? "" : " disabled") + '>Download confirmed players (CSV)</button></div><div class="table-wrap"><table><thead><tr><th>Team</th><th class="r">Attending</th><th class="r">Not attending</th><th class="r">Not answered</th><th class="r">ID missing</th><th class="r">No documents</th><th class="r">Roster</th></tr></thead><tbody>' +
+      body = '<p class="tn-back"><button type="button" class="btn sm" data-tn-evback>← All tournaments</button></p>';
+      body += '<section class="panel"><div class="panel-head"><h2>Every team</h2><button type="button" class="btn sm solid" data-tn-csv' + (c.yes ? "" : " disabled") + '>Download confirmed players (CSV)</button></div><div class="table-wrap"><table><thead><tr><th>Team</th><th class="r">Attending</th><th class="r">Not attending</th><th class="r">Not answered</th><th class="r">ID missing</th><th class="r">No documents</th><th class="r">Roster</th></tr></thead><tbody>' +
         ts.map(function (t) { var k = tnCount(t.players), tm = team(t.team);
           return '<tr class="click" data-tn-open="' + t.team + '" tabindex="0"' + (open === t.team ? ' aria-current="true"' : "") + '><td class="tname"><a href="#hub-tournament" class="tn-team" data-tn-link="' + t.team + '">' + esc(tm ? tLabel(tm) : t.team) + '</a></td><td class="r num"><b class="tn-n ok">' + k.yes + '</b></td><td class="r num">' + k.no + '</td><td class="r num">' + (k.none ? '<span class="tn-n warn">' + k.none + "</span>" : "0") + '</td><td class="r num">' + (k.noId ? '<span class="tn-n bad">' + k.noId + "</span>" : "0") + '</td><td class="r num">' + k.noDoc + '</td><td class="r num muted">' + t.players.length + "</td></tr>"; }).join("") +
         '</tbody></table></div><p class="muted" style="margin:0;font-size:12px">Click a team to see its players. A team with an empty roster has not added its players yet.</p></section>' +
         tnConfirmed(ts);
     }
     return head(d.event) + stats + body + (d.canEditEvent && !hRO() && (hv().role === "admin" || hv().role === "exec") ? tnEventForm(d.event) : "");
+  }
+  function tnList(d, c) {
+    var ev = d.event, days = tnDaysTo(ev.date);
+    return '<div class="ph-head"><div><h1 class="display">Tournaments.</h1><p>Choose a tournament to see who is coming, team by team.</p></div></div>' +
+      '<section class="panel"><div class="panel-head"><h2>Tournaments</h2></div><div class="table-wrap"><table><thead><tr><th>Tournament</th><th>Date</th><th>Place</th><th class="r">Attending</th><th class="r">Not answered</th></tr></thead><tbody>' +
+      '<tr class="click" data-tn-ev="main" tabindex="0"><td class="tname"><a href="#hub-tournament" class="tn-team" data-tn-ev="main">' + esc(ev.name) + "</a></td><td>" + esc(tnLongDate(ev.date)) + (days != null && days >= 0 ? ' <small class="muted">· in ' + days + (days === 1 ? " day" : " days") + "</small>" : "") + "</td><td>" + (ev.place ? esc(ev.place) : '<span class="muted">—</span>') +
+      '</td><td class="r num"><b class="tn-n ok">' + c.yes + '</b></td><td class="r num">' + (c.none ? '<span class="tn-n warn">' + c.none + "</span>" : "0") + "</td></tr>" +
+      '</tbody></table></div><p class="muted" style="margin:0;font-size:12px">Click a tournament to open its full page: attendance, ID / passport, documents and the CSV download.</p></section>';
   }
   function tnTeamPanel(t, grouped) {
     var tm = team(t.team), ed = tnEditable(t), k = tnCount(t.players);
@@ -2190,6 +2202,12 @@ export function initSite(backend, tools) {
       r.addEventListener("click", op);
       r.addEventListener("keydown", function (ev) { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); op(); } });
     });
+    hub.querySelectorAll("tr[data-tn-ev]").forEach(function (r) {
+      function op(ev) { if (ev) ev.preventDefault(); state.tnEv = r.getAttribute("data-tn-ev"); state.tnOpen = null; render(); window.scrollTo(0, 0); }
+      r.addEventListener("click", op);
+      r.addEventListener("keydown", function (ev) { if (ev.key === "Enter" || ev.key === " ") op(ev); });
+    });
+    hub.querySelectorAll("[data-tn-evback]").forEach(function (b) { b.addEventListener("click", function () { state.tnEv = null; state.tnOpen = null; render(); window.scrollTo(0, 0); }); });
     hub.querySelectorAll("[data-tn-csv]").forEach(function (b) { b.addEventListener("click", tnCsv); });
     var ef = $("tn-event"); if (ef) ef.addEventListener("submit", function (ev) {
       ev.preventDefault(); var bt = ef.querySelector("button"); bt.disabled = true;
@@ -2230,7 +2248,7 @@ export function initSite(backend, tools) {
       var depts = [];
       ts.forEach(function (t) { t.sections.forEach(function (s) { if (depts.indexOf(s.dept) < 0) depts.push(s.dept); }); });
       depts = DEPARTMENT_ORDER.filter(function (d) { return depts.indexOf(d) > -1; });
-      body = '<section class="panel"><div class="panel-head"><h2>Every team</h2></div><div class="table-wrap"><table><thead><tr><th>Team</th>' + depts.map(function (d) { return "<th>" + esc(d) + "</th>"; }).join("") + "</tr></thead><tbody>" +
+      body += '<section class="panel"><div class="panel-head"><h2>Every team</h2></div><div class="table-wrap"><table><thead><tr><th>Team</th>' + depts.map(function (d) { return "<th>" + esc(d) + "</th>"; }).join("") + "</tr></thead><tbody>" +
         ts.map(function (t) { var tm = team(t.team);
           return '<tr class="click" data-ho-open="' + t.team + '" tabindex="0"' + (open === t.team ? ' aria-current="true"' : "") + '><td class="tname">' + esc(tm ? tLabel(tm) : t.team) + "</td>" + depts.map(function (d) {
             var s = t.sections.filter(function (x) { return x.dept === d; })[0];
@@ -3627,7 +3645,7 @@ export function initSite(backend, tools) {
     }, { rootMargin: "-45% 0px -50% 0px" });
     secs.forEach(function (sct) { if (sct.id) spy.observe(sct); });
   })();
-  window.addEventListener("hashchange", function () { state.teamOpen = null; state.tnOpen = null; bellOpen = false; render(); updateTitle(); });
+  window.addEventListener("hashchange", function () { state.teamOpen = null; state.tnOpen = null; state.tnEv = null; bellOpen = false; render(); updateTitle(); });
   // A live update that arrived while someone was typing in the Hub is shown once they leave the field.
   hub.addEventListener("focusout", function () { if (LIVE.dirty) setTimeout(function () { if (LIVE.dirty && !hubBusy()) { LIVE.dirty = false; render(); } }, 400); });
   homeGames(); homeEvents(); setInterval(function () { homeGames(); homeEvents(); }, 60000);

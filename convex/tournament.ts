@@ -10,7 +10,7 @@ import { TEAMS } from "./teamList";
 // Personal data: never public, never in git.
 
 // Used until an admin saves the tournament details in the Hub.
-const DEFAULT_EVENT = { name: "Unijess tournament", date: "2027-01-29" };
+const DEFAULT_EVENT = { name: "UNIJESS - Sevilla", date: "2027-01-29" };
 const MAX_FILE = 10 * 1024 * 1024; // 10 MB
 const MAX_FILES = 8; // per player
 const FILE_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
