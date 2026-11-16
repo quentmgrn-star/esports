@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useConvexAuth, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import type { FunctionReference } from "convex/server";
 import { api } from "@/convex/_generated/api";
 import { authClient } from "@/lib/auth-client";
@@ -101,6 +101,12 @@ function AdminBridge() {
               scope: { exec: !!me.exec, heads: me.heads ?? [], assoc: me.assoc ?? [], teams: me.teams ?? [], viewer: !!me.viewer },
             }
           : null;
+  // First successful sign-in of a member: recorded once in Convex, which notifies the right people.
+  const recordFirstLogin = useMutation(api.notifications.recordFirstLogin);
+  const signedInAs = me?.label ? me.email : "";
+  useEffect(() => {
+    if (signedInAs) recordFirstLogin({}).catch(() => {});
+  }, [signedInAs]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => pushAdmin(value), [value === undefined ? "?" : value ? value.email + (value.captain ? ":" + value.label : "") : ""]); // eslint-disable-line react-hooks/exhaustive-deps
   return null;
 }

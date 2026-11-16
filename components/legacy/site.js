@@ -2825,6 +2825,7 @@ export function initSite(backend, tools) {
   function pushNotif(n) { n.at = Date.now(); n.by = meLabel(); (state.notifs = state.notifs || []).unshift(n); state.notifs = state.notifs.slice(0, 60); save(); }
   function seeNotif(n) {
     var u = hv(), mine = (u.teams || []).indexOf(n.team) > -1;
+    if (n.aud) return true; // first sign-ins etc.: Convex already sent only the ones for this person
     if (hFull()) return true;
     if (n.captains && u.role === "captain" && mine) return true;
     if (n.dept && DEPT_ID[n.dept] === u.dept && (u.role === "head" || (u.role === "associate" && mine))) return true;

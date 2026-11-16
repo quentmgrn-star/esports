@@ -336,6 +336,9 @@ export default defineSchema({
     title: v.string(),
     body: v.optional(v.string()),
     link: v.optional(v.string()), // Hub route, e.g. "hub-ideas"
+    // Set for notifications that are not about a team (e.g. "signed in for the first time"): who may see it,
+    // as tokens "top" (admins, President, VPs), "head:<Department>" (that head), "dept:<Department>" (head + associates).
+    aud: v.optional(v.array(v.string())),
     by: v.string(),
     byEmail: v.string(),
     at: v.number(),
@@ -352,6 +355,9 @@ export default defineSchema({
     at: v.number(),
   }).index("by_team_at", ["team", "at"]),
   notifSeen: defineTable({ email: v.string(), at: v.number() }).index("by_email", ["email"]),
+  // When each member first signed in successfully (convex/notifications.ts recordFirstLogin). One row per email,
+  // so the "signed in for the first time" notification goes out once. notified=false: account made before this existed.
+  firstLogins: defineTable({ email: v.string(), at: v.number(), notified: v.boolean() }).index("by_email", ["email"]),
 
   // Next tournament (e.g. Unijess, 29 Jan 2027): one row, edited by admins / President / VPs.
   tournaments: defineTable({

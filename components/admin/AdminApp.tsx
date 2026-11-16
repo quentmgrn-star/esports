@@ -268,6 +268,12 @@ function Gate() {
   const me = useQuery(api.admin.me, isAuthenticated ? {} : "skip") as Me | undefined;
   const mustChange = useQuery(api.passwords.mustChange, isAuthenticated ? {} : "skip") as boolean | undefined;
   const signedInEmail = session.data?.user?.email;
+  // First successful sign-in: recorded once in Convex, which notifies the right people (also done on the site).
+  const recordFirstLogin = useMutation(api.notifications.recordFirstLogin);
+  const memberEmail = me?.label ? me.email : "";
+  useEffect(() => {
+    if (memberEmail) recordFirstLogin({}).catch(() => {});
+  }, [memberEmail]); // eslint-disable-line react-hooks/exhaustive-deps
   // "Forgot password?" email link: /admin?reset=<token>&lang=xx
   const [resetToken, setResetToken] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
