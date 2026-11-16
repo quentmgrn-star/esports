@@ -2324,7 +2324,12 @@ function Requests({ me, rows }: { me: NonNullable<Me>; rows: MemberRow[] | undef
   const [error, setError] = useState("");
   // Admin, President and VPs add anyone; heads add associates of their own department only (checked again in Convex: org.canAdd).
   const addsAnyone = me.isAdmin || me.exec;
-  const kinds: AddKind[] = addsAnyone ? ["president", "vice-president", "head", "associate", "captain", "vicecaptain", "viewer"] : ["associate"];
+  // Only an admin adds (or removes) the President.
+  const kinds: AddKind[] = me.isAdmin
+    ? ["president", "vice-president", "head", "associate", "captain", "vicecaptain", "viewer"]
+    : me.exec
+      ? ["vice-president", "head", "associate", "captain", "vicecaptain", "viewer"]
+      : ["associate"];
   const depts = addsAnyone ? DEPARTMENT_LIST : me.heads;
   const [f, setF] = useState({ email: "", name: "", kind: kinds[0], department: depts[0] ?? "", teams: [] as string[] });
   const isBoard = f.kind === "president" || f.kind === "vice-president" || f.kind === "head";
@@ -2369,7 +2374,7 @@ function Requests({ me, rows }: { me: NonNullable<Me>; rows: MemberRow[] | undef
         {me.isAdmin
           ? "As admin you can add, approve or remove anyone, including the President, vice-presidents and heads of department."
           : me.exec
-            ? "As President or vice-president you can add, approve or remove anyone, including heads of department."
+            ? "As President or vice-president you can add, approve or remove anyone except the President (only an admin can change the President)."
             : `As head of ${me.heads.join(", ")} you add and approve your department's associates, and approve captain requests.`}{" "}
         People request access on the Members page of the website; once approved they create their account on /admin with the
         same email.
@@ -2380,7 +2385,7 @@ function Requests({ me, rows }: { me: NonNullable<Me>; rows: MemberRow[] | undef
         </h2>
         <p className="adm-p" style={{ marginTop: 0 }}>
           {addsAnyone
-            ? "Add a President, vice-presidents, heads of department, associates, captains or a view-only account. They are approved straight away."
+            ? `Add ${me.isAdmin ? "a President, " : ""}vice-presidents, heads of department, associates, captains or a view-only account. They are approved straight away.`
             : `As head of ${me.heads.join(", ")} you can add associates to your department. They are approved straight away.`}
         </p>
         <div className="adm-filters" style={{ padding: 0 }}>

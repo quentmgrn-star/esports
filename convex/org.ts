@@ -7,7 +7,8 @@ import { TEAMS } from "./teamList";
 import { internal } from "./_generated/api";
 
 // Who approves, adds or removes whom (never yourself; view-only people do nothing):
-//   Admin, President, Vice-president .. everyone (President, VPs, heads, associates, captains, view-only)
+//   Admin ............................. everyone
+//   President, Vice-president ......... everyone except the President (only an admin adds, changes or removes the President)
 //   Head of department ................ ADDS only associates of their own department;
 //                                       approves their department's associate requests and captain requests
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -17,18 +18,22 @@ export const isCaptainRole = (role: string) => role === "captain" || role === "v
 const positionV = v.optional(v.union(v.literal("president"), v.literal("vice-president"), v.literal("head")));
 type Member = Doc<"members">;
 
-export function canDecide(a: Access, m: Pick<Member, "role" | "department" | "email">): boolean {
+const isPresident = (m: Pick<Member, "role" | "position">) => m.role === "board" && m.position === "president";
+
+export function canDecide(a: Access, m: Pick<Member, "role" | "department" | "email" | "position">): boolean {
   if (m.email === a.email || a.readOnly) return false;
-  if (a.isAdmin || a.exec) return true;
+  if (a.isAdmin) return true;
+  if (a.exec) return !isPresident(m);
   if (m.role === "associate") return !!m.department && a.heads.includes(m.department);
   if (isCaptainRole(m.role)) return a.heads.length > 0;
   return false; // Board positions and viewers: admin, President and VPs only
 }
 // Adding someone directly (no request): admin, President and VPs add anyone;
 // a head of department adds associates of their own department only.
-export function canAdd(a: Access, m: Pick<Member, "role" | "department" | "email">): boolean {
+export function canAdd(a: Access, m: Pick<Member, "role" | "department" | "email" | "position">): boolean {
   if (m.email === a.email || a.readOnly) return false;
-  if (a.isAdmin || a.exec) return true;
+  if (a.isAdmin) return true;
+  if (a.exec) return !isPresident(m);
   return m.role === "associate" && !!m.department && a.heads.includes(m.department);
 }
 
@@ -99,7 +104,7 @@ export const addMember = mutation({
     const a = await requireAccess(ctx);
     const m = clean(args);
     if (!canAdd(a, m))
-      throw new ConvexError(a.heads.length && !a.exec && !a.isAdmin ? "As head of department you can only add associates to your own department." : "You can't add this person with this role.");
+      throw new ConvexError(isPresident(m) && a.exec ? "Only an admin can add or change the President." : a.heads.length && !a.exec && !a.isAdmin ? "As head of department you can only add associates to your own department." : "You can't add this person with this role.");
     const dup = await ctx.db.query("members").withIndex("by_email", (q) => q.eq("email", m.email)).collect();
     if (dup.some((r) => r.status === "approved" && r.role === m.role && r.position === m.position && r.department === m.department && (r.teams ?? []).join() === (m.teams ?? []).join()))
       throw new ConvexError("This person already has this role.");
