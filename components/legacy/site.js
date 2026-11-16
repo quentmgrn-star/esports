@@ -1716,7 +1716,7 @@ export function initSite(backend, tools) {
       '<button class="match-close" type="button" data-msg-close aria-label="Close">×</button>' +
       '<p class="eyebrow" style="color:var(--blue)">' + esc(m.topic) + (m.sport ? " · " + esc(m.sport) : "") + "</p><h2 id=\"msg-title\">" + esc(m.subject) + "</h2>" +
       '<dl class="match-details"><div><dt>From</dt><dd>' + esc(m.name) + '</dd></div><div><dt>Email</dt><dd><a href="mailto:' + esc(m.email) + '">' + esc(m.email) + "</a></dd></div>" + (m.phone ? "<div><dt>Phone</dt><dd>" + esc(m.phone) + "</dd></div>" : "") +
-      "<div><dt>Received</dt><dd>" + esc(new Date(m._creationTime).toLocaleString("en-GB")) + "</dd></div><div><dt>Status</dt><dd>" + (hRO() ? pill(MSG_STATUS, m.status) : msgStatusSelect(m)) + "</dd></div>" + (m.confirmEmail ? "<div><dt>Confirmation</dt><dd>" + (m.confirmEmail === "sent" ? "Sent" : mailFailPill(m)) + "</dd></div>" : "") + "</dl>" +
+      "<div><dt>Received</dt><dd>" + esc(new Date(m._creationTime).toLocaleString("en-GB")) + "</dd></div><div><dt>Status</dt><dd>" + (hRO() ? pill(MSG_STATUS, m.status) : msgStatusSelect(m)) + "</dd></div>" + (m.confirmEmail && seesMail() ? "<div><dt>Confirmation</dt><dd>" + (m.confirmEmail === "sent" ? "Sent" : mailFailPill(m)) + "</dd></div>" : "") + "</dl>" +
       '<p class="msg-body">' + esc(m.message) + "</p>" +
       (reps ? '<h3 class="msg-h3">Replies</h3>' + reps : "") +
       (hRO() ? "" : '<form id="msg-reply" data-id="' + esc(m._id) + '" class="msg-form"><label for="msg-reply-text" class="msg-h3">Reply to ' + esc(m.name) + '</label><textarea id="msg-reply-text" name="text" rows="5" required placeholder="Write your answer. It is emailed to ' + esc(m.email) + ', and their answer comes back to your inbox."></textarea>' +
@@ -1733,12 +1733,14 @@ export function initSite(backend, tools) {
   }
   function stageChip(st) { return '<span class="stg-chip stg-' + st + '">' + esc(APP_STAGE[st] || st) + "</span>"; }
   // Confirmation emails that did not reach the person (convex/admin.ts emailProblems).
-  function mailFailPill(x) { return x && x.confirmEmail && x.confirmEmail !== "sent" ? ' <span class="pill bad" title="' + esc(x.confirmEmail) + '">Email not sent</span>' : ""; }
+  // Only admins, President/VPs and the IT department (head + associates) see these (same rule as seesMail in convex/roles.ts).
+  function seesMail() { var u = hv(); return u.role === "admin" || u.role === "exec" || ((u.role === "head" || u.role === "associate") && u.dept === "it"); }
+  function mailFailPill(x) { return seesMail() && x && x.confirmEmail && x.confirmEmail !== "sent" ? ' <span class="pill bad" title="' + esc(x.confirmEmail) + '">Email not sent</span>' : ""; }
   // cats: only these kinds of forms (e.g. ["partner"] on the Partnerships tab); none = all (Overview).
-  // Convex already returns only the ones this account handles (its department / team; admins, President, VPs and IT: all).
+  // Convex returns them only to admins, President, VPs and IT; seesMail() also hides them when an admin uses "Demo as".
   function mailWarnPanel(cats) {
     var all = (LIVE.emailProblems || []).filter(function (r) { return !cats || cats.indexOf(r.cat) > -1; });
-    if (!live() || !all.length) return "";
+    if (!live() || !all.length || !seesMail()) return "";
     var rows = all.filter(function (r) { return !r.handledBy; }), done = all.filter(function (r) { return r.handledBy; }), ro = hRO();
     var doneList = done.length ? '<details style="margin-top:10px"><summary><small class="muted">Handled (' + done.length + ")</small></summary><ul style=\"margin:6px 0 0;padding-left:18px\">" + done.slice(0, 20).map(function (r) {
       return "<li><small><strong>" + esc(r.name) + "</strong> · " + esc(r.form) + " · handled by " + esc(r.handledBy) + " · " + esc(fmtDay(r.handledAt)) + (ro ? "" : ' <button type="button" class="btn sm ghost" data-mail-undo="' + esc(r.key) + '">Undo</button>') + "</small></li>";
@@ -1825,7 +1827,7 @@ export function initSite(backend, tools) {
       row("Files", files.length ? files.join(" · ") : "None") +
       row("Received", esc(new Date(a._creationTime).toLocaleString("en-GB"))) +
       row("Stage", ro ? stageChip(st) : appStageSelect(a)) + (a.stageChangedAt ? row("Stage changed", esc(fmtDay(a.stageChangedAt))) : "") +
-      (a.confirmEmail ? row("Confirmation email", a.confirmEmail === "sent" ? "Sent" : mailFailPill(a)) : "") + "</dl>" +
+      (a.confirmEmail && seesMail() ? row("Confirmation email", a.confirmEmail === "sent" ? "Sent" : mailFailPill(a)) : "") + "</dl>" +
       '<h3 class="msg-h3">Motivation</h3><p class="msg-body">' + esc(a.motivation || "Not given") + "</p>" +
       (ro ? (a.notes ? '<h3 class="msg-h3">Notes</h3><p class="msg-body">' + esc(a.notes) + "</p>" : "") :
         '<form id="app-notes" data-id="' + esc(a._id) + '" class="msg-form"><label for="app-notes-text" class="msg-h3">Notes (only people who can see this application read them)</label><textarea id="app-notes-text" name="notes" rows="4" maxlength="5000" placeholder="e.g. Interview on Tuesday, strong in Excel">' + esc(a.notes || "") + "</textarea>" +
@@ -3002,7 +3004,7 @@ export function initSite(backend, tools) {
       '<dl class="match-details"><div><dt>Email</dt><dd><a href="mailto:' + esc(a.email) + '">' + esc(a.email) + "</a></dd></div><div><dt>Phone</dt><dd>" + esc(a.phone) + "</dd></div>" +
       "<div><dt>Esade student</dt><dd>" + (a.esadeStudent ? "Yes" : "No") + "</dd></div>" + (a.programme ? "<div><dt>Programme</dt><dd>" + esc(a.programme) + "</dd></div>" : "") +
       "<div><dt>Level</dt><dd>" + esc(a.level || "Not given") + "</dd></div><div><dt>Received</dt><dd>" + esc(new Date(a._creationTime).toLocaleString("en-GB")) + "</dd></div>" +
-      "<div><dt>Status</dt><dd>" + tryStatusCell(a) + "</dd></div>" + (a.confirmEmail ? "<div><dt>Confirmation</dt><dd>" + (a.confirmEmail === "sent" ? "Sent" : mailFailPill(a)) + "</dd></div>" : "") + "</dl>" +
+      "<div><dt>Status</dt><dd>" + tryStatusCell(a) + "</dd></div>" + (a.confirmEmail && seesMail() ? "<div><dt>Confirmation</dt><dd>" + (a.confirmEmail === "sent" ? "Sent" : mailFailPill(a)) + "</dd></div>" : "") + "</dl>" +
       (a.coachingExperience ? '<h3 class="msg-h3">Coaching experience</h3><p class="msg-body">' + esc(a.coachingExperience) + "</p>" : "") +
       (hRO() ? (a.notes ? '<h3 class="msg-h3">Notes</h3><p class="msg-body">' + esc(a.notes) + "</p>" : "") :
         '<form id="try-notes" data-id="' + esc(a._id) + '" class="msg-form"><label for="try-notes-text" class="msg-h3">Notes (only people who can see this sign-up read them)</label><textarea id="try-notes-text" name="notes" rows="4" maxlength="5000" placeholder="e.g. Called on Monday, comes to the trial on Thursday">' + esc(a.notes || "") + "</textarea>" +

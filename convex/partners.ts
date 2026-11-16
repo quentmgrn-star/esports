@@ -1,6 +1,6 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { canEdit, canSee, getAccess, requireAccess, type Access } from "./roles";
+import { canEdit, canSee, getAccess, hideMail, requireAccess, type Access } from "./roles";
 import { TEAMS } from "./teamList";
 
 // Partnerships tracker: every sponsor or partner from first contact to signed, plus the partner
@@ -28,7 +28,7 @@ export const list = query({
       .map((p) => ({ ...p, canEdit: canEdit(a, res(p.team)), canRemove: manages(a) }))
       .sort((x, y) => y.updatedAt - x.updatedAt);
     // Inquiries from the website's partner form: department-wide.
-    const inquiries = (await ctx.db.query("partnerInquiries").order("desc").collect()).map((i) => ({ ...i, status: i.status ?? "new" }));
+    const inquiries = (await ctx.db.query("partnerInquiries").order("desc").collect()).map((i) => ({ ...hideMail(a, i), status: i.status ?? "new" }));
     return { partners, inquiries, kinds: PARTNER_KINDS, canAdd: canEdit(a, { dept: DEPT }), canInquiry: canEdit(a, { dept: DEPT }) };
   },
 });

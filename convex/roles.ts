@@ -129,3 +129,8 @@ export const isCaptainEmail = internalQuery({
     return (await approvedRows(ctx, email)).length > 0;
   },
 });
+
+// "Email not sent" warnings (confirmation emails that failed): only admins, President, VPs and the
+// IT department (head + associates). Nobody else sees them or the email status of a form.
+export const seesMail = (a: Access) => a.isAdmin || a.exec || a.heads.includes("IT") || a.assoc.some((d) => d.department === "IT");
+export const hideMail = <T extends { confirmEmail?: string }>(a: Access, x: T): T => (seesMail(a) ? x : { ...x, confirmEmail: undefined });

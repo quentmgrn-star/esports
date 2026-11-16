@@ -3,7 +3,7 @@ import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/s
 import type { Doc, Id } from "./_generated/dataModel";
 import { authComponent, isAdminEmail } from "./auth";
 import { stageValidator, TEAM_STATUSES } from "./stages";
-import { canEdit, canSee, getAccess, isExecEditor, requireAccess, type Access, type Resource } from "./roles";
+import { canEdit, canSee, getAccess, hideMail, isExecEditor, requireAccess, seesMail, type Access, type Resource } from "./roles";
 import { logActivity } from "./activity";
 import { TEAMS, teamLabel } from "./teamList";
 import { internal } from "./_generated/api";
@@ -59,6 +59,7 @@ export const me = query({
       readOnly: access?.readOnly ?? false,
       board: access?.board ?? false,
       label: access?.label ?? "",
+      seesMail: access ? seesMail(access) : false,
     };
   },
 });
@@ -70,11 +71,11 @@ export const listAssociationApplications = query({
     const a = await requireAccess(ctx);
     const apps = (await ctx.db.query("associationApplications").order("desc").collect()).filter((x) => seesApp(a, x));
     return Promise.all(
-      apps.map(async (a) => ({
-        ...a,
-        cvUrl: await ctx.storage.getUrl(a.cvId),
-        moreDocLinks: await fileLinks(ctx, { files: a.moreDocs }),
-        videoUrl: a.videoId ? await ctx.storage.getUrl(a.videoId) : null,
+      apps.map(async (x) => ({
+        ...hideMail(a, x),
+        cvUrl: await ctx.storage.getUrl(x.cvId),
+        moreDocLinks: await fileLinks(ctx, { files: x.moreDocs }),
+        videoUrl: x.videoId ? await ctx.storage.getUrl(x.videoId) : null,
       })),
     );
   },
@@ -116,7 +117,7 @@ export const listContactMessages = query({
   handler: async (ctx) => {
     const a = await requireAccess(ctx);
     const all = await ctx.db.query("contactMessages").order("desc").collect();
-    return all.filter((m) => seesMessage(a, m));
+    return all.filter((m) => seesMessage(a, m)).map((m) => hideMail(a, m));
   },
 });
 
@@ -159,7 +160,7 @@ export const listTeamApplications = query({
   handler: async (ctx) => {
     const a = await requireAccess(ctx);
     const all = await ctx.db.query("teamApplications").order("desc").collect();
-    return all.filter((x) => canSee(a, tryoutRes(x)));
+    return all.filter((x) => canSee(a, tryoutRes(x))).map((x) => hideMail(a, x));
   },
 });
 
@@ -239,8 +240,8 @@ export const removeCaptain = mutation({
 export const listAlumniProfiles = query({
   args: {},
   handler: async (ctx) => {
-    await requireFull(ctx);
-    return ctx.db.query("alumniProfiles").order("desc").collect();
+    const a = await requireFull(ctx);
+    return (await ctx.db.query("alumniProfiles").order("desc").collect()).map((x) => hideMail(a, x));
   },
 });
 
@@ -265,13 +266,9 @@ export const deleteAlumniProfile = mutation({
 
 // ---------- Emails that did not go out ----------
 // Every public form sends a confirmation email (convex/mail.ts) and stores the result as `confirmEmail`.
-// This lists the ones that failed, so a missing confirmation is never silent. Each one is shown to the
-// people who handle that kind of form (rules in `who` below, all checked here on the server):
-//   partner enquiry ........ Partnerships          association application ... heads of the chosen departments
-//   try-out / coach ........ the team's captains + Operations for that team
-//   contact message ........ the sport's captains + Operations (and the topic's department)
-//   alumni profile ......... admins, President, VPs  Hub access request ....... the Board (heads: their department)
-// Admins, President, VPs and the IT department (head + associates) see every one.
+// This lists the ones that failed, so a missing confirmation is never silent.
+// Per Quentin (16 Nov 2026): only admins, President, VPs and the IT department (head + associates) see
+// them and can act on them (seesMail in convex/roles.ts). Other heads, associates and captains don't.
 export type EmailProblem = {
   key: string;
   cat: "partner" | "association" | "tryout" | "contact" | "alumni" | "access" | "password";
@@ -285,62 +282,51 @@ export type EmailProblem = {
   handledBy?: string;
   handledAt?: number;
 };
-type Problem = Omit<EmailProblem, "handledBy" | "handledAt"> & { who: (a: Access) => boolean };
+type Problem = Omit<EmailProblem, "handledBy" | "handledAt">;
 const notSent = (s?: string) => !!s && s !== "sent" && s !== "sending";
-const isIT = (a: Access) => a.heads.includes("IT") || a.assoc.some((d) => d.department === "IT");
-const seesAllMail = (a: Access) => a.isAdmin || a.exec || isIT(a);
-// Same as canSee, but the view-only account does not get these working lists.
-const sees = (a: Access, r: Resource) => canSee({ ...a, full: false }, r);
 const appKind = (x: Doc<"teamApplications">) => (x.kind === "coach" ? "coach" : x.track === "social" ? "social" : "tryout");
 
 async function allProblems(ctx: QueryCtx | MutationCtx): Promise<Problem[]> {
   const out: Problem[] = [];
   for (const x of await ctx.db.query("associationApplications").collect())
     if (notSent(x.confirmEmail))
-      out.push({ key: `associationApplications:${x._id}`, cat: "association", canRetry: true, at: x._creationTime, form: "Association application", name: `${x.firstName} ${x.lastName}`, email: x.email, about: [x.pref1, x.pref2].filter(Boolean).join(", "), why: x.confirmEmail!,
-        who: (a) => a.heads.includes(x.pref1) || (!!x.pref2 && a.heads.includes(x.pref2)) });
+      out.push({ key: `associationApplications:${x._id}`, cat: "association", canRetry: true, at: x._creationTime, form: "Association application", name: `${x.firstName} ${x.lastName}`, email: x.email, about: [x.pref1, x.pref2].filter(Boolean).join(", "), why: x.confirmEmail! });
   for (const x of await ctx.db.query("teamApplications").collect())
     if (notSent(x.confirmEmail)) {
       const k = appKind(x);
-      out.push({ key: `teamApplications:${x._id}`, cat: "tryout", canRetry: true, at: x._creationTime, form: k === "coach" ? "Coach application" : k === "social" ? "Just for fun sign-up" : "Try-out sign-up", name: `${x.firstName} ${x.lastName}`, email: x.email, about: teamLabel(x.teamSlug), why: x.confirmEmail!,
-        who: (a) => sees(a, tryoutRes(x)) });
+      out.push({ key: `teamApplications:${x._id}`, cat: "tryout", canRetry: true, at: x._creationTime, form: k === "coach" ? "Coach application" : k === "social" ? "Just for fun sign-up" : "Try-out sign-up", name: `${x.firstName} ${x.lastName}`, email: x.email, about: teamLabel(x.teamSlug), why: x.confirmEmail! });
     }
   for (const x of await ctx.db.query("alumniProfiles").collect())
     if (notSent(x.confirmEmail))
-      out.push({ key: `alumniProfiles:${x._id}`, cat: "alumni", canRetry: true, at: x._creationTime, form: "Alumni profile", name: `${x.first} ${x.last}`, email: x.email, about: "", why: x.confirmEmail!, who: () => false });
+      out.push({ key: `alumniProfiles:${x._id}`, cat: "alumni", canRetry: true, at: x._creationTime, form: "Alumni profile", name: `${x.first} ${x.last}`, email: x.email, about: "", why: x.confirmEmail! });
   for (const x of await ctx.db.query("members").collect())
     if (notSent(x.confirmEmail))
-      out.push({ key: `members:${x._id}`, cat: "access", canRetry: true, at: x._creationTime, form: "Hub access request", name: x.name, email: x.email, about: x.role === "captain" ? "Captain" : x.role === "vicecaptain" ? "Vice-captain" : `${x.department ?? ""} associate`, why: x.confirmEmail!,
-        who: (a) => (x.role === "captain" || x.role === "vicecaptain" || !x.department ? a.board : a.heads.includes(x.department)) });
+      out.push({ key: `members:${x._id}`, cat: "access", canRetry: true, at: x._creationTime, form: "Hub access request", name: x.name, email: x.email, about: x.role === "captain" ? "Captain" : x.role === "vicecaptain" ? "Vice-captain" : `${x.department ?? ""} associate`, why: x.confirmEmail! });
   for (const x of await ctx.db.query("partnerInquiries").collect())
     if (notSent(x.confirmEmail))
-      out.push({ key: `partnerInquiries:${x._id}`, cat: "partner", canRetry: true, at: x._creationTime, form: "Partner enquiry", name: x.name, email: x.email, about: x.company, why: x.confirmEmail!,
-        who: (a) => sees(a, { dept: "Partnerships" }) });
+      out.push({ key: `partnerInquiries:${x._id}`, cat: "partner", canRetry: true, at: x._creationTime, form: "Partner enquiry", name: x.name, email: x.email, about: x.company, why: x.confirmEmail! });
   for (const x of await ctx.db.query("contactMessages").collect()) {
-    const who = (a: Access) => sees(a, messageRes(x)) || (!!x.sport && sees(a, { sport: x.sport, dept: "Operations" }));
     if (notSent(x.confirmEmail))
-      out.push({ key: `contactMessages:${x._id}`, cat: "contact", canRetry: true, at: x._creationTime, form: "Contact message", name: x.name, email: x.email, about: x.subject, why: x.confirmEmail!, who });
+      out.push({ key: `contactMessages:${x._id}`, cat: "contact", canRetry: true, at: x._creationTime, form: "Contact message", name: x.name, email: x.email, about: x.subject, why: x.confirmEmail! });
     if (x.emailStatus?.startsWith("failed"))
-      out.push({ key: `contactCopy:${x._id}`, cat: "contact", canRetry: true, at: x._creationTime, form: "Contact message (copy to captains/admins)", name: x.name, email: x.email, about: x.subject, why: x.emailStatus, who });
+      out.push({ key: `contactCopy:${x._id}`, cat: "contact", canRetry: true, at: x._creationTime, form: "Contact message (copy to captains/admins)", name: x.name, email: x.email, about: x.subject, why: x.emailStatus });
   }
   for (const x of await ctx.db.query("passwordEvents").collect())
     if (x.kind === "reset-email" && notSent(x.emailStatus))
-      out.push({ key: `passwordEvents:${x._id}`, cat: "password", canRetry: false, at: x.at, form: "Forgot password (reset link)", name: x.email, email: x.email, about: "", why: x.emailStatus!, who: () => false });
+      out.push({ key: `passwordEvents:${x._id}`, cat: "password", canRetry: false, at: x.at, form: "Forgot password (reset link)", name: x.email, email: x.email, about: "", why: x.emailStatus! });
   return out;
 }
-const canHandle = (a: Access, p: Problem) => seesAllMail(a) || p.who(a);
 
 export const emailProblems = query({
   args: {},
   handler: async (ctx): Promise<EmailProblem[]> => {
     const a = await getAccess(ctx);
-    if (!a) return [];
+    if (!a || !seesMail(a)) return [];
     const done = new Map((await ctx.db.query("emailHandled").collect()).map((h) => [h.key, h]));
     return (await allProblems(ctx))
-      .filter((p) => canHandle(a, p))
       .sort((p, q) => q.at - p.at)
       .slice(0, 100)
-      .map(({ who: _who, ...p }) => {
+      .map((p) => {
         const h = done.get(p.key);
         return h ? { ...p, handledBy: h.by, handledAt: h.at } : p;
       });
@@ -349,9 +335,9 @@ export const emailProblems = query({
 
 async function problemFor(ctx: MutationCtx, key: string) {
   const a = await requireAccess(ctx);
+  if (a.readOnly || !seesMail(a)) throw deny(a);
   const p = (await allProblems(ctx)).find((x) => x.key === key);
   if (!p) throw new ConvexError("This email is no longer in the list.");
-  if (a.readOnly || !canHandle(a, p)) throw deny(a);
   return { a, p };
 }
 
