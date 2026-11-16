@@ -1483,7 +1483,8 @@ export function initSite(backend, tools) {
     if (approver) add(ib.requests, ib.requests === 1 ? "access request to approve (associate or captain)" : "access requests to approve (associates or captains)", "/admin");
     if (approver) add(ib.applications, ib.applications === 1 ? "new application to join your department" : "new applications to join your department", "#hub-assoc-apps");
     if (approver) add(ib.messages, ib.messages === 1 ? "new message from the website" : "new messages from the website", "#hub-messages");
-    add(ib.tryouts, ib.tryouts === 1 ? "new try-out or coach sign-up" : "new try-out or coach sign-ups", "#hub-applications");
+    // Only for people who can open Sports applications (Operations, captains, Board), counted for the current view.
+    if (can("applications")) { var tc = tryoutCount(); add(tc, tc === 1 ? "new try-out or coach sign-up" : "new try-out or coach sign-ups", "#hub-applications"); }
     if (can("partners")) {
       var soon = partnerDueCount();
       add(ib.inquiries, ib.inquiries === 1 ? "new partner inquiry from the website" : "new partner inquiries from the website", "#hub-partners");
@@ -3440,6 +3441,8 @@ export function initSite(backend, tools) {
       if ((h === "hub-messages" || h === "hub-assoc-apps") && !can("board")) h = "hub-overview";
       if (h === "hub-chat" && !can("chat")) h = "hub-overview";
       if (h === "hub-tournament" && !can("tournament")) h = "hub-overview";
+      // A link to a page this person cannot open: say so and go to the overview, instead of silently doing nothing.
+      if (h !== location.hash.slice(1)) { var lbl = HUBV.filter(function (v) { return v[0] === location.hash.slice(1); })[0]; toast((lbl ? lbl[1] : "This page") + " is not part of your access. Ask your head of department or the Board if you need it."); location.replace("#hub-overview"); return; }
       var inner = h === "hub-tournament" ? hubTournament() : h === "hub-handover" ? hubHandover() : h === "hub-chat" ? hubChat() : h === "hub-messages" ? hubMessages() : h === "hub-assoc-apps" ? hubAssocApps() : h === "hub-partners" ? hubPartners() : h === "hub-goals" ? hubGoals() : h === "hub-teams" ? hubTeams() : h === "hub-team-editor" ? hubTeamEditor() : h === "hub-applications" ? hubApplications() : h === "hub-captains" ? hubCaptains() : h === "hub-expenses" ? hubExpenses() : h === "hub-departments" ? hubDepts() : h === "hub-report" || h === "hub-checkups" ? hubCheckups() : h === "hub-ideas" ? hubIdeas() : h === "hub-history" ? hubHistory() : hubOverview();
       hub.innerHTML = hubShell(h, inner); show("hub"); bindHub(); bindBell(); updateTitle(); showTab(); return;
     }
