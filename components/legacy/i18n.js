@@ -682,6 +682,7 @@ export function initI18n() {
     "Works with the captains: captains suggest, Operations researches and organises. Tournaments, friendlies, jerseys, logistics, training and league facilities.": ["Treballa amb els capitans: els capitans proposen, Operacions investiga i organitza. Tornejos, amistosos, samarretes, logística, instal·lacions d'entrenament i de lliga.","Trabaja con los capitanes: los capitanes proponen, Operaciones investiga y organiza. Torneos, amistosos, camisetas, logística, instalaciones de entrenamiento y de liga."],
     "The website, the Hub, member accounts, data and the tools every department uses.": ["La web, el Hub, els comptes dels membres, les dades i les eines de tots els departaments.","La web, el Hub, las cuentas de los miembros, los datos y las herramientas de todos los departamentos."],
     "Reports": ["Informes","Informes"],
+    "Admin: applications & requests": ["Admin: candidatures i sol·licituds","Admin: candidaturas y solicitudes"],
     "Reports.": ["Informes.","Informes."],
     "Expenses ledger": ["Registre de despeses","Registro de gastos"],
     "Ideas & logistics": ["Idees i logística","Ideas y logística"],

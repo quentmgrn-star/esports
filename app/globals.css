@@ -507,6 +507,7 @@ a { color: inherit; }
 #hub .rail nav a { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; color: var(--on-navy-soft); text-decoration: none; font-weight: 600; border-left: 3px solid transparent; }
 #hub .rail nav a:hover { color: var(--white); background: rgba(255,255,255,.05); }
 #hub .rail nav a[aria-current="page"] { color: var(--white); background: rgba(255,255,255,.08); border-left-color: var(--white); }
+@media (min-width: 861px) { #hub .rail nav a.nav-admin { margin-top: 10px; border-top: 1px solid rgba(255,255,255,.12); padding-top: 14px; } }
 #hub .rail nav a .count { font-size: 11px; font-weight: 700; background: var(--blue); color: var(--white); padding: 2px 7px; }
 #hub .who { margin-top: auto; border-top: 1px solid rgba(255,255,255,.14); padding: 16px 6px 0; display: grid; gap: 6px; }
 #hub .who .eyebrow { color: var(--on-navy-soft); font-size: 10px; }
