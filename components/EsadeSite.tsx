@@ -47,6 +47,7 @@ const RUN: Record<string, FunctionReference<"mutation">> = {
   setMessage: api.admin.setContactStatus,
   replyMessage: api.admin.replyToMessage,
   setAppStage: api.admin.setApplicationStage,
+  setAppNotes: api.admin.setApplicationNotes,
   chatSend: api.hubChat.send,
   chatRead: api.hubChat.markRead,
   tnStatus: api.tournament.setStatus,

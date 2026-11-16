@@ -1165,6 +1165,8 @@ tr.stg-row > td:first-child { box-shadow: inset 4px 0 0 var(--stg); }
 .kb-card small { color: var(--ink-soft); overflow-wrap: anywhere; }
 .kb-card .kb-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; margin-top: 4px; }
 .kb-card .kb-foot a { font-size: 12px; font-weight: 600; color: var(--blue); }
+.kb-card[data-app-open]:not([data-card]) { cursor: pointer; }
+.kb-card[data-app-open]:hover, .kb-card[data-app-open]:focus-visible { box-shadow: 0 2px 8px rgba(0, 11, 61, .22); }
 .kb-card select { font-size: 12px; padding: 3px 4px; max-width: 100%; }
 .kb-card:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .kb-card.kb-dragging { opacity: .35; }
