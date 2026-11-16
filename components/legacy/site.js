@@ -3043,9 +3043,9 @@ export function initSite(backend, tools) {
   function addTaskForm(d) {
     if (!canAddTask(d.id)) return "";
     var ppl = deptMembers(d.id);
-    return '<form class="form add-task" data-add-task="' + d.id + '"><label style="grid-column:span 2">New task<input name="title" required maxlength="120" placeholder="e.g. Book courts for the spring try-outs"></label><label>Who works on it<select name="owner"><option value="">Not assigned yet</option>' + ppl.map(function (n) { return '<option value="' + esc(n[1] + "|" + n[0]) + '">' + esc(n[0]) + "</option>"; }).join("") + "</select></label>" +
-      (live() ? '<label>Team (optional)<select name="team"><option value="">Whole department</option>' + TEAMS.map(function (t) { return '<option value="' + t.id + '">' + esc(tLabel(t)) + "</option>"; }).join("") + '</select></label><label>Due (optional)<input name="due" type="date"></label>' : "") +
-      '<div><button class="btn solid" type="submit">Add task</button></div>' + (live() && !ppl.length ? '<p class="muted" style="grid-column:1/-1;margin:0;font-size:12px">Nobody is approved in this department yet: approve associates in the members area (/admin), then assign tasks to them.</p>' : "") + "</form>";
+    return '<form class="form add-task" data-add-task="' + d.id + '"><label class="at-title">New task<input name="title" required maxlength="120" placeholder="e.g. Book courts for the spring try-outs"></label><label>Who works on it<select name="owner"><option value="">Not assigned yet</option>' + ppl.map(function (n) { return '<option value="' + esc(n[1] + "|" + n[0]) + '">' + esc(n[0]) + "</option>"; }).join("") + "</select></label>" +
+      (live() ? '<label>Team (optional)<select name="team"><option value="">Whole department</option>' + TEAMS.map(function (t) { return '<option value="' + t.id + '">' + esc(tLabel(t)) + "</option>"; }).join("") + '</select></label><label class="at-due">Due (optional)<input name="due" type="date"></label>' : "") +
+      '<div class="at-go"><button class="btn solid" type="submit">Add task</button></div>' + (live() && !ppl.length ? '<p class="muted" style="grid-column:1/-1;margin:0;font-size:12px">Nobody is approved in this department yet: approve associates in the members area (/admin), then assign tasks to them.</p>' : "") + "</form>";
   }
   function hubDepts() {
     var open = null; visDepts().forEach(function (d) { if (d.id === state.deptOpen) open = d; });
