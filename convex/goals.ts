@@ -70,6 +70,7 @@ export const list = query({
         .map((g) => ({ ...g, value: g.source === "manual" ? (g.actual ?? null) : (c[g.source] ?? null), canSetActual: g.source === "manual" && setsActual(a, g.dept) })),
       canEdit: isExecEditor(a),
       sources: SOURCES,
+      terms: (await ctx.db.query("goalTerms").collect()).map((t) => t.term),
     };
   },
 });
@@ -125,6 +126,19 @@ export const remove = mutation({
     const a = await requireAccess(ctx);
     if (!isExecEditor(a)) throw new ConvexError("Only the President, VPs and admins remove goals.");
     await ctx.db.delete(id);
+    return null;
+  },
+});
+
+// "+" in the semester selector: adds the next semester so it stays in the list for everyone.
+export const addTerm = mutation({
+  args: { term: v.string() },
+  handler: async (ctx, { term }) => {
+    const a = await requireAccess(ctx);
+    if (!isExecEditor(a)) throw new ConvexError("Only the President, VPs and admins add semesters.");
+    if (!termWindow(term)) throw new ConvexError("Unknown semester.");
+    const have = await ctx.db.query("goalTerms").withIndex("by_term", (q) => q.eq("term", term)).first();
+    if (!have) await ctx.db.insert("goalTerms", { term, by: `${a.name || a.email.split("@")[0]} (${a.label})`, at: Date.now() });
     return null;
   },
 });

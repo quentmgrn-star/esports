@@ -1951,11 +1951,21 @@ export function initSite(backend, tools) {
   function goalTerm() { return state.goalTerm || currentTerm(); }
   function shiftTerm(t, n) { var m = t.match(/^(\d{4})-\d{2} S([12])$/), i = +m[1] * 2 + (+m[2] - 1) + n; return termOf(Math.floor(i / 2), i % 2 === 1); }
   var GOAL_IDEAS = [["Players on the team sheets", "players", "players"], ["Try-out sign-ups", "tryouts", "sign-ups"], ["Just-for-fun sign-ups", "social", "sign-ups"], ["Matches played", "results", "matches"], ["Applications to join the association", "applications", "applications"], ["Partners signed", "partnersSigned", "partners", "Partnerships"], ["Sponsorship income", "sponsorIncome", "€", "Partnerships"], ["Budget spent", "spent", "€", "Finance"], ["Events held", "manual", "events", "Operations"], ["Event attendance", "manual", "people", "Operations"], ["Instagram followers", "manual", "followers", "Media & Marketing"]];
+  // Semester chips: last semester → next one, plus any added with "+" (saved in Convex), "‹" to go further back.
+  function termIdx(t) { var m = t.match(/^(\d{4})-\d{2} S([12])$/); return +m[1] * 2 + (+m[2] - 1); }
+  function termChips(term, d) {
+    var cur = currentTerm(), first = termIdx(term) < termIdx(shiftTerm(cur, -1)) ? term : shiftTerm(cur, -1), last = shiftTerm(cur, 1);
+    ((d && d.terms) || []).concat([term]).forEach(function (t) { if (/^\d{4}-\d{2} S[12]$/.test(t) && termIdx(t) > termIdx(last)) last = t; });
+    var out = '<button class="chip" data-term="' + esc(shiftTerm(first, -1)) + '" aria-label="Earlier semester" title="Earlier semester">' + ico("left") + "</button>";
+    for (var t = first; termIdx(t) <= termIdx(last); t = shiftTerm(t, 1)) out += t === term ? '<button class="chip" aria-pressed="true">' + esc(termLabel(t)) + "</button>" : '<button class="chip" data-term="' + esc(t) + '">' + esc(termLabel(t)) + "</button>";
+    if (d && d.canEdit && !hRO()) out += '<button class="chip" id="goal-term-add" data-next="' + esc(shiftTerm(last, 1)) + '" aria-label="Add a semester" title="Add ' + esc(termLabel(shiftTerm(last, 1))) + '" style="margin-left:auto">+</button>';
+    return out;
+  }
   function fmtGoal(v, unit) { return v == null ? "–" : unit === "€" ? EUR.format(v) : String(Math.round(v * 10) / 10) + " " + unit; }
   function hubGoals() {
     var term = goalTerm(); watchGoals(term);
     var d = LIVE.goals, head = '<div class="ph-head"><div><h1 class="display">Goals.</h1><p>The Board\'s targets for the semester, with the real number next to each one. Most numbers are counted from the website and the Hub; the rest are typed in by the department.</p></div></div>' +
-      '<section class="panel hist-filters"><div class="chips" role="group" aria-label="Semester"><button class="chip" data-term="' + esc(shiftTerm(term, -1)) + '">' + ico("left") + " " + esc(termLabel(shiftTerm(term, -1))) + '</button><button class="chip" aria-pressed="true">' + esc(termLabel(term)) + '</button><button class="chip" data-term="' + esc(shiftTerm(term, 1)) + '">' + esc(termLabel(shiftTerm(term, 1))) + " " + ico("right") + "</button></div></section>";
+      '<section class="panel hist-filters"><div class="chips" role="group" aria-label="Semester">' + termChips(term, d) + "</div></section>";
     if (!live()) return head + '<section class="panel"><p class="empty">Goals work once you are signed in (shared database).</p></section>';
     if (d === undefined) return head + '<section class="panel"><p class="empty">Loading…</p></section>';
     if (!d) return head + '<section class="panel"><p class="empty">Goals are for the Board and the departments.</p></section>';
@@ -3383,6 +3393,11 @@ export function initSite(backend, tools) {
     });
     // Goals
     hub.querySelectorAll("[data-term]").forEach(function (b) { b.addEventListener("click", function () { state.goalTerm = b.getAttribute("data-term"); render(); }); });
+    var gta = $("goal-term-add");
+    if (gta) gta.addEventListener("click", function () {
+      var t = gta.getAttribute("data-next"); gta.disabled = true;
+      Promise.resolve(backend.run("addGoalTerm", { term: t })).then(function () { state.goalTerm = t; render(); toast(termLabel(t) + " added."); }, function (x) { gta.disabled = false; toast(errText(x)); });
+    });
     hub.querySelectorAll("[data-gi]").forEach(function (b) { b.addEventListener("click", function () {
       var x = GOAL_IDEAS[+b.getAttribute("data-gi")], f = $("goal-form"); if (!f) return;
       f.elements.title.value = x[0]; f.elements.source.value = x[1]; f.elements.unit.value = x[2]; f.elements.dept.value = x[3] || ""; f.elements.target.focus();
