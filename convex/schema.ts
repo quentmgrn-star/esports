@@ -190,6 +190,7 @@ export default defineSchema({
     status: v.string(), // one of TEAM_STATUSES in convex/stages.ts ("New" for older rows)
     statusChangedAt: v.optional(v.number()),
     notes: v.optional(v.string()),
+    openedAt: v.optional(v.number()), // first opened in the Hub: no longer counted as a notification
   }).index("by_team", ["teamSlug"]),
 
   // "Apply to the association" form (associate in a department). Files live in Convex storage.
@@ -214,6 +215,7 @@ export default defineSchema({
     stage: v.optional(stageValidator),
     stageChangedAt: v.optional(v.number()),
     notes: v.optional(v.string()),
+    openedAt: v.optional(v.number()), // first opened in the Hub: no longer counted as a notification
   }),
 
   partnerInquiries: defineTable({

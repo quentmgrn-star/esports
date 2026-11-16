@@ -99,6 +99,15 @@ export const setApplicationNotes = mutation({
   },
 });
 
+// Opening an application in the Hub marks it as seen (it leaves the bell and the badge); "Mark as unread" puts it back.
+export const markApplicationOpened = mutation({
+  args: { id: v.id("associationApplications"), opened: v.boolean() },
+  handler: async (ctx, { id, opened }) => {
+    await editableApp(ctx, id);
+    await ctx.db.patch(id, { openedAt: opened ? Date.now() : undefined });
+  },
+});
+
 // Contact form messages, newest first. Admins and the Board (president, VPs, heads) see all of them;
 // a captain sees their teams' sports; an associate sees their department's topics.
 export const seesMessage = (a: Access, m: { sport?: string; topic: string }) => a.board || canSee(a, messageRes(m));
@@ -179,6 +188,14 @@ export const setTeamApplicationNotes = mutation({
     const app = await editableTeamApp(ctx, id);
     await ctx.db.patch(id, { notes: notes.trim().slice(0, 5000) || undefined });
     await logActivity(ctx, app.by, app.teamSlug, "signups", `Notes updated on the sign-up of ${app.firstName} ${app.lastName.slice(0, 1)}.`);
+  },
+});
+
+export const markTeamApplicationOpened = mutation({
+  args: { id: v.id("teamApplications"), opened: v.boolean() },
+  handler: async (ctx, { id, opened }) => {
+    await editableTeamApp(ctx, id);
+    await ctx.db.patch(id, { openedAt: opened ? Date.now() : undefined });
   },
 });
 

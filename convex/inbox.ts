@@ -12,8 +12,8 @@ export const counts = query({
     const a = await getAccess(ctx);
     if (!a || a.readOnly) return null;
     const requests = (await ctx.db.query("members").withIndex("by_status", (q) => q.eq("status", "requested")).collect()).filter((m) => canDecide(a, m)).length;
-    const applications = (await ctx.db.query("associationApplications").collect()).filter((x) => (x.stage ?? "applied") === "applied" && seesApp(a, x)).length;
-    const tryouts = (await ctx.db.query("teamApplications").collect()).filter((x) => (x.status || "New") === "New" && canSee(a, tryoutRes(x))).length;
+    const applications = (await ctx.db.query("associationApplications").collect()).filter((x) => (x.stage ?? "applied") === "applied" && !x.openedAt && seesApp(a, x)).length;
+    const tryouts = (await ctx.db.query("teamApplications").collect()).filter((x) => (x.status || "New") === "New" && !x.openedAt && canSee(a, tryoutRes(x))).length;
     const inquiries = canSee(a, { dept: "Partnerships" })
       ? (await ctx.db.query("partnerInquiries").collect()).filter((i) => (i.status ?? "new") === "new").length
       : 0;

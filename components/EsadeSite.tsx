@@ -62,6 +62,8 @@ const RUN: Record<string, FunctionReference<"mutation">> = {
   mailHandled: api.admin.markEmailHandled,
   mailResend: api.admin.resendEmail,
   setTryNotes: api.admin.setTeamApplicationNotes,
+  openTry: api.admin.markTeamApplicationOpened,
+  openApp: api.admin.markApplicationOpened,
 };
 
 let started = false; // the prototype script binds global listeners: run it once per page load

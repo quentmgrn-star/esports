@@ -1209,7 +1209,7 @@ export function initSite(backend, tools) {
     if (k === "chat") return r === "admin" || r === "exec" || r === "head" || r === "associate" || r === "captain"; // the association's chat (no view-only)
     return false;
   }
-  function tryoutCount() { if (!live()) return visibleSportsApplications().length; return LIVE.tryouts ? visTryouts().filter(function (a) { return (a.status || "New") === "New"; }).length : (LIVE.inbox || {}).tryouts || 0; }
+  function tryoutCount() { if (!live()) return visibleSportsApplications().length; return LIVE.tryouts ? visTryouts().filter(function (a) { return (a.status || "New") === "New" && !a.openedAt; }).length : (LIVE.inbox || {}).tryouts || 0; }
   function visTeams() { return TEAMS.filter(function (t) { return teamOk(t.id); }); }
   function visDepts() { var u = hv(); return DEPTS.filter(function (d) { return hFull() || (d.id !== "board" && d.id === u.dept); }); }
   function firstTeam() { var t = visTeams()[0]; return t ? t.id : TEAMS[0].id; }
@@ -1683,7 +1683,7 @@ export function initSite(backend, tools) {
     return (LIVE.assocApps || []).filter(function (a) { return u.role !== "head" || (d && (a.pref1 === d.name || a.pref2 === d.name)); });
   }
   function newMsgCount() { return visMsgs().filter(function (m) { return m.status === "new"; }).length; }
-  function newAppCount() { return visApps().filter(function (a) { return (a.stage || "applied") === "applied"; }).length; }
+  function newAppCount() { return visApps().filter(function (a) { return (a.stage || "applied") === "applied" && !a.openedAt; }).length; }
   function clip(t, n) { t = t || ""; return t.length > n ? t.slice(0, n - 1) + "…" : t; }
   function msgStatusSelect(m) {
     return '<span class="st-select st-' + m.status + '"><select data-msg="' + esc(m._id) + '" aria-label="Status of the message from ' + esc(m.name) + '">' + Object.keys(MSG_STATUS).map(function (k) { return '<option value="' + k + '"' + (k === m.status ? " selected" : "") + ">" + MSG_STATUS[k][1] + "</option>"; }).join("") + "</select></span>";
@@ -1772,7 +1772,7 @@ export function initSite(backend, tools) {
     (a.moreDocLinks || []).forEach(function (d) { links.push('<a href="' + esc(d.url) + '" target="_blank" rel="noopener">' + esc(d.name) + "</a>"); });
     if (a.videoUrl) links.push('<a href="' + esc(a.videoUrl) + '" target="_blank" rel="noopener">Video</a>');
     if (a.linkedin) links.push('<a href="' + esc(a.linkedin) + '" target="_blank" rel="noopener">LinkedIn</a>');
-    return '<article class="kb-card stg-' + st + '" data-app-open="' + esc(a._id) + '" tabindex="0"' + (ro ? ' title="Open the full application"' : ' data-card="' + esc(a._id) + '" data-col="' + appCol(a) + '" title="Click to open the full application, drag to another column to change the stage"') + ">" +
+    return '<article class="kb-card stg-' + st + (st === "applied" && !a.openedAt ? " unread" : "") + '" data-app-open="' + esc(a._id) + '" tabindex="0"' + (ro ? ' title="Open the full application"' : ' data-card="' + esc(a._id) + '" data-col="' + appCol(a) + '" title="Click to open the full application, drag to another column to change the stage"') + ">" +
       "<strong>" + esc(name) + mailFailPill(a) + "</strong><small>" + esc(a.programme) + " · " + esc(a.year) + "</small><small>" + esc(a.pref1) + (a.pref2 ? " · then " + esc(a.pref2) : "") + "</small>" +
       '<div class="kb-foot">' + stageChip(st) + '<small class="num">' + esc(fmtDay(a._creationTime)) + "</small></div>" +
       '<div class="kb-foot"><span>' + links.join(" · ") + "</span>" + (ro ? "" : appStageSelect(a)) + "</div>" +
@@ -1800,7 +1800,7 @@ export function initSite(backend, tools) {
     return head + '<section class="panel">' + bar + '<div class="chips" role="group" aria-label="Stage">' + APP_TABS.map(function (x) { var n = all.filter(function (a) { return inTab(a, x[0]); }).length; return '<button class="chip" data-af="' + x[0] + '" aria-pressed="' + (f === x[0]) + '">' + x[1] + " (" + n + ")</button>"; }).join("") + "</div>" +
       (rows.length ? '<div class="table-wrap"><table><thead><tr><th>Applicant</th><th>Studies</th><th>Departments</th><th>Motivation</th><th>Files</th><th>Received</th><th>Stage</th></tr></thead><tbody>' + rows.map(function (a) {
         var st = a.stage || "applied", name = a.firstName + " " + a.lastName;
-        return '<tr class="msg-row stg-row stg-' + st + '" data-app-open="' + esc(a._id) + '" tabindex="0" title="Open the full application"><td><strong>' + esc(name) + '</strong>' + mailFailPill(a) + '<br><small><a href="mailto:' + esc(a.email) + '">' + esc(a.email) + "</a><br>" + esc(a.phone) + (a.linkedin ? '<br><a href="' + esc(a.linkedin) + '" target="_blank" rel="noopener">LinkedIn</a>' : "") + "</small></td>" +
+        return '<tr class="msg-row stg-row stg-' + st + (st === "applied" && !a.openedAt ? " unread" : "") + '" data-app-open="' + esc(a._id) + '" tabindex="0" title="Open the full application"><td><strong>' + esc(name) + '</strong>' + mailFailPill(a) + '<br><small><a href="mailto:' + esc(a.email) + '">' + esc(a.email) + "</a><br>" + esc(a.phone) + (a.linkedin ? '<br><a href="' + esc(a.linkedin) + '" target="_blank" rel="noopener">LinkedIn</a>' : "") + "</small></td>" +
           "<td>" + esc(a.programme) + '<br><small class="muted">' + esc(a.year) + "</small></td>" +
           "<td>" + esc(a.pref1) + (a.pref2 ? '<br><small class="muted">then ' + esc(a.pref2) + "</small>" : "") + "</td>" +
           '<td>' + (a.motivation.length > 120 ? '<details><summary><small class="muted">' + esc(clip(a.motivation, 120)) + '</small></summary><p style="white-space:pre-wrap;margin:6px 0 0">' + esc(a.motivation) + "</p></details>" : '<small class="muted" style="white-space:pre-wrap">' + esc(a.motivation) + "</small>") + "</td>" +
@@ -1831,7 +1831,7 @@ export function initSite(backend, tools) {
       '<h3 class="msg-h3">Motivation</h3><p class="msg-body">' + esc(a.motivation || "Not given") + "</p>" +
       (ro ? (a.notes ? '<h3 class="msg-h3">Notes</h3><p class="msg-body">' + esc(a.notes) + "</p>" : "") :
         '<form id="app-notes" data-id="' + esc(a._id) + '" class="msg-form"><label for="app-notes-text" class="msg-h3">Notes (only people who can see this application read them)</label><textarea id="app-notes-text" name="notes" rows="4" maxlength="5000" placeholder="e.g. Interview on Tuesday, strong in Excel">' + esc(a.notes || "") + "</textarea>" +
-        '<div class="msg-actions"><button type="submit" class="btn solid">Save notes</button><a class="btn" href="mailto:' + esc(a.email) + '">Email ' + esc(a.firstName) + "</a></div></form>") +
+        '<div class="msg-actions"><button type="submit" class="btn solid">Save notes</button><a class="btn" href="mailto:' + esc(a.email) + '">Email ' + esc(a.firstName) + '</a><button type="button" class="btn" data-app-unread="' + esc(a._id) + '">Mark as unread</button></div></form>') +
       "</section></div>";
   }
   // Dropping a card: move it right away, then save (the live data re-draws the board; on an error it snaps back).
@@ -2976,7 +2976,7 @@ export function initSite(backend, tools) {
       (many && teams.length > 1 ? '<select id="try-team" aria-label="Team"><option value="">All teams</option>' + teams.map(function (t) { return '<option value="' + t.id + '"' + (t.id === tf ? " selected" : "") + ">" + esc(tLabel(t)) + "</option>"; }).join("") + "</select>" : "") + "</div>" +
       (rows.length ? '<div class="table-wrap"><table class="msg-table"><thead><tr><th>Applicant</th>' + (many ? "<th>Team</th>" : "") + "<th>Sign-up</th><th>Studies</th><th>Received</th><th>Status</th></tr></thead><tbody>" + rows.map(function (a) {
         var st = a.status || "New";
-        return '<tr class="msg-row stg-row stg-' + trySlug(st) + (st === "New" ? " unread" : "") + '" data-try-open="' + esc(a._id) + '" tabindex="0" title="Open the sign-up">' +
+        return '<tr class="msg-row stg-row stg-' + trySlug(st) + (st === "New" && !a.openedAt ? " unread" : "") + '" data-try-open="' + esc(a._id) + '" tabindex="0" title="Open the sign-up">' +
           '<td><span class="msg-name">' + esc(a.firstName + " " + a.lastName) + "</span>" + mailFailPill(a) + '<br><small class="muted">' + esc(a.email) + " · " + esc(a.phone) + "</small></td>" +
           (many ? '<td class="tname">' + esc(tryTeam(a)) + "</td>" : "") +
           "<td>" + esc(tryKind(a)) + '<br><small class="muted">' + esc(a.level || "Level not given") + "</small>" + (a.notes ? '<br><span class="msg-more">Has notes →</span>' : "") + "</td>" +
@@ -2998,7 +2998,7 @@ export function initSite(backend, tools) {
       (a.coachingExperience ? '<h3 class="msg-h3">Coaching experience</h3><p class="msg-body">' + esc(a.coachingExperience) + "</p>" : "") +
       (hRO() ? (a.notes ? '<h3 class="msg-h3">Notes</h3><p class="msg-body">' + esc(a.notes) + "</p>" : "") :
         '<form id="try-notes" data-id="' + esc(a._id) + '" class="msg-form"><label for="try-notes-text" class="msg-h3">Notes (only people who can see this sign-up read them)</label><textarea id="try-notes-text" name="notes" rows="4" maxlength="5000" placeholder="e.g. Called on Monday, comes to the trial on Thursday">' + esc(a.notes || "") + "</textarea>" +
-        '<div class="msg-actions"><button type="submit" class="btn solid">Save notes</button><a class="btn" href="mailto:' + esc(a.email) + '">Email ' + esc(a.firstName) + "</a></div></form>") +
+        '<div class="msg-actions"><button type="submit" class="btn solid">Save notes</button><a class="btn" href="mailto:' + esc(a.email) + '">Email ' + esc(a.firstName) + '</a><button type="button" class="btn" data-try-unread="' + esc(a._id) + '">Mark as unread</button></div></form>') +
       "</section></div>";
   }
   function hubApplications() {
@@ -3311,12 +3311,17 @@ export function initSite(backend, tools) {
       sel.addEventListener("click", function (e) { e.stopPropagation(); });
       sel.addEventListener("change", function () { sel.disabled = true; pRun("setTryStatus", { id: sel.getAttribute("data-try-status"), status: sel.value }, "Status changed to " + sel.value + ".").catch(function () { render(); }); });
     });
-    function openTry(id) { state.tryOpen = id; render(); }
+    function openTry(id) {
+      state.tryOpen = id; render();
+      var t = (LIVE.tryouts || []).filter(function (x) { return x._id === id; })[0];
+      if (t && !t.openedAt && !hRO()) Promise.resolve(backend.run("openTry", { id: id, opened: true })).catch(function () {}); // silent: only clears the notification
+    }
     hub.querySelectorAll("[data-try-open]").forEach(function (tr) {
       tr.addEventListener("click", function (e) { if (e.target.closest("a, select, button")) return; openTry(tr.getAttribute("data-try-open")); });
       tr.addEventListener("keydown", function (e) { if ((e.key === "Enter" || e.key === " ") && e.target === tr) { e.preventDefault(); openTry(tr.getAttribute("data-try-open")); } });
     });
     hub.querySelectorAll("[data-try-close]").forEach(function (b) { b.addEventListener("click", function () { state.tryOpen = null; render(); }); });
+    hub.querySelectorAll("[data-try-unread]").forEach(function (b) { b.addEventListener("click", function () { state.tryOpen = null; pRun("openTry", { id: b.getAttribute("data-try-unread"), opened: false }, "Marked as unread.").catch(function () {}); render(); }); });
     var tnf = $("try-notes");
     if (tnf) tnf.addEventListener("submit", function (ev) {
       ev.preventDefault(); var btn = tnf.querySelector("button[type=submit]"); btn.disabled = true;
@@ -3347,11 +3352,16 @@ export function initSite(backend, tools) {
       pRun("replyMessage", { id: mr.getAttribute("data-id"), text: t }, "Reply sent.").then(function () { mr.elements.text.value = ""; render(); }, function () { btn.disabled = false; btn.textContent = "Send reply"; });
     });
     hub.querySelectorAll("[data-app-open]").forEach(function (el) {
-      var openApp = function () { state.appOpen = el.getAttribute("data-app-open"); render(); };
+      var openApp = function () {
+        var id = el.getAttribute("data-app-open"), x = (LIVE.assocApps || []).filter(function (y) { return y._id === id; })[0];
+        state.appOpen = id; render();
+        if (x && !x.openedAt && !hRO()) Promise.resolve(backend.run("openApp", { id: id, opened: true })).catch(function () {}); // silent: only clears the notification
+      };
       el.addEventListener("click", function (e) { if (e.target.closest("a, select, button, details, input, textarea")) return; openApp(); });
       el.addEventListener("keydown", function (e) { if ((e.key === "Enter" || e.key === " ") && e.target === el) { e.preventDefault(); openApp(); } });
     });
     hub.querySelectorAll("[data-app-close]").forEach(function (b) { b.addEventListener("click", function () { state.appOpen = null; render(); }); });
+    hub.querySelectorAll("[data-app-unread]").forEach(function (b) { b.addEventListener("click", function () { state.appOpen = null; pRun("openApp", { id: b.getAttribute("data-app-unread"), opened: false }, "Marked as unread.").catch(function () {}); render(); }); });
     var anf = $("app-notes");
     if (anf) anf.addEventListener("submit", function (ev) {
       ev.preventDefault(); var btn = anf.querySelector("button[type=submit]"); btn.disabled = true;
