@@ -1205,6 +1205,7 @@ export function initSite(backend, tools) {
     if (k === "partners") return hDept("par");
     if (k === "goals") return r !== "captain";
     if (k === "board") return r === "admin" || r === "exec" || r === "head"; // website messages + association applications
+    if (k === "people") return !ro && (r === "admin" || r === "exec" || r === "head"); // add people (limits: peopleKinds)
     if (k === "tournament") return r !== "associate"; // captains (own team), Board, admins, view-only (Eva Morta)
     if (k === "chat") return r === "admin" || r === "exec" || r === "head" || r === "associate" || r === "captain"; // the association's chat (no view-only)
     return false;
@@ -1338,12 +1339,12 @@ export function initSite(backend, tools) {
   }
   function pill(map, k) { return '<span class="pill ' + map[k][0] + '">' + map[k][1] + "</span>"; }
   function stat(k, v, s) { return '<div class="stat"><p class="eyebrow">' + k + '</p><span class="v num">' + v + "</span><small>" + s + "</small></div>"; }
-  var HUBV = [["hub-overview", "Overview"], ["hub-chat", "Chat"], ["hub-teams", "Teams"], ["hub-tournament", "Tournament"], ["hub-handover", "Team handover"], ["hub-team-editor", "Team editor"], ["hub-applications", "Sports applications"], ["hub-assoc-apps", "Association applications"], ["hub-messages", "Contact messages"], ["hub-captains", "Captains"], ["hub-ideas", "Ideas & logistics"], ["hub-expenses", "Expenses ledger"], ["hub-partners", "Partnerships"], ["hub-departments", "Departments"], ["hub-goals", "Goals"], ["hub-history", "History"], ["hub-report", "Reports"]];
+  var HUBV = [["hub-overview", "Overview"], ["hub-chat", "Chat"], ["hub-teams", "Teams"], ["hub-tournament", "Tournament"], ["hub-handover", "Team handover"], ["hub-team-editor", "Team editor"], ["hub-applications", "Sports applications"], ["hub-assoc-apps", "Association applications"], ["hub-messages", "Contact messages"], ["hub-captains", "Captains"], ["hub-people", "Add people"], ["hub-ideas", "Ideas & logistics"], ["hub-expenses", "Expenses ledger"], ["hub-partners", "Partnerships"], ["hub-departments", "Departments"], ["hub-goals", "Goals"], ["hub-history", "History"], ["hub-report", "Reports"]];
 
   function hubShell(view, inner) {
     var partnerBadge = ((LIVE.inbox || {}).inquiries || 0) + partnerDueCount(), taskBadge = hRO() ? 0 : newTaskCount();
     var pending = visExp().filter(canDecideE).length, newIdeas = can("ideas") ? visIdeas().filter(function (i) { return (i.status === "new" && canRunIdea(i)) || canApproveIdea(i) || canCommIdea(i); }).length : 0;
-    var nav = HUBV.filter(function (v) { return (v[0] !== "hub-expenses" || can("expenses")) && (v[0] !== "hub-departments" || can("depts")) && (v[0] !== "hub-report" || can("reports")) && (v[0] !== "hub-captains" || can("captains")) && (v[0] !== "hub-team-editor" || can("teamEdit")) && (v[0] !== "hub-applications" || can("applications")) && (v[0] !== "hub-ideas" || can("ideas")) && (v[0] !== "hub-partners" || can("partners")) && (v[0] !== "hub-goals" || can("goals")) && ((v[0] !== "hub-messages" && v[0] !== "hub-assoc-apps") || can("board")) && (v[0] !== "hub-chat" || can("chat")) && (v[0] !== "hub-tournament" || can("tournament")); }).map(function (v) {
+    var nav = HUBV.filter(function (v) { return (v[0] !== "hub-expenses" || can("expenses")) && (v[0] !== "hub-departments" || can("depts")) && (v[0] !== "hub-report" || can("reports")) && (v[0] !== "hub-captains" || can("captains")) && (v[0] !== "hub-team-editor" || can("teamEdit")) && (v[0] !== "hub-applications" || can("applications")) && (v[0] !== "hub-ideas" || can("ideas")) && (v[0] !== "hub-partners" || can("partners")) && (v[0] !== "hub-goals" || can("goals")) && ((v[0] !== "hub-messages" && v[0] !== "hub-assoc-apps") || can("board")) && (v[0] !== "hub-chat" || can("chat")) && (v[0] !== "hub-tournament" || can("tournament")) && (v[0] !== "hub-people" || can("people")); }).map(function (v) {
       return '<a href="#' + v[0] + '"' + (v[0] === view ? ' aria-current="page"' : "") + ">" + (v[0] === "hub-teams" && !can("all") ? "My team" : v[1]) + (v[0] === "hub-expenses" && pending ? '<span class="count num">' + pending + "</span>" : "") + (v[0] === "hub-overview" && unreadCount() ? '<span class="count num" title="New notifications">' + unreadCount() + "</span>" : "") + (v[0] === "hub-ideas" && newIdeas ? '<span class="count num">' + newIdeas + "</span>" : "") + (v[0] === "hub-applications" && tryoutCount() ? '<span class="count num">' + tryoutCount() + "</span>" : "") + (v[0] === "hub-chat" && chatUnread() ? '<span class="count num" title="Unread chat messages">' + chatUnread() + "</span>" : "") + (v[0] === "hub-messages" && newMsgCount() ? '<span class="count num" title="New messages">' + newMsgCount() + "</span>" : "") + (v[0] === "hub-assoc-apps" && newAppCount() ? '<span class="count num" title="New applications">' + newAppCount() + "</span>" : "") + (v[0] === "hub-partners" && partnerBadge ? '<span class="count num" title="New partner inquiries and follow-ups due this week">' + partnerBadge + "</span>" : "") + (v[0] === "hub-departments" && taskBadge ? '<span class="count num" title="New tasks assigned to you">' + taskBadge + "</span>" : "") + (v[0] === "hub-tournament" && tnBadge() ? '<span class="count num" title="Players without an answer">' + tnBadge() + "</span>" : "") + "</a>";
     }).join("") + adminNavLink();
     var u = state.user, me = admin || captain, multi = !!admin || allowedViews().length > 1;
@@ -1355,12 +1356,9 @@ export function initSite(backend, tools) {
   // Sidebar link to the /admin page (association applications, try-outs, messages, organisation, requests...).
   // Only for people who may open the Organisation tab there: admins, President and VPs. Follows "Demo as":
   // shown only while viewing as Admin or as President / Vice-president. /admin checks access again in Convex.
-  // Plus "Add people" (/admin#people): admins and President/VPs add anyone, heads add their department's associates, captains and vice-captains.
   function adminNavLink() {
     var u = state.user || {}, sc = (captain && captain.scope) || {}, real = !!admin || !!sc.exec;
-    if (real && (u.role === "admin" || u.role === "exec"))
-      return '<a href="/admin" class="nav-admin">Admin: applications &amp; requests</a><a href="/admin#people">Add people</a>';
-    if (u.role === "head" && (!!admin || (sc.heads || []).length)) return '<a href="/admin#people" class="nav-admin">Add people</a>';
+    if (real && (u.role === "admin" || u.role === "exec")) return '<a href="/admin" class="nav-admin">Admin: applications &amp; requests</a>';
     return "";
   }
   // People responsible for a team in each department (captain view, team detail).
@@ -3075,8 +3073,60 @@ export function initSite(backend, tools) {
           deptTasks(d).map(function (t) { return taskRowBase(t, d.id); }).join("") + '</ul><a class="btn sm" href="#hub-departments" data-dept-open="' + d.id + '">Open team and tasks →</a>' + addTaskForm(d) + "</div></section>";
       }).join("") + "</div>";
   }
+  // "Add people" page. Follows the role the Hub is viewed as (incl. an admin's "Demo as"), and Convex
+  // applies the same limits (org.addMember with `as`): admin = anyone; President/VP = anyone but the President;
+  // head = associates of their own department, captains and vice-captains.
+  var PEOPLE_KINDS = { president: "President", "vice-president": "Vice-president", head: "Head of department", associate: "Associate", captain: "Captain", vicecaptain: "Vice-captain", viewer: "View only (Student Council)" };
+  var CONVEX_DEPTS = ["fin", "med", "ops", "par", "it"];
+  function peopleKinds() {
+    var r = hv().role;
+    if (r === "admin") return ["president", "vice-president", "head", "associate", "captain", "vicecaptain", "viewer"];
+    if (r === "exec") return ["vice-president", "head", "associate", "captain", "vicecaptain", "viewer"];
+    return ["associate", "captain", "vicecaptain"];
+  }
+  function hubPeople() {
+    var u = hv(), head = u.role === "head", kinds = peopleKinds(), k = state.pplKind && kinds.indexOf(state.pplKind) > -1 ? state.pplKind : kinds[0];
+    var intro = head ? "As head of " + deptName(u.dept) + " you can add associates to your department, captains and vice-captains." : u.role === "exec" ? "As President or vice-president you can add anyone except the President (only an admin can)." : "As admin you can add anyone, including the President.";
+    var top = '<div class="ph-head"><div><h1 class="display">Add people.</h1><p>' + esc(intro) + " They are approved straight away, then create their account on the Members page with the same email.</p></div></div>";
+    if (!live()) return top + '<section class="panel"><p class="empty">Adding people works once you are signed in.</p></section>';
+    var depts = head ? [u.dept] : CONVEX_DEPTS, needsDept = k === "associate" || k === "head", needsTeams = k === "associate" || k === "captain" || k === "vicecaptain";
+    var f = '<form id="ppl-form" class="panel" novalidate><div class="fgrid">' +
+      '<label class="field">Name<input name="name" required maxlength="100"></label>' +
+      '<label class="field">Email they will sign in with<input name="email" type="email" required placeholder="name@example.com"></label>' +
+      '<label class="field">Role<select name="kind" id="ppl-kind">' + kinds.map(function (x) { return '<option value="' + x + '"' + (x === k ? " selected" : "") + ">" + PEOPLE_KINDS[x] + "</option>"; }).join("") + "</select></label>" +
+      (needsDept ? '<label class="field">Department<select name="dept"' + (head ? " disabled" : "") + ">" + depts.map(function (d) { return '<option value="' + d + '">' + esc(deptName(d)) + "</option>"; }).join("") + "</select></label>" : "") +
+      "</div>" + (needsTeams ? '<fieldset class="field"><legend>' + (k === "associate" ? "Teams they work with" : "Team(s)") + '</legend><div class="checks">' + TEAMS.map(function (t) { return '<label><input type="checkbox" name="team" value="' + t.id + '"> ' + esc(tLabel(t)) + "</label>"; }).join("") + "</div></fieldset>" : "") +
+      '<p class="err" id="ppl-err" role="alert"></p><button class="btn btn-blue" type="submit">Add</button></form>';
+    return top + f +
+      // Not while an admin previews another role: /admin always shows the real (admin) view.
+      ((admin && u.role === "admin") || (!admin && captain && captain.scope && (captain.scope.exec || (captain.scope.heads || []).length)) ? '<p class="muted">Requests waiting for approval, and people you can remove, are in <a href="/admin">/admin</a>.</p>' : "");
+  }
+  function bindPeople() {
+    var f = $("ppl-form"); if (!f) return;
+    var kind = $("ppl-kind"); kind.addEventListener("change", function () { state.pplKind = kind.value; render(); });
+    f.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var u = hv(), k = kind.value, err = $("ppl-err"), btn = f.querySelector("button[type=submit]");
+      var q = function (n) { var el = f.querySelector("[name=" + n + "]"); return el ? el.value.trim() : ""; };
+      var name = q("name"), email = q("email");
+      var dept = u.role === "head" ? u.dept : q("dept");
+      var teams = [].slice.call(f.querySelectorAll("input[name=team]:checked")).map(function (x) { return x.value; });
+      var board = k === "president" || k === "vice-president" || k === "head";
+      var a = { name: name, email: email, role: board ? "board" : k, position: board ? k : undefined,
+        department: k === "associate" || k === "head" ? deptName(dept) : undefined,
+        teams: k === "associate" || k === "captain" || k === "vicecaptain" ? teams : undefined,
+        as: u.role === "head" ? { role: "head", department: deptName(u.dept) } : u.role === "exec" ? { role: "exec" } : undefined };
+      if (!name || !email) { err.textContent = "Enter a name and an email."; return; }
+      if (a.teams && !teams.length) { err.textContent = "Choose at least one team."; return; }
+      btn.disabled = true; err.textContent = "";
+      Promise.resolve(backend.run("addMember", a)).then(function () {
+        toast(name + " was added as " + PEOPLE_KINDS[k] + "."); f.reset(); btn.disabled = false;
+      }, function (x) { btn.disabled = false; err.textContent = errText(x); });
+    });
+  }
   function bindHub() {
     bindTournament();
+    bindPeople();
     bindHandover();
     var da = $("demo-as"); if (da) da.addEventListener("change", function () { setDemo(da.value); });
     var ta = $("team-as"); if (ta) ta.addEventListener("change", function () { if (ta.value) setTeamView(ta.value); });
@@ -3583,9 +3633,10 @@ export function initSite(backend, tools) {
       if ((h === "hub-messages" || h === "hub-assoc-apps") && !can("board")) h = "hub-overview";
       if (h === "hub-chat" && !can("chat")) h = "hub-overview";
       if (h === "hub-tournament" && !can("tournament")) h = "hub-overview";
+      if (h === "hub-people" && !can("people")) h = "hub-overview";
       // A link to a page this person cannot open: say so and go to the overview, instead of silently doing nothing.
       if (h !== location.hash.slice(1)) { var lbl = HUBV.filter(function (v) { return v[0] === location.hash.slice(1); })[0]; toast((lbl ? lbl[1] : "This page") + " is not part of your access. Ask your head of department or the Board if you need it."); location.replace("#hub-overview"); return; }
-      var inner = h === "hub-tournament" ? hubTournament() : h === "hub-handover" ? hubHandover() : h === "hub-chat" ? hubChat() : h === "hub-messages" ? hubMessages() : h === "hub-assoc-apps" ? hubAssocApps() : h === "hub-partners" ? hubPartners() : h === "hub-goals" ? hubGoals() : h === "hub-teams" ? hubTeams() : h === "hub-team-editor" ? hubTeamEditor() : h === "hub-applications" ? hubApplications() : h === "hub-captains" ? hubCaptains() : h === "hub-expenses" ? hubExpenses() : h === "hub-departments" ? hubDepts() : h === "hub-report" || h === "hub-checkups" ? hubCheckups() : h === "hub-ideas" ? hubIdeas() : h === "hub-history" ? hubHistory() : hubOverview();
+      var inner = h === "hub-tournament" ? hubTournament() : h === "hub-handover" ? hubHandover() : h === "hub-chat" ? hubChat() : h === "hub-messages" ? hubMessages() : h === "hub-assoc-apps" ? hubAssocApps() : h === "hub-partners" ? hubPartners() : h === "hub-goals" ? hubGoals() : h === "hub-teams" ? hubTeams() : h === "hub-team-editor" ? hubTeamEditor() : h === "hub-applications" ? hubApplications() : h === "hub-captains" ? hubCaptains() : h === "hub-people" ? hubPeople() : h === "hub-expenses" ? hubExpenses() : h === "hub-departments" ? hubDepts() : h === "hub-report" || h === "hub-checkups" ? hubCheckups() : h === "hub-ideas" ? hubIdeas() : h === "hub-history" ? hubHistory() : hubOverview();
       hub.innerHTML = hubShell(h, inner); show("hub"); bindHub(); bindBell(); updateTitle(); showTab(); return;
     }
     if (h === "signin") html = signinView();

@@ -100,10 +100,20 @@ export const requestAccess = mutation({
 });
 
 // Admin, President/VP or head: add someone directly (approved straight away, see canAdd).
+// `as` (from the Hub): add with the limits of the role the person is viewing the Hub as. It can only
+// narrow what they may do: an admin viewing as a head of Finance gets exactly a Finance head's limits.
 export const addMember = mutation({
-  args: { email: v.string(), name: v.string(), role: roleV, position: positionV, department: v.optional(v.string()), teams: v.optional(v.array(v.string())) },
-  handler: async (ctx, args) => {
-    const a = await requireAccess(ctx);
+  args: {
+    email: v.string(),
+    name: v.string(),
+    role: roleV,
+    position: positionV,
+    department: v.optional(v.string()),
+    teams: v.optional(v.array(v.string())),
+    as: v.optional(v.object({ role: v.union(v.literal("exec"), v.literal("head")), department: v.optional(v.string()) })),
+  },
+  handler: async (ctx, { as, ...args }) => {
+    const a = narrow(await requireAccess(ctx), as);
     const m = clean(args);
     if (!canAdd(a, m))
       throw new ConvexError(isPresident(m) && a.exec ? "Only an admin can add or change the President." : a.heads.length && !a.exec && !a.isAdmin ? "As head of department you can add associates to your own department, captains and vice-captains." : "You can't add this person with this role.");
@@ -114,6 +124,17 @@ export const addMember = mutation({
     if (isCaptainRole(m.role)) await addCaptainTeams(ctx, m.email, m.name, m.teams!, m.role === "vicecaptain");
   },
 });
+
+export function narrow(a: Access, as?: { role: "exec" | "head"; department?: string }): Access {
+  if (!as) return a;
+  if (as.role === "exec") {
+    if (!a.isAdmin && !a.exec) throw new ConvexError("Not authorised.");
+    return { ...a, isAdmin: false, exec: true, heads: [] };
+  }
+  const d = as.department ?? "";
+  if (!DEPARTMENTS.includes(d) || (!a.isAdmin && !a.exec && !a.heads.includes(d))) throw new ConvexError("Not authorised.");
+  return { ...a, isAdmin: false, exec: false, heads: [d] };
+}
 
 // Approve or reject a request, or revoke an approved member.
 export const decide = mutation({

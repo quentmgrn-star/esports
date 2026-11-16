@@ -56,6 +56,7 @@ const RUN: Record<string, FunctionReference<"mutation">> = {
   tnAddFile: api.tournament.addFile,
   tnRemoveFile: api.tournament.removeFile,
   tnEvent: api.tournament.setEvent,
+  addMember: api.org.addMember,
   hoSave: api.handover.save,
   hoAddFile: api.handover.addFile,
   hoRemoveFile: api.handover.removeFile,
