@@ -775,7 +775,7 @@ const SECTION_TITLE: Record<Section, string> = {
   tryouts: "Try-outs & coaches",
   messages: "Messages",
   organisation: "Organisation",
-  requests: "Requests",
+  requests: "People & requests",
   chat: "Chat",
   captains: "Captains",
   alumni: "Alumni profiles",
@@ -869,6 +869,10 @@ function Dashboard({ me }: { me: NonNullable<Me> }) {
   // Organisation (every member and email): admins, President and VPs only.
   const seesOrg = me.isAdmin || me.exec;
   const [section, setSection] = useState<Section>(seesApplications ? "applications" : seesMessages ? "messages" : seesOrg ? "organisation" : "chat");
+  // /admin#people (link from the Hub) opens "People & requests".
+  useEffect(() => {
+    if (approves && window.location.hash === "#people") setSection("requests");
+  }, [approves]);
   const messages = useQuery(api.admin.listContactMessages, seesMessages ? {} : "skip") as ContactMessage[] | undefined;
   const requests = useQuery(api.org.manageable, approves ? {} : "skip") as MemberRow[] | null | undefined;
   const unread = (messages ?? []).filter((m) => m.status === "new").length;
@@ -2067,6 +2071,16 @@ type MemberRow = {
   decidedAt?: number;
 };
 type Position = "president" | "vice-president" | "head";
+type AddKind = Position | "associate" | "captain" | "vicecaptain" | "viewer";
+const ADD_LABEL: Record<AddKind, string> = {
+  president: "President",
+  "vice-president": "Vice-president",
+  head: "Head of department",
+  associate: "Associate",
+  captain: "Captain",
+  vicecaptain: "Vice-captain",
+  viewer: "View only (Student Council)",
+};
 const ROLE_LABEL = { board: "Board", associate: "Associate", captain: "Captain", vicecaptain: "Vice-captain", viewer: "View only (Student Council)" };
 const POSITION_LABEL: Record<Position, string> = { president: "President", "vice-president": "Vice-president", head: "Head of department" };
 const whereOf = (m: Pick<MemberRow, "role" | "department" | "teams" | "position">) =>
@@ -2308,11 +2322,16 @@ function Requests({ me, rows }: { me: NonNullable<Me>; rows: MemberRow[] | undef
   const add = useMutation(api.org.addMember);
   const [tab, setTab] = useState<"requested" | "approved" | "closed">("requested");
   const [error, setError] = useState("");
-  const roles: MemberRow["role"][] = me.isAdmin ? ["board", "associate", "captain", "vicecaptain", "viewer"] : ["associate", "captain", "vicecaptain"];
-  const depts = me.isAdmin || me.exec ? DEPARTMENT_LIST : me.heads;
-  const [f, setF] = useState({ email: "", name: "", role: roles[0], position: "head" as Position, department: depts[0] ?? "", teams: [] as string[] });
-  const needsDept = f.role === "associate" || (f.role === "board" && f.position === "head");
-  const needsTeams = f.role === "associate" || f.role === "captain" || f.role === "vicecaptain";
+  // Admin, President and VPs add anyone; heads add associates of their own department only (checked again in Convex: org.canAdd).
+  const addsAnyone = me.isAdmin || me.exec;
+  const kinds: AddKind[] = addsAnyone ? ["president", "vice-president", "head", "associate", "captain", "vicecaptain", "viewer"] : ["associate"];
+  const depts = addsAnyone ? DEPARTMENT_LIST : me.heads;
+  const [f, setF] = useState({ email: "", name: "", kind: kinds[0], department: depts[0] ?? "", teams: [] as string[] });
+  const isBoard = f.kind === "president" || f.kind === "vice-president" || f.kind === "head";
+  const role: MemberRow["role"] = isBoard ? "board" : (f.kind as MemberRow["role"]);
+  const needsDept = f.kind === "associate" || f.kind === "head";
+  const needsTeams = f.kind === "associate" || f.kind === "captain" || f.kind === "vicecaptain";
+  const [added, setAdded] = useState("");
   const [busy, setBusy] = useState(false);
   const list = (rows ?? []).filter((r) => (tab === "closed" ? r.status === "rejected" || r.status === "revoked" : r.status === tab));
   async function act(id: string, decision: "approved" | "rejected" | "revoked") {
@@ -2326,16 +2345,18 @@ function Requests({ me, rows }: { me: NonNullable<Me>; rows: MemberRow[] | undef
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError("");
+    setAdded("");
     setBusy(true);
     try {
       await add({
         email: f.email,
         name: f.name,
-        role: f.role,
-        position: f.role === "board" ? f.position : undefined,
+        role,
+        position: isBoard ? (f.kind as Position) : undefined,
         department: needsDept ? f.department : undefined,
         teams: needsTeams ? f.teams : undefined,
       });
+      setAdded(`${f.name.trim()} was added as ${ADD_LABEL[f.kind]}${needsDept ? ` (${f.department})` : ""}. They can now create their account on /admin with ${f.email.trim()}.`);
       setF({ ...f, email: "", name: "", teams: [] });
     } catch (err) {
       setError(errText(err));
@@ -2346,13 +2367,76 @@ function Requests({ me, rows }: { me: NonNullable<Me>; rows: MemberRow[] | undef
     <>
       <p className="adm-p">
         {me.isAdmin
-          ? "As admin you approve the Board (president, vice-presidents, heads of department) and can approve anyone."
+          ? "As admin you can add, approve or remove anyone, including the President, vice-presidents and heads of department."
           : me.exec
-            ? "As president or vice-president you approve associates, captains and vice-captains."
-            : `As head of ${me.heads.join(", ")} you approve your department's associates, and captain requests.`}{" "}
+            ? "As President or vice-president you can add, approve or remove anyone, including heads of department."
+            : `As head of ${me.heads.join(", ")} you add and approve your department's associates, and approve captain requests.`}{" "}
         People request access on the Members page of the website; once approved they create their account on /admin with the
         same email.
       </p>
+      <form className="adm-captain-form" onSubmit={submit} style={{ marginBottom: 28 }}>
+        <h2 className="adm-h3" style={{ marginTop: 0 }}>
+          Add someone directly
+        </h2>
+        <p className="adm-p" style={{ marginTop: 0 }}>
+          {addsAnyone
+            ? "Add a President, vice-presidents, heads of department, associates, captains or a view-only account. They are approved straight away."
+            : `As head of ${me.heads.join(", ")} you can add associates to your department. They are approved straight away.`}
+        </p>
+        <div className="adm-filters" style={{ padding: 0 }}>
+          <label className="field">
+            Name
+            <input required value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
+          </label>
+          <label className="field">
+            Email they will sign in with
+            <input type="email" required value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} placeholder="name@example.com" />
+          </label>
+          <label className="field">
+            Role
+            <select value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value as AddKind })} disabled={kinds.length === 1}>
+              {kinds.map((k) => (
+                <option key={k} value={k}>
+                  {ADD_LABEL[k]}
+                </option>
+              ))}
+            </select>
+          </label>
+          {needsDept && (
+            <label className="field">
+              Department
+              <select value={f.department} onChange={(e) => setF({ ...f, department: e.target.value })}>
+                {depts.map((d) => (
+                  <option key={d}>{d}</option>
+                ))}
+              </select>
+            </label>
+          )}
+        </div>
+        {needsTeams && (
+          <fieldset className="adm-team-checks">
+            <legend>{f.kind === "associate" ? "Teams they work with" : "Teams"}</legend>
+            {TEAMS.map((t) => (
+              <label key={t.id}>
+                <input
+                  type="checkbox"
+                  checked={f.teams.includes(t.id)}
+                  onChange={() => setF({ ...f, teams: f.teams.includes(t.id) ? f.teams.filter((x) => x !== t.id) : [...f.teams, t.id] })}
+                />{" "}
+                {teamLabel(t.id)}
+              </label>
+            ))}
+          </fieldset>
+        )}
+        <button className="btn btn-blue" type="submit" disabled={busy || !f.email || !f.name || (needsTeams && !f.teams.length)}>
+          {busy ? "Saving…" : "Add"}
+        </button>
+        {added && (
+          <p className="adm-p" role="status" style={{ marginBottom: 0 }}>
+            {added}
+          </p>
+        )}
+      </form>
       <nav className="adm-tabs" role="tablist" aria-label="Request status">
         {(
           [
@@ -2430,69 +2514,6 @@ function Requests({ me, rows }: { me: NonNullable<Me>; rows: MemberRow[] | undef
         </table>
       </div>
 
-      <form className="adm-captain-form" onSubmit={submit} style={{ marginTop: 24 }}>
-        <h2 className="adm-h3" style={{ marginTop: 0 }}>
-          Add someone directly
-        </h2>
-        <div className="adm-filters" style={{ padding: 0 }}>
-          <label className="field">
-            Name
-            <input required value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
-          </label>
-          <label className="field">
-            Email they will sign in with
-            <input type="email" required value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} placeholder="name@example.com" />
-          </label>
-          <label className="field">
-            Role
-            <select value={f.role} onChange={(e) => setF({ ...f, role: e.target.value as MemberRow["role"] })}>
-              {roles.map((r) => (
-                <option key={r} value={r}>
-                  {ROLE_LABEL[r]}
-                </option>
-              ))}
-            </select>
-          </label>
-          {f.role === "board" && (
-            <label className="field">
-              Position
-              <select value={f.position} onChange={(e) => setF({ ...f, position: e.target.value as Position })}>
-                <option value="head">Head of department</option>
-                <option value="vice-president">Vice-president</option>
-                <option value="president">President</option>
-              </select>
-            </label>
-          )}
-          {needsDept && (
-            <label className="field">
-              Department
-              <select value={f.department} onChange={(e) => setF({ ...f, department: e.target.value })}>
-                {(f.role === "board" ? DEPARTMENT_LIST : depts).map((d) => (
-                  <option key={d}>{d}</option>
-                ))}
-              </select>
-            </label>
-          )}
-        </div>
-        {needsTeams && (
-          <fieldset className="adm-team-checks">
-            <legend>{f.role === "associate" ? "Teams they work with" : "Teams"}</legend>
-            {TEAMS.map((t) => (
-              <label key={t.id}>
-                <input
-                  type="checkbox"
-                  checked={f.teams.includes(t.id)}
-                  onChange={() => setF({ ...f, teams: f.teams.includes(t.id) ? f.teams.filter((x) => x !== t.id) : [...f.teams, t.id] })}
-                />{" "}
-                {teamLabel(t.id)}
-              </label>
-            ))}
-          </fieldset>
-        )}
-        <button className="btn btn-blue" type="submit" disabled={busy || !f.email || !f.name || (needsTeams && !f.teams.length)}>
-          {busy ? "Saving…" : "Add"}
-        </button>
-      </form>
     </>
   );
 }

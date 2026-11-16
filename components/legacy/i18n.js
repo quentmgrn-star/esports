@@ -685,6 +685,8 @@ export function initI18n() {
     "The website, the Hub, member accounts, data and the tools every department uses.": ["La web, el Hub, els comptes dels membres, les dades i les eines de tots els departaments.","La web, el Hub, las cuentas de los miembros, los datos y las herramientas de todos los departamentos."],
     "Reports": ["Informes","Informes"],
     "Admin: applications & requests": ["Admin: candidatures i sol·licituds","Admin: candidaturas y solicitudes"],
+    "Add people": ["Afegir persones","Añadir personas"],
+    "Add associates": ["Afegir associats","Añadir asociados"],
     "Reports.": ["Informes.","Informes."],
     "Expenses ledger": ["Registre de despeses","Registro de gastos"],
     "Ideas & logistics": ["Idees i logística","Ideas y logística"],

@@ -6,10 +6,10 @@ import { DEPARTMENTS, getAccess, requireAccess, type Access } from "./roles";
 import { TEAMS } from "./teamList";
 import { internal } from "./_generated/api";
 
-// Who approves what (no one approves their own request; view-only people approve nothing):
-//   Admin ............................ everyone, including Board positions and viewers
-//   President / Vice-president ....... associates, captains and vice-captains
-//   Head of department ............... associates of their own department, and captain requests
+// Who approves, adds or removes whom (never yourself; view-only people do nothing):
+//   Admin, President, Vice-president .. everyone (President, VPs, heads, associates, captains, view-only)
+//   Head of department ................ ADDS only associates of their own department;
+//                                       approves their department's associate requests and captain requests
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const roleV = v.union(v.literal("board"), v.literal("associate"), v.literal("captain"), v.literal("vicecaptain"), v.literal("viewer"));
 // Captains and vice-captains have the same access to their team(s).
@@ -19,10 +19,17 @@ type Member = Doc<"members">;
 
 export function canDecide(a: Access, m: Pick<Member, "role" | "department" | "email">): boolean {
   if (m.email === a.email || a.readOnly) return false;
-  if (a.isAdmin) return true;
-  if (m.role === "associate") return a.exec || (!!m.department && a.heads.includes(m.department));
-  if (isCaptainRole(m.role)) return a.exec || a.heads.length > 0;
-  return false; // Board positions and viewers: admin only
+  if (a.isAdmin || a.exec) return true;
+  if (m.role === "associate") return !!m.department && a.heads.includes(m.department);
+  if (isCaptainRole(m.role)) return a.heads.length > 0;
+  return false; // Board positions and viewers: admin, President and VPs only
+}
+// Adding someone directly (no request): admin, President and VPs add anyone;
+// a head of department adds associates of their own department only.
+export function canAdd(a: Access, m: Pick<Member, "role" | "department" | "email">): boolean {
+  if (m.email === a.email || a.readOnly) return false;
+  if (a.isAdmin || a.exec) return true;
+  return m.role === "associate" && !!m.department && a.heads.includes(m.department);
 }
 
 function clean(args: { email: string; name: string; role: Member["role"]; position?: Member["position"]; department?: string; teams?: string[] }) {
@@ -85,13 +92,17 @@ export const requestAccess = mutation({
   },
 });
 
-// Admin or Board: add someone directly (approved straight away, within what they may approve).
+// Admin, President/VP or head: add someone directly (approved straight away, see canAdd).
 export const addMember = mutation({
   args: { email: v.string(), name: v.string(), role: roleV, position: positionV, department: v.optional(v.string()), teams: v.optional(v.array(v.string())) },
   handler: async (ctx, args) => {
     const a = await requireAccess(ctx);
     const m = clean(args);
-    if (!canDecide(a, m)) throw new ConvexError("You can't add this person with this role.");
+    if (!canAdd(a, m))
+      throw new ConvexError(a.heads.length && !a.exec && !a.isAdmin ? "As head of department you can only add associates to your own department." : "You can't add this person with this role.");
+    const dup = await ctx.db.query("members").withIndex("by_email", (q) => q.eq("email", m.email)).collect();
+    if (dup.some((r) => r.status === "approved" && r.role === m.role && r.position === m.position && r.department === m.department && (r.teams ?? []).join() === (m.teams ?? []).join()))
+      throw new ConvexError("This person already has this role.");
     await ctx.db.insert("members", { ...m, status: "approved", requestedAt: Date.now(), decidedBy: a.email, decidedAt: Date.now() });
     if (isCaptainRole(m.role)) await addCaptainTeams(ctx, m.email, m.name, m.teams!, m.role === "vicecaptain");
   },
@@ -115,7 +126,7 @@ export const decide = mutation({
   },
 });
 
-// Requests and members the signed-in person may act on (admin: all; Board: their associates + captains).
+// Requests and members the signed-in person may act on (admin, President, VPs: all; heads: their associates + captains).
 export const manageable = query({
   args: {},
   handler: async (ctx) => {
