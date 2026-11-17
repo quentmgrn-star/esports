@@ -99,7 +99,7 @@ export const TEAMS: SeedTeam[] = [
     "source": "css.cat",
     "updated": "17/11/2026",
     "dataStatus": "real",
-    "note": "FT, 2P and 3P are shots made, from the league match sheets. The sheets don't list every basket: they add up to 237 of the team's 248 points."
+    "note": "FT, 2P and 3P are shots made, from the league match sheets. The other 11 of the team's 248 points were scored by walk-on players who aren't listed here."
   },
   {
     "slug": "basketball-women",
