@@ -97,9 +97,9 @@ export const TEAMS: SeedTeam[] = [
     "league": "CSS · Bàsquet 1ª Lliga · 1ª Divisió",
     "club": "Esade Men's",
     "source": "css.cat",
-    "updated": "12/11/2026",
+    "updated": "17/11/2026",
     "dataStatus": "real",
-    "note": "FT, 2P and 3P are shots made, from the league match sheets. The sheets don't list every basket: they add up to 187 of the team's 207 points."
+    "note": "FT, 2P and 3P are shots made, from the league match sheets. The sheets don't list every basket: they add up to 237 of the team's 248 points."
   },
   {
     "slug": "basketball-women",
@@ -466,12 +466,12 @@ export const PLAYERS: SeedPlayer[] = [
     "number": 5,
     "isCaptain": false,
     "stats": {
-      "GP": 3,
-      "PTS": 32,
-      "PPG": 10.7,
+      "GP": 4,
+      "PTS": 39,
+      "PPG": 9.8,
       "FT": 1,
-      "2P": 11,
-      "3P": 3
+      "2P": 13,
+      "3P": 4
     },
     "isExample": false
   },
@@ -481,11 +481,11 @@ export const PLAYERS: SeedPlayer[] = [
     "number": 11,
     "isCaptain": false,
     "stats": {
-      "GP": 4,
-      "PTS": 28,
-      "PPG": 7,
-      "FT": 1,
-      "2P": 12,
+      "GP": 5,
+      "PTS": 37,
+      "PPG": 7.4,
+      "FT": 2,
+      "2P": 16,
       "3P": 1
     },
     "isExample": false
@@ -496,11 +496,11 @@ export const PLAYERS: SeedPlayer[] = [
     "number": 1,
     "isCaptain": false,
     "stats": {
-      "GP": 4,
-      "PTS": 27,
-      "PPG": 6.8,
+      "GP": 5,
+      "PTS": 33,
+      "PPG": 6.6,
       "FT": 3,
-      "2P": 9,
+      "2P": 12,
       "3P": 2
     },
     "isExample": false
@@ -511,12 +511,27 @@ export const PLAYERS: SeedPlayer[] = [
     "number": 3,
     "isCaptain": false,
     "stats": {
-      "GP": 4,
-      "PTS": 27,
-      "PPG": 6.8,
-      "FT": 2,
-      "2P": 11,
+      "GP": 5,
+      "PTS": 30,
+      "PPG": 6.0,
+      "FT": 3,
+      "2P": 12,
       "3P": 1
+    },
+    "isExample": false
+  },
+  {
+    "team": "basketball-men",
+    "name": "Arsenii Kolobov",
+    "number": 28,
+    "isCaptain": false,
+    "stats": {
+      "GP": 5,
+      "PTS": 22,
+      "PPG": 4.4,
+      "FT": 0,
+      "2P": 8,
+      "3P": 2
     },
     "isExample": false
   },
@@ -526,9 +541,9 @@ export const PLAYERS: SeedPlayer[] = [
     "number": 1,
     "isCaptain": false,
     "stats": {
-      "GP": 4,
+      "GP": 5,
       "PTS": 18,
-      "PPG": 4.5,
+      "PPG": 3.6,
       "FT": 0,
       "2P": 9,
       "3P": 0
@@ -541,26 +556,11 @@ export const PLAYERS: SeedPlayer[] = [
     "number": 6,
     "isCaptain": false,
     "stats": {
-      "GP": 4,
+      "GP": 5,
       "PTS": 18,
-      "PPG": 4.5,
+      "PPG": 3.6,
       "FT": 0,
       "2P": 6,
-      "3P": 2
-    },
-    "isExample": false
-  },
-  {
-    "team": "basketball-men",
-    "name": "Arsenii Kolobov",
-    "number": 28,
-    "isCaptain": false,
-    "stats": {
-      "GP": 4,
-      "PTS": 16,
-      "PPG": 4,
-      "FT": 0,
-      "2P": 5,
       "3P": 2
     },
     "isExample": false
@@ -571,9 +571,24 @@ export const PLAYERS: SeedPlayer[] = [
     "number": 12,
     "isCaptain": false,
     "stats": {
-      "GP": 4,
+      "GP": 5,
+      "PTS": 17,
+      "PPG": 3.4,
+      "FT": 2,
+      "2P": 6,
+      "3P": 1
+    },
+    "isExample": false
+  },
+  {
+    "team": "basketball-men",
+    "name": "Louis Rivalain",
+    "number": 0,
+    "isCaptain": false,
+    "stats": {
+      "GP": 5,
       "PTS": 11,
-      "PPG": 2.8,
+      "PPG": 2.2,
       "FT": 0,
       "2P": 4,
       "3P": 1
@@ -586,9 +601,9 @@ export const PLAYERS: SeedPlayer[] = [
     "number": 24,
     "isCaptain": false,
     "stats": {
-      "GP": 4,
+      "GP": 5,
       "PTS": 8,
-      "PPG": 2,
+      "PPG": 1.6,
       "FT": 0,
       "2P": 4,
       "3P": 0
@@ -601,10 +616,10 @@ export const PLAYERS: SeedPlayer[] = [
     "number": 8,
     "isCaptain": false,
     "stats": {
-      "GP": 4,
-      "PTS": 2,
-      "PPG": 0.5,
-      "FT": 0,
+      "GP": 5,
+      "PTS": 4,
+      "PPG": 0.8,
+      "FT": 2,
       "2P": 1,
       "3P": 0
     },
@@ -1320,7 +1335,9 @@ export const MATCHES: SeedMatch[] = [
     "away": "FE NATURAL",
     "venue": "Thau Pedralbes · Voley - Baloncesto P2",
     "round": "Round 5",
-    "isExample": false
+    "isExample": false,
+    "homeScore": 41,
+    "awayScore": 16
   },
   {
     "team": "basketball-men",
@@ -1696,73 +1713,73 @@ export const STANDINGS: SeedStanding[] = [
       {
         "team": "Esade Men's",
         "values": [
+          5,
           4,
-          3,
           1,
-          207,
-          147,
-          60
+          248,
+          163,
+          85
         ]
       },
       {
         "team": "TOP",
         "values": [
+          5,
           4,
-          3,
           1,
-          220,
-          202,
-          18
+          272,
+          241,
+          31
         ]
       },
       {
         "team": "PICK&RON",
         "values": [
+          5,
           4,
-          3,
           1,
-          240,
-          235,
-          5
+          300,
+          288,
+          12
         ]
       },
       {
         "team": "SANTS TENTACIO",
         "values": [
-          4,
+          5,
           2,
-          2,
-          172,
-          160,
-          12
+          3,
+          211,
+          212,
+          -1
         ]
       },
       {
         "team": "FE NATURAL",
         "values": [
-          5,
+          6,
           2,
-          3,
-          220,
+          4,
           236,
-          -16
+          277,
+          -41
         ]
       },
       {
         "team": "Las amigas de Tomás",
         "values": [
-          5,
+          6,
           0,
-          5,
-          174,
-          253,
-          -79
+          6,
+          227,
+          313,
+          -86
         ]
       }
     ],
     "note": "Calculated from every result on the league page. The league's official table may break ties differently.",
     "source": "css.cat",
-    "updated": "12/11/2026"
+    "updated": "17/11/2026"
   }
 ];
 export const ALUMNI: SeedAlumnus[] = [

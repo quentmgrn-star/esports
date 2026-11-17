@@ -213,9 +213,9 @@ export const SITE_MARKUP = `
           <h3 class="display">Match<br>day.</h3>
           <p>Come and support your classmates. Every home game is open to all Esade students.</p>
           <dl>
-            <div><dt>When</dt><dd>Tue 17/11 · 21:00</dd></div>
+            <div><dt>When</dt><dd>Tue 01/12 · 21:00</dd></div>
             <div><dt>Where</dt><dd>Thau Pedralbes</dd></div>
-            <div><dt>Against</dt><dd>FE NATURAL</dd></div>
+            <div><dt>Against</dt><dd>SANTS TENTACIO</dd></div>
           </dl>
         </aside>
       </div>

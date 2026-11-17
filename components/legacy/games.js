@@ -1,10 +1,11 @@
 /* eslint-disable */
 // All games shown on the site: home "Schedules and results" lists, match details and the full calendar.
 // Change a game here and it changes everywhere. example: true = placeholder game, shown with an "Example" tag.
-// Real data: Football 7 from UniBall (apuntamelo.com), Basketball Men from css.cat (pages saved 12/11/2026).
+// Real data: Football 7 from UniBall (apuntamelo.com), Basketball Men from css.cat (page saved 17/11/2026).
 export const GAMES = [
   { id: "football-7", team: "football7-men", sport: "Football 7 · Men", date: "2026-11-14", time: "17:00", home: "EUBS", away: "Esade FC", side: "Away", venue: "Field A", competition: "UniBall Championship (Men's F7) · Elite · Matchday 8", example: false },
-  { id: "basketball-men", team: "basketball-men", sport: "Basketball · Men", date: "2026-11-17", time: "21:00", home: "Esade", away: "FE NATURAL", side: "Home", venue: "Thau Pedralbes · Voley - Baloncesto P2", competition: "CSS · Bàsquet 1ª Lliga · 1ª Divisió (Round 5)", example: false },
+  { id: "basketball-men", team: "basketball-men", sport: "Basketball · Men", date: "2026-11-17", time: "21:00", home: "Esade", away: "FE NATURAL", side: "Home", venue: "Thau Pedralbes · Voley - Baloncesto P2", competition: "CSS · Bàsquet 1ª Lliga · 1ª Divisió (Round 5)", score: "41–16", example: false },
+  { id: "basketball-men-next", team: "basketball-men", sport: "Basketball · Men", date: "2026-11-24", time: "21:00", home: "TOP", away: "Esade", side: "Away", venue: "Jesús y Maria · Bàsquet Poli 2", competition: "CSS · Bàsquet 1ª Lliga · 1ª Divisió (Round 6)", example: false },
   { id: "basketball-women", team: "basketball-women", sport: "Basketball · Women", date: "2026-11-21", time: "12:00", home: "Esade", away: "GBSB Global", side: "Home", venue: "Court 2, Barcelona Sports Hub", competition: "Esade Student League · Women", example: true },
   { id: "volleyball-men", team: "volleyball-men", sport: "Volleyball · Men", date: "2026-11-22", time: "11:00", home: "Esade", away: "TBS United", side: "Home", venue: "Court 1, Esade Pedralbes Campus", competition: "Catalunya University Volleyball League", example: true },
   { id: "padel-women", team: "padel-women", sport: "Padel · Women", date: "2026-11-25", time: "18:30", home: "Esade", away: "EU Business School", side: "Home", venue: "Padel Court 4, Vall d’Hebron Sports Centre", competition: "Barcelona Student Padel Tour", example: true },
