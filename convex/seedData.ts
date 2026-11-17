@@ -463,7 +463,7 @@ export const PLAYERS: SeedPlayer[] = [
   {
     "team": "basketball-men",
     "name": "Quentin Maigron",
-    "number": 5,
+    "number": 4,
     "isCaptain": false,
     "stats": {
       "GP": 4,
@@ -493,7 +493,7 @@ export const PLAYERS: SeedPlayer[] = [
   {
     "team": "basketball-men",
     "name": "Natan Miguel Viejo Evrard",
-    "number": 1,
+    "number": 2,
     "isCaptain": false,
     "stats": {
       "GP": 5,
