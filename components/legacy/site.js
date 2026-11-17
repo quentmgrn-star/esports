@@ -614,7 +614,9 @@ export function initSite(backend, tools) {
   function rosterCards(t, n) {
     var pos = POS[t.sport] || ["Player"], out = [], D = teamData(t), L = LEAGUE[t.id], players = D.roster || (L && L.roster) || [];
     if (players.length) {
-      out = players.slice(0, n || players.length).map(function (r, i) { return '<li class="player' + (r.captain || i === 0 ? " capt" : "") + '"><div class="ph2">' + esc(r.position || t.sport) + '<span class="no">' + (r.no != null ? r.no : "–") + '</span></div><div class="pi"><strong>' + esc(r.name) + "</strong><span>" + (r.captain ? "Captain · " : "") + esc(r.position || "Player") + " · " + esc(r.programme || (L && L.club) || t.sport) + "</span></div></li>"; });
+      // Ordered by shirt number, smallest first (no number = last), for every sport.
+      var byNo = players.slice().sort(function (a, b) { return (a.no == null ? 1e9 : a.no) - (b.no == null ? 1e9 : b.no); });
+      out = byNo.slice(0, n || byNo.length).map(function (r, i) { return '<li class="player' + (r.captain ? " capt" : "") + '"><div class="ph2">' + esc(r.position || t.sport) + '<span class="no">' + (r.no != null ? r.no : "–") + '</span></div><div class="pi"><strong>' + esc(r.name) + "</strong><span>" + (r.captain ? "Captain · " : "") + esc(r.position || "Player") + " · " + esc(r.programme || (L && L.club) || t.sport) + "</span></div></li>"; });
       return '<ul class="roster">' + out.join("") + "</ul>";
     }
     return soon("The squad list is coming soon: the captain is adding it.");
