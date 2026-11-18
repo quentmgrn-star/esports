@@ -391,6 +391,39 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_team", ["team"]),
 
+  // Contracts (Hub > Contracts): one per signed agreement, with its PDFs. team empty = whole association.
+  // Visibility in convex/contracts.ts (roles.canSee on team + department).
+  contracts: defineTable({
+    team: v.optional(v.string()),
+    dept: v.string(), // one of DEPARTMENTS in convex/roles.ts
+    title: v.string(),
+    party: v.optional(v.string()), // the other side (sponsor, league, venue...)
+    signedOn: v.optional(v.string()), // yyyy-mm-dd
+    endsOn: v.optional(v.string()), // yyyy-mm-dd
+    notes: v.optional(v.string()),
+    files: v.array(
+      v.object({ id: v.id("_storage"), name: v.string(), type: v.string(), size: v.number(), by: v.string(), at: v.number() }),
+    ),
+    by: v.string(),
+    byEmail: v.string(),
+    at: v.number(),
+  }),
+
+  // Photo & video history of each team (Hub > History). Photos in storage, videos as links. convex/media.ts.
+  teamMedia: defineTable({
+    team: v.string(),
+    season: v.string(), // e.g. "2025-26"
+    event: v.string(), // e.g. "Spring showcase", "Final vs UB"
+    caption: v.optional(v.string()),
+    kind: v.union(v.literal("photo"), v.literal("video")),
+    fileId: v.optional(v.id("_storage")),
+    name: v.optional(v.string()),
+    url: v.optional(v.string()),
+    by: v.string(),
+    byEmail: v.string(),
+    at: v.number(),
+  }).index("by_team", ["team"]),
+
   // Team handover: what a team's captain (and its departments) know, so the next team can start from it.
   // One row per team and department. Visibility in convex/handover.ts (roles.canSee). No passwords stored.
   handover: defineTable({

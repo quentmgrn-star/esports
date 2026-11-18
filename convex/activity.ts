@@ -5,7 +5,7 @@ import { getAccess, type Access } from "./roles";
 // Team activity feed (Hub, captain pages): one short line per change made on a team, newest first.
 // Who sees a team's feed: admins, President / VPs and the view-only account (every team); a captain only
 // their own team(s). Keep lines free of personal data: no ID numbers, file names of ID documents, phones or emails.
-export type Area = "expenses" | "ideas" | "roster" | "tournament" | "handover" | "results" | "team" | "budget" | "signups";
+export type Area = "expenses" | "ideas" | "roster" | "tournament" | "handover" | "results" | "team" | "budget" | "signups" | "contracts" | "media";
 
 export async function logActivity(ctx: MutationCtx, a: Access, team: string, area: Area, what: string) {
   // Same person, same line, within a minute (e.g. the same file added twice): keep one entry.

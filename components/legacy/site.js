@@ -1341,7 +1341,7 @@ export function initSite(backend, tools) {
   }
   function pill(map, k) { return '<span class="pill ' + map[k][0] + '">' + map[k][1] + "</span>"; }
   function stat(k, v, s) { return '<div class="stat"><p class="eyebrow">' + k + '</p><span class="v num">' + v + "</span><small>" + s + "</small></div>"; }
-  var HUBV = [["hub-overview", "Overview"], ["hub-chat", "Chat"], ["hub-teams", "Teams"], ["hub-tournament", "Tournament"], ["hub-handover", "Team handover"], ["hub-team-editor", "Team editor"], ["hub-applications", "Sports applications"], ["hub-assoc-apps", "Association applications"], ["hub-messages", "Contact messages"], ["hub-captains", "Captains"], ["hub-people", "Add people"], ["hub-ideas", "Ideas & logistics"], ["hub-expenses", "Expenses ledger"], ["hub-partners", "Partnerships"], ["hub-departments", "Departments"], ["hub-goals", "Goals"], ["hub-history", "History"], ["hub-report", "Reports"]];
+  var HUBV = [["hub-overview", "Overview"], ["hub-chat", "Chat"], ["hub-teams", "Teams"], ["hub-tournament", "Tournament"], ["hub-handover", "Team handover"], ["hub-contracts", "Contracts"], ["hub-team-editor", "Team editor"], ["hub-applications", "Sports applications"], ["hub-assoc-apps", "Association applications"], ["hub-messages", "Contact messages"], ["hub-captains", "Captains"], ["hub-people", "Add people"], ["hub-ideas", "Ideas & logistics"], ["hub-expenses", "Expenses ledger"], ["hub-partners", "Partnerships"], ["hub-departments", "Departments"], ["hub-goals", "Goals"], ["hub-history", "History"], ["hub-report", "Reports"]];
 
   function hubShell(view, inner) {
     var partnerBadge = ((LIVE.inbox || {}).inquiries || 0) + partnerDueCount(), taskBadge = hRO() ? 0 : newTaskCount();
@@ -1477,12 +1477,12 @@ export function initSite(backend, tools) {
     visIdeas().forEach(function (i) { if ((ft === "all" || i.team === ft) && ["approved", "communicated", "planned"].indexOf(i.status) > -1) items.push({ at: i.updatedAt || i.at, team: i.team, what: i.kind + ": " + i.text, tag: pill(IDEA_STATUS, i.status) }); });
     visExp().forEach(function (e) { if ((ft === "all" || e.team === ft) && (e.status === "paid" || e.status === "validated")) items.push({ at: Date.parse(e.date + "T12:00:00Z"), team: e.team, what: e.item + " · " + EUR.format(e.amount), tag: pill(EXP_STATUS, e.status) }); });
     items.sort(function (a, b) { return b.at - a.at; });
-    return '<div class="ph-head"><div><h1 class="display">History.</h1><p>What has been done so far: finished tasks with their work summaries, and what each team got: approved ideas, communications and paid expenses.</p></div></div>' +
+    return '<div class="ph-head"><div><h1 class="display">History.</h1><p>What has been done so far: finished tasks with their work summaries, what each team got (approved ideas, communications and paid expenses), and each team\'s photos and videos.</p></div></div>' +
       '<section class="panel hist-filters"><div class="form">' + (depts.length > 1 ? '<label for="hi-dept">Department<select id="hi-dept"><option value="all">All departments</option>' + depts.map(function (d) { return '<option value="' + d.id + '"' + (fd === d.id ? " selected" : "") + ">" + esc(d.name) + "</option>"; }).join("") + "</select></label>" : "") +
       (ts.length > 1 ? '<label for="hi-team">Team<select id="hi-team"><option value="all">All teams</option>' + ts.map(function (t) { return '<option value="' + t.id + '"' + (ft === t.id ? " selected" : "") + ">" + esc(tLabel(t)) + "</option>"; }).join("") + "</select></label>" : "") + "</div></section>" +
       (depts.length ? '<section class="panel"><div class="panel-head"><h2>Finished tasks</h2><span class="muted" style="font-size:12px">' + done.length + " done</span></div>" + (done.length ? '<ul class="tasks">' + done.map(function (x) { return taskRow(x.t, x.d.id).replace("<li>", '<li><small class="muted dept-tag">' + esc(x.d.name) + "</small>"); }).join("") + "</ul>" : '<p class="empty">No task marked done yet.</p>') + "</section>" : "") +
       '<section class="panel"><div class="panel-head"><h2>Done for the teams</h2><span class="muted" style="font-size:12px">' + items.length + " item" + (items.length === 1 ? "" : "s") + "</span></div>" +
-      (items.length ? '<div class="table-wrap"><table><thead><tr><th>Date</th>' + (ts.length > 1 ? "<th>Team</th>" : "") + "<th>What</th><th>Status</th></tr></thead><tbody>" + items.map(function (x) { return '<tr><td class="num muted">' + esc(fmtDay(x.at)) + "</td>" + (ts.length > 1 ? '<td class="tname">' + esc(tLabel(team(x.team)) || x.team) + "</td>" : "") + "<td>" + esc(x.what.length > 160 ? x.what.slice(0, 157) + "…" : x.what) + "</td><td>" + x.tag + "</td></tr>"; }).join("") + "</tbody></table></div>" : '<p class="empty">Nothing yet for this selection.</p>') + "</section>";
+      (items.length ? '<div class="table-wrap"><table><thead><tr><th>Date</th>' + (ts.length > 1 ? "<th>Team</th>" : "") + "<th>What</th><th>Status</th></tr></thead><tbody>" + items.map(function (x) { return '<tr><td class="num muted">' + esc(fmtDay(x.at)) + "</td>" + (ts.length > 1 ? '<td class="tname">' + esc(tLabel(team(x.team)) || x.team) + "</td>" : "") + "<td>" + esc(x.what.length > 160 ? x.what.slice(0, 157) + "…" : x.what) + "</td><td>" + x.tag + "</td></tr>"; }).join("") + "</tbody></table></div>" : '<p class="empty">Nothing yet for this selection.</p>') + "</section>" + mediaPanel(ft);
   }
   // ---- Esade acceptance on an expense request ----------------------------------------------------
   var ESADE_FIN_EMAIL = ""; // Esade finance office address: fill in when known; the email opens in the person's own mail app
@@ -2438,6 +2438,183 @@ export function initSite(backend, tools) {
       Promise.resolve(backend.run("hoRemoveFile", { team: key.team, dept: key.dept, storageId: b.getAttribute("data-ho-rmfile") })).then(function () { hoSay(mk, "File removed.", "ok", 5000); }, function (x) { b.disabled = false; hoSay(mk, errText(x), "bad"); });
     }); });
   }
+  // ---- Contracts: signed agreements and their PDFs (convex/contracts.ts decides who sees each one) ----
+  function ctTeamName(id) { if (!id) return "Whole association"; var t = team(id); return t ? tLabel(t) : id; }
+  function ctEnds(c) {
+    if (!c.endsOn) return "";
+    var end = Date.parse(c.endsOn + "T23:59:59"), left = end - Date.now();
+    var txt = fmtDay(Date.parse(c.endsOn + "T12:00:00"));
+    if (left < 0) return esc(txt) + ' <span class="pill bad">Ended</span>';
+    if (left < 60 * 86400000) return esc(txt) + ' <span class="pill warn">Ends soon</span>';
+    return esc(txt);
+  }
+  function ctDeptOpts(opt, cur) {
+    var ds = (opt && opt.depts) || [], u = hv(), mine = u.dept ? deptName(u.dept) : "";
+    var pick = ds.indexOf(cur) > -1 ? cur : ds.indexOf(mine) > -1 ? mine : ds.indexOf("Partnerships") > -1 ? "Partnerships" : ds[0];
+    return ds.map(function (d) { return "<option" + (d === pick ? " selected" : "") + ">" + esc(d) + "</option>"; }).join("");
+  }
+  function hubContracts() {
+    var head = '<div class="ph-head"><div><h1 class="display">Contracts.</h1><p>Signed agreements and their PDFs: sponsors, league and venue agreements, suppliers. A contract is seen only by its team\'s captains, the department it belongs to, and the President, Vice-presidents and admins.</p></div></div>';
+    if (!live()) return head + '<section class="panel"><p class="empty">Contracts show once you are signed in.</p></section>';
+    var d = LIVE.contracts;
+    if (!d) return head + '<section class="panel"><p class="empty">Loading…</p></section>';
+    var all = d.contracts, opts = hRO() ? [] : d.options, f = state.ctTeam || "all";
+    var keys = []; all.forEach(function (c) { var k = c.team || ""; if (keys.indexOf(k) < 0) keys.push(k); });
+    if (f !== "all" && keys.indexOf(f) < 0) f = "all";
+    var rows = all.filter(function (c) { return f === "all" || (c.team || "") === f; });
+    var form = "";
+    if (opts.length) {
+      var o0 = opts.filter(function (o) { return o.team === (state.ctFormTeam != null ? state.ctFormTeam : (f !== "all" ? f : "")); })[0] || opts.filter(function (o) { return o.team; })[0] || opts[0];
+      form = '<details class="panel ct-add" data-open="ct"' + ((state.open || {}).ct != null ? (state.open.ct ? " open" : "") : all.length ? "" : " open") + '><summary><h2>Add a contract</h2></summary><form class="form" id="ct-form" data-keep>' +
+        '<label for="ct-title">Title<input id="ct-title" name="title" required maxlength="140" placeholder="e.g. Sponsorship agreement 2026-27"></label>' +
+        '<label for="ct-party">With (other party)<input id="ct-party" name="party" maxlength="140" placeholder="Sponsor, league, venue, supplier…"></label>' +
+        '<label for="ct-team">Team<select id="ct-team" name="team">' + opts.map(function (o) { return '<option value="' + esc(o.team) + '"' + (o === o0 ? " selected" : "") + ">" + esc(ctTeamName(o.team)) + "</option>"; }).join("") + "</select></label>" +
+        '<label for="ct-dept">Department<select id="ct-dept" name="dept">' + ctDeptOpts(o0) + "</select></label>" +
+        '<label for="ct-signed">Signed on<input id="ct-signed" name="signedOn" type="date"></label>' +
+        '<label for="ct-ends">Ends on (optional)<input id="ct-ends" name="endsOn" type="date"></label>' +
+        '<label for="ct-notes" class="wide">Notes (optional)<textarea id="ct-notes" name="notes" rows="2" maxlength="2000" placeholder="Amount, renewal, who signed, anything to remember"></textarea></label>' +
+        '<div class="wide">' + pickBox("ct-files", ".pdf,application/pdf,image/jpeg,image/png,image/webp,image/heic", "+ Add PDFs") + '<small class="muted">PDF or scan, max 10 MB each, up to 10 files</small></div>' +
+        '<div class="wide"><button class="btn sm solid" type="submit">Save contract</button>' + hoMsgHtml("ct:new") + "</div></form></details>";
+    }
+    var filter = keys.length > 1 ? '<section class="panel hist-filters"><div class="form"><label for="ct-filter">Team<select id="ct-filter"><option value="all">All (' + all.length + ")</option>" +
+      keys.map(function (k) { return '<option value="' + esc(k) + '"' + (f === k ? " selected" : "") + ">" + esc(ctTeamName(k)) + "</option>"; }).join("") + "</select></label></div></section>" : "";
+    var list = '<section class="panel"><div class="panel-head"><h2>' + (f === "all" ? "All contracts" : esc(ctTeamName(f))) + '</h2><span class="muted" style="font-size:12px">' + rows.length + " contract" + (rows.length === 1 ? "" : "s") + "</span></div>" +
+      (rows.length ? '<div class="table-wrap"><table class="ct-table"><thead><tr><th>Contract</th><th>Team</th><th>Department</th><th>Signed</th><th>Ends</th><th>Files</th>' + (hRO() ? "" : "<th></th>") + "</tr></thead><tbody>" + rows.map(ctRow).join("") + "</tbody></table></div>"
+        : '<p class="empty">' + (all.length ? "No contract for this team." : "No contract yet." + (opts.length ? " Add the first one above." : "")) + "</p>") + "</section>";
+    return head + form + filter + list;
+  }
+  function ctRow(c) {
+    var ed = c.canEdit && !hRO();
+    var files = c.files.map(function (x) { return '<li><a href="' + esc(x.url || "#") + '" target="_blank" rel="noopener">' + esc(clip(x.name, 36)) + "</a>" + (ed ? ' <button type="button" class="rm" data-ct-rmfile="' + esc(x.id) + '" data-ct="' + esc(c._id) + '" aria-label="Remove ' + esc(x.name) + '">×</button>' : "") + "</li>"; }).join("");
+    return "<tr><td><b>" + esc(c.title) + "</b>" + (c.party ? '<br><small class="muted">With ' + esc(c.party) + "</small>" : "") + (c.notes ? '<br><small class="ct-notes">' + esc(c.notes) + "</small>" : "") + '<br><small class="muted">Added by ' + esc(c.by) + " · " + esc(fmtDay(c.at)) + "</small></td>" +
+      '<td class="tname">' + esc(ctTeamName(c.team)) + "</td><td>" + esc(c.dept) + '</td><td class="num">' + (c.signedOn ? esc(fmtDay(Date.parse(c.signedOn + "T12:00:00"))) : '<span class="muted">—</span>') + '</td><td class="num">' + (ctEnds(c) || '<span class="muted">—</span>') + "</td>" +
+      "<td>" + (files ? '<ul class="tn-files">' + files + "</ul>" : '<span class="muted">No file</span>') + (ed && c.files.length < 10 ? '<label class="btn sm ghost tn-add">+ File<input type="file" hidden multiple accept=".pdf,application/pdf,image/jpeg,image/png,image/webp,image/heic" data-ct-file="' + esc(c._id) + '"></label>' : "") + "</td>" +
+      (hRO() ? "" : "<td>" + (ed ? '<button type="button" class="rm" data-ct-rm="' + esc(c._id) + '">Remove</button>' : "") + "</td>") + "</tr>";
+  }
+  // Add forms that must survive live redraws: remember open <details> and hold redraws while a form has unsaved input.
+  function bindKeep() {
+    hub.querySelectorAll("details[data-open]").forEach(function (d) { d.addEventListener("toggle", function () { (state.open = state.open || {})[d.getAttribute("data-open")] = d.open; }); });
+    hub.querySelectorAll("form[data-keep]").forEach(function (f) { f.addEventListener("input", function () { f.classList.add("dirty"); }); f.addEventListener("change", function () { f.classList.add("dirty"); }); });
+  }
+  function keepDone(f) { f.classList.remove("dirty"); hubRefresh(); }
+  function bindContracts() {
+    bindKeep();
+    var fl = $("ct-filter"); if (fl) fl.addEventListener("change", function () { state.ctTeam = fl.value; render(); });
+    var form = $("ct-form");
+    if (form) {
+      var tSel = $("ct-team"), dSel = $("ct-dept");
+      tSel.addEventListener("change", function () { state.ctFormTeam = tSel.value; var o = LIVE.contracts.options.filter(function (x) { return x.team === tSel.value; })[0]; dSel.innerHTML = ctDeptOpts(o, dSel.value); });
+      form.addEventListener("submit", function (ev) {
+        ev.preventDefault();
+        var el = form.elements, files = picked("ct-files"), bt = form.querySelector('button[type="submit"]');
+        if (!el.title.value.trim()) { hoSay("ct:new", "Give the contract a title.", "bad"); return; }
+        if (tooBig(files, 10)) { hoSay("ct:new", "A file is too big (max 10 MB each).", "bad"); return; }
+        bt.disabled = true; hoSay("ct:new", files.length ? "Uploading " + files.length + " file" + (files.length === 1 ? "" : "s") + "…" : "Saving…", "busy");
+        uploadAll(files).then(function (up) {
+          return backend.run("addContract", { team: el.team.value || undefined, dept: el.dept.value, title: el.title.value, party: el.party.value || undefined, signedOn: el.signedOn.value || undefined, endsOn: el.endsOn.value || undefined, notes: el.notes.value || undefined, files: up.map(function (x) { return { id: x.id, name: x.name }; }) });
+        }).then(function (r) {
+          PICKS["ct-files"] = []; state.ctFormTeam = null; form.reset(); bt.disabled = false; keepDone(form);
+          if (r && r.skipped && r.skipped.length) { hoSay("ct:new", "Saved, but not added: " + r.skipped.join("; "), "bad"); toast("Contract saved, some files were not added."); }
+          else { hoSay("ct:new", "Saved ✓", "ok", 6000); toast("Contract saved."); }
+          pickRedraw("ct-files");
+        }, function (x) { bt.disabled = false; hoSay("ct:new", "Not saved: " + errText(x), "bad"); });
+      });
+    }
+    hub.querySelectorAll("[data-ct-file]").forEach(function (inp) { inp.addEventListener("change", function () {
+      var id = inp.getAttribute("data-ct-file"), files = Array.prototype.slice.call(inp.files || []), bad = [];
+      inp.value = "";
+      files.reduce(function (pr, f) { return pr.then(function () {
+        if (f.size > 10 * 1048576) { bad.push(f.name + ": too big (max 10 MB)"); return; }
+        return Promise.resolve(backend.uploadFile(f)).then(function (sid) { return backend.run("ctAddFile", { id: id, storageId: sid, name: f.name }); })
+          .then(function (r) { if (r && r.error) bad.push(r.error); }, function (x) { bad.push(f.name + ": " + errText(x)); });
+      }); }, Promise.resolve()).then(function () { toast(bad.length ? "Not added: " + bad[0] : files.length === 1 ? files[0].name + " added." : files.length + " files added."); });
+      toast("Uploading…");
+    }); });
+    hub.querySelectorAll("[data-ct-rmfile]").forEach(function (b) { b.addEventListener("click", function () {
+      b.disabled = true;
+      Promise.resolve(backend.run("ctRemoveFile", { id: b.getAttribute("data-ct"), storageId: b.getAttribute("data-ct-rmfile") })).then(function () { toast("File removed."); }, function (x) { b.disabled = false; toast(errText(x)); });
+    }); });
+    hub.querySelectorAll("[data-ct-rm]").forEach(function (b) { b.addEventListener("click", function () {
+      if (!b.classList.contains("armed")) { b.classList.add("armed"); b.textContent = "Click again to remove"; setTimeout(function () { if (b.isConnected) { b.classList.remove("armed"); b.textContent = "Remove"; } }, 4000); return; }
+      b.disabled = true;
+      Promise.resolve(backend.run("removeContract", { id: b.getAttribute("data-ct-rm") })).then(function () { toast("Contract removed."); }, function (x) { b.disabled = false; toast(errText(x)); });
+    }); });
+  }
+
+  // ---- Photo & video history of a team (Hub > History). convex/media.ts: captains, Media & Marketing, Board. ----
+  function seasonNow() { var d = new Date(), y = d.getMonth() >= 7 ? d.getFullYear() : d.getFullYear() - 1; return y + "-" + String(y + 1).slice(2); }
+  // Big phone photos are shrunk in the browser (longest side 2560 px, JPEG) so the archive stays light.
+  function shrinkPhoto(f) {
+    if (f.size < 1.5 * 1048576 || !/^image\/(jpeg|png|webp)$/.test(f.type) || !window.createImageBitmap) return Promise.resolve(f);
+    return createImageBitmap(f).then(function (bmp) {
+      var k = Math.min(1, 2560 / Math.max(bmp.width, bmp.height)), c = document.createElement("canvas");
+      c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+      c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+      return new Promise(function (ok) { c.toBlob(function (b) { ok(b && b.size < f.size ? new File([b], f.name.replace(/\.\w+$/, "") + ".jpg", { type: "image/jpeg" }) : f); }, "image/jpeg", 0.86); });
+    }).catch(function () { return f; });
+  }
+  function mediaPanel(ft) {
+    if (!live() || !LIVE.media || !LIVE.media.length) return "";
+    var ts = LIVE.media, one = ts.length === 1 ? ts[0] : ts.filter(function (t) { return t.team === ft; })[0];
+    var head = '<section class="panel media-panel"><div class="panel-head"><h2>Photos & videos</h2>';
+    if (!one) {
+      var withItems = ts.filter(function (t) { return t.items.length; });
+      return head + '<span class="muted" style="font-size:12px">Pick a team above</span></div><p class="muted" style="margin:0">Each team\'s archive of past games, choreos and events, for Media & Marketing and the next generations. ' +
+        (withItems.length ? withItems.map(function (t) { return esc(ctTeamName(t.team)) + " (" + t.items.length + ")"; }).join(" · ") : "Nothing uploaded yet.") + "</p></section>";
+    }
+    var groups = {}, order = [];
+    one.items.slice().sort(function (a, b) { return b.season.localeCompare(a.season) || b.at - a.at; }).forEach(function (m) {
+      var k = m.season + "|" + m.event; if (!groups[k]) { groups[k] = []; order.push(k); } groups[k].push(m);
+    });
+    var ed = one.canAdd && !hRO(), byS = {};
+    order.forEach(function (k) { var s = k.split("|")[0]; (byS[s] = byS[s] || []).push(k); });
+    var body = Object.keys(byS).sort().reverse().map(function (s) {
+      return '<div class="media-season"><h3>' + esc(s) + "</h3>" + byS[s].map(function (k) {
+        var it = groups[k];
+        return '<div class="media-event"><h4>' + esc(k.split("|").slice(1).join("|")) + ' <small class="muted">' + it.length + "</small></h4><ul class=\"media-grid\">" + it.map(function (m) {
+          var rm = ed ? '<button type="button" class="media-rm" data-media-rm="' + esc(m._id) + '" aria-label="Remove">×</button>' : "", cap = m.caption ? ' title="' + esc(m.caption) + '"' : "";
+          if (m.kind === "video") return '<li class="vid"' + cap + '><a href="' + esc(m.url) + '" target="_blank" rel="noopener"><span>Video</span><small>' + esc(clip(m.caption || m.url.replace(/^https?:\/\/(www\.)?/, ""), 40)) + "</small></a>" + rm + "</li>";
+          return "<li" + cap + '><a href="' + esc(m.src || "#") + '" target="_blank" rel="noopener"><img src="' + esc(m.src || "") + '" alt="' + esc(m.caption || m.event) + '" loading="lazy"></a>' + rm + "</li>";
+        }).join("") + "</ul></div>";
+      }).join("") + "</div>";
+    }).join("");
+    var events = []; one.items.forEach(function (m) { if (events.indexOf(m.event) < 0) events.push(m.event); });
+    var form = ed ? '<details class="media-add" data-open="md"' + ((state.open || {}).md ? " open" : "") + '><summary class="btn sm">+ Add photos or a video link</summary><form class="form" id="media-form" data-keep data-team="' + esc(one.team) + '">' +
+      '<label for="md-season">Season<input id="md-season" name="season" required maxlength="20" value="' + esc(seasonNow()) + '"></label>' +
+      '<label for="md-event">Event<input id="md-event" name="event" required maxlength="100" list="md-events" placeholder="e.g. Spring showcase, Final vs UB"><datalist id="md-events">' + events.map(function (e) { return "<option>" + esc(e) + "</option>"; }).join("") + "</datalist></label>" +
+      '<label for="md-cap" class="wide">Caption (optional)<input id="md-cap" name="caption" maxlength="300"></label>' +
+      '<div class="wide">' + pickBox("md-photos", "image/jpeg,image/png,image/webp,image/heic", "+ Choose photos") + '<small class="muted">Up to 10 at a time. Big photos are made lighter automatically.</small></div>' +
+      '<label for="md-video" class="wide">Video link (optional)<input id="md-video" name="video" type="text" inputmode="url" maxlength="500" placeholder="Google Drive, YouTube or Instagram link"></label>' +
+      '<div class="wide"><button class="btn sm solid" type="submit">Upload</button>' + hoMsgHtml("md:new") + "</div></form></details>" : "";
+    return head + '<span class="muted" style="font-size:12px">' + esc(ctTeamName(one.team)) + " · " + one.items.length + " item" + (one.items.length === 1 ? "" : "s") + "</span></div>" + form +
+      (order.length ? body : '<p class="empty">No photos or videos yet.' + (ed ? " Add past games, choreos or events: Media & Marketing can use them, and the team keeps an archive." : "") + "</p>") + "</section>";
+  }
+  function bindMedia() {
+    var form = $("media-form");
+    if (form) form.addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      var el = form.elements, files = picked("md-photos"), bt = form.querySelector('button[type="submit"]'), video = el.video.value.trim();
+      if (!el.season.value.trim() || !el.event.value.trim()) { hoSay("md:new", "Fill in the season and the event.", "bad"); return; }
+      if (!files.length && !video) { hoSay("md:new", "Choose photos or paste a video link.", "bad"); return; }
+      bt.disabled = true; hoSay("md:new", files.length ? "Uploading " + files.length + " photo" + (files.length === 1 ? "" : "s") + "…" : "Saving…", "busy");
+      Promise.all(files.map(shrinkPhoto)).then(function (small) {
+        if (tooBig(small, 10)) throw new Error("A photo is still over 10 MB. Export it smaller and try again.");
+        return uploadAll(small);
+      }).then(function (up) {
+        return backend.run("addMedia", { team: form.getAttribute("data-team"), season: el.season.value, event: el.event.value, caption: el.caption.value || undefined, photos: up.map(function (x) { return { id: x.id, name: x.name }; }), videoUrl: video || undefined });
+      }).then(function (r) {
+        PICKS["md-photos"] = []; pickRedraw("md-photos"); el.video.value = ""; el.caption.value = ""; bt.disabled = false; keepDone(form);
+        if (r && r.skipped && r.skipped.length) hoSay("md:new", (r.added ? r.added + " added. " : "") + "Not added: " + r.skipped.join("; "), "bad");
+        else { hoSay("md:new", "Added ✓ " + (r ? r.added : "") + " item" + (r && r.added === 1 ? "" : "s"), "ok", 6000); toast("Added to the history."); }
+      }, function (x) { bt.disabled = false; hoSay("md:new", "Not added: " + (errText(x, x && x.message)), "bad"); });
+    });
+    hub.querySelectorAll("[data-media-rm]").forEach(function (b) { b.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      if (!b.classList.contains("armed")) { b.classList.add("armed"); b.textContent = "Remove?"; setTimeout(function () { if (b.isConnected) { b.classList.remove("armed"); b.textContent = "×"; } }, 4000); return; }
+      b.disabled = true;
+      Promise.resolve(backend.run("removeMedia", { id: b.getAttribute("data-media-rm") })).then(function () { toast("Removed."); }, function (x) { b.disabled = false; toast(errText(x)); });
+    }); });
+  }
   function hubTeams() {
     var ts = visTeams(), u0 = state.user || {};
     // A captain sees their own team's live activity here (on the captain pages it sits under the team bar).
@@ -2479,7 +2656,7 @@ export function initSite(backend, tools) {
       files: (r.fileLinks || []).map(function (x) { return { name: x.name, data: x.url, type: x.type }; }), decidedBy: r.decidedBy, decidedByEmail: r.decidedByEmail, reason: r.reason, esade: r.esade, esadeAt: r.esadeAt, esadeNote: r.esadeNote,
       history: r.history || [], example: r.isExample, sv: { d: r.canDecide, p: r.canPay, r: r.canReconsider, e: r.canEsade } };
   }
-  function hubBusy() { var a = document.activeElement; if (hub.querySelector("form.dirty[data-ho-form]")) return true; return !!(a && hub.contains(a) && (a.tagName === "TEXTAREA" || (a.tagName === "INPUT" && a.type !== "button" && a.type !== "submit") || a.tagName === "SELECT")); }
+  function hubBusy() { var a = document.activeElement; if (hub.querySelector("form.dirty[data-ho-form], form.dirty[data-keep]")) return true; return !!(a && hub.contains(a) && (a.tagName === "TEXTAREA" || (a.tagName === "INPUT" && a.type !== "button" && a.type !== "submit") || a.tagName === "SELECT")); }
   // Live updates often arrive in bursts (a dozen queries at sign-in): redraw the Hub at most once per frame.
   var refreshQueued = false;
   function hubRefresh() { if (refreshQueued) return; refreshQueued = true; requestAnimationFrame(function () { refreshQueued = false; hubRefreshNow(); }); }
@@ -2496,7 +2673,7 @@ export function initSite(backend, tools) {
       // Shared Hub data: same for everyone with the right access (convex/tasks, budgets, results, org, partners, inbox).
       LIVE.subs = [];
       applyPeople(); applyBudgets();
-      if (backend.watch) [["tasks", "tasks"], ["budgets", "budgets"], ["results", "results"], ["people", "people"], ["partners", "partners"], ["inbox", "inbox"], ["tournament", "tournament"], ["handover", "handover"], ["tryouts", "tryouts"], ["emailProblems", "emailProblems"]].forEach(function (x) {
+      if (backend.watch) [["tasks", "tasks"], ["budgets", "budgets"], ["results", "results"], ["people", "people"], ["partners", "partners"], ["inbox", "inbox"], ["tournament", "tournament"], ["handover", "handover"], ["contracts", "contracts"], ["media", "media"], ["tryouts", "tryouts"], ["emailProblems", "emailProblems"]].forEach(function (x) {
         LIVE.subs.push(backend.watch(x[0], function (d) { if (d === undefined) return; LIVE[x[1]] = d; if (x[1] === "handover") hoPatchFiles(); if (x[1] === "people") applyPeople(); if (x[1] === "budgets") applyBudgets(); hubRefresh(); }));
       });
       if (backend.watch && boardAccount()) [["messages", "messages"], ["assocApps", "assocApps"]].forEach(function (x) {
@@ -2509,7 +2686,7 @@ export function initSite(backend, tools) {
       (LIVE.subs || []).forEach(function (u) { try { u(); } catch (e) {} }); LIVE.subs = [];
       if (LIVE.unGoals) LIVE.unGoals(); LIVE.unGoals = null;
       if (LIVE.unAct) LIVE.unAct(); LIVE.unAct = null; LIVE.act = null; LIVE.actTeam = null;
-      ["tasks", "budgets", "results", "people", "partners", "inbox", "goals", "messages", "assocApps", "chats", "tournament", "handover", "tryouts", "emailProblems"].forEach(function (k) { LIVE[k] = null; });
+      ["tasks", "budgets", "results", "people", "partners", "inbox", "goals", "messages", "assocApps", "chats", "tournament", "handover", "contracts", "media", "tryouts", "emailProblems"].forEach(function (k) { LIVE[k] = null; });
       setTimeout(function () { applyPeople(); applyBudgets(); }, 0);
       LIVE.unExp(); LIVE.unIdeas(); if (LIVE.unNotifs) LIVE.unNotifs(); if (LIVE.unTupd) LIVE.unTupd(); if (LIVE.unLinks) LIVE.unLinks(); LIVE.unLinks = null; LIVE.links = null; LIVE.unTupd = null; LIVE.tupd = null; LIVE.unExp = LIVE.unIdeas = LIVE.unNotifs = null; LIVE.notifs = null; LIVE.exp = LIVE.ideas = null; LIVE.checks = {}; ROSTER = {}; ROSTER_ALL = null;
     }
@@ -2525,7 +2702,7 @@ export function initSite(backend, tools) {
   }
   // Latest activity of one team (captain pages): the most recent changes made on the team, newest first.
   // Admins, President / VPs and the view-only account see any team; a captain only their own (checked in Convex).
-  var ACT_AREAS = [["all", "All activity"], ["expenses", "Expenses"], ["ideas", "Ideas & logistics"], ["roster", "Roster"], ["tournament", "Tournament"], ["handover", "Handover"], ["results", "Results"], ["signups", "Sign-ups"], ["budget", "Budget"], ["team", "Team editor"]];
+  var ACT_AREAS = [["all", "All activity"], ["expenses", "Expenses"], ["ideas", "Ideas & logistics"], ["roster", "Roster"], ["tournament", "Tournament"], ["handover", "Handover"], ["contracts", "Contracts"], ["media", "Photos & videos"], ["results", "Results"], ["signups", "Sign-ups"], ["budget", "Budget"], ["team", "Team editor"]];
   function watchActivity(id) {
     if (!backend || !backend.watch || !(admin || captain)) return;
     if (LIVE.unAct && LIVE.actTeam === id) return;
@@ -3132,6 +3309,8 @@ export function initSite(backend, tools) {
     bindTournament();
     bindPeople();
     bindHandover();
+    bindContracts();
+    bindMedia();
     var da = $("demo-as"); if (da) da.addEventListener("change", function () { setDemo(da.value); });
     var ta = $("team-as"); if (ta) ta.addEventListener("change", function () { if (ta.value) setTeamView(ta.value); });
     hub.querySelectorAll("[data-team-exit]").forEach(function (b) { b.addEventListener("click", function () { setTeamView(""); }); });
@@ -3640,7 +3819,7 @@ export function initSite(backend, tools) {
       if (h === "hub-people" && !can("people")) h = "hub-overview";
       // A link to a page this person cannot open: say so and go to the overview, instead of silently doing nothing.
       if (h !== location.hash.slice(1)) { var lbl = HUBV.filter(function (v) { return v[0] === location.hash.slice(1); })[0]; toast((lbl ? lbl[1] : "This page") + " is not part of your access. Ask your head of department or the Board if you need it."); location.replace("#hub-overview"); return; }
-      var inner = h === "hub-tournament" ? hubTournament() : h === "hub-handover" ? hubHandover() : h === "hub-chat" ? hubChat() : h === "hub-messages" ? hubMessages() : h === "hub-assoc-apps" ? hubAssocApps() : h === "hub-partners" ? hubPartners() : h === "hub-goals" ? hubGoals() : h === "hub-teams" ? hubTeams() : h === "hub-team-editor" ? hubTeamEditor() : h === "hub-applications" ? hubApplications() : h === "hub-captains" ? hubCaptains() : h === "hub-people" ? hubPeople() : h === "hub-expenses" ? hubExpenses() : h === "hub-departments" ? hubDepts() : h === "hub-report" || h === "hub-checkups" ? hubCheckups() : h === "hub-ideas" ? hubIdeas() : h === "hub-history" ? hubHistory() : hubOverview();
+      var inner = h === "hub-tournament" ? hubTournament() : h === "hub-handover" ? hubHandover() : h === "hub-contracts" ? hubContracts() : h === "hub-chat" ? hubChat() : h === "hub-messages" ? hubMessages() : h === "hub-assoc-apps" ? hubAssocApps() : h === "hub-partners" ? hubPartners() : h === "hub-goals" ? hubGoals() : h === "hub-teams" ? hubTeams() : h === "hub-team-editor" ? hubTeamEditor() : h === "hub-applications" ? hubApplications() : h === "hub-captains" ? hubCaptains() : h === "hub-people" ? hubPeople() : h === "hub-expenses" ? hubExpenses() : h === "hub-departments" ? hubDepts() : h === "hub-report" || h === "hub-checkups" ? hubCheckups() : h === "hub-ideas" ? hubIdeas() : h === "hub-history" ? hubHistory() : hubOverview();
       hub.innerHTML = hubShell(h, inner); show("hub"); bindHub(); bindBell(); updateTitle(); showTab(); return;
     }
     if (h === "signin") html = signinView();
