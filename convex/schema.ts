@@ -391,6 +391,24 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_team", ["team"]),
 
+  // Captains' expenses for the tournament (Hub > Tournament): one row per expense, with proof files (PDF or image).
+  // Same visibility as tournamentPlayers: the team's captains, admins, Board and the read-only viewer (convex/tournament.ts).
+  tournamentExpenses: defineTable({
+    team: v.string(),
+    kind: v.string(), // Transport, Accommodation, Food & drinks, Registration fee, Equipment / kit, Other
+    date: v.string(), // YYYY-MM-DD
+    description: v.optional(v.string()),
+    amount: v.number(), // total price in euros
+    people: v.optional(v.number()),
+    perPerson: v.optional(v.number()), // typed by the captain, or amount / people
+    files: v.array(
+      v.object({ id: v.id("_storage"), name: v.string(), type: v.string(), size: v.number(), by: v.string(), at: v.number() }),
+    ),
+    by: v.string(),
+    byEmail: v.string(),
+    at: v.number(),
+  }).index("by_team", ["team"]),
+
   // Contracts (Hub > Contracts): one per signed agreement, with its PDFs. team empty = whole association.
   // Visibility in convex/contracts.ts (roles.canSee on team + department).
   contracts: defineTable({

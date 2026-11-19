@@ -1,6 +1,6 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
-import type { Doc } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import { getAccess, isExecEditor, requireAccess, type Access } from "./roles";
 import { logActivity } from "./activity";
 import { TEAMS } from "./teamList";
@@ -62,7 +62,14 @@ export const overview = query({
           updatedAt: r?.updatedAt,
         });
       }
-      teams.push({ team, canEdit: canEditTeam(a, team), players });
+      const expenses = [];
+      for (const x of await ctx.db.query("tournamentExpenses").withIndex("by_team", (q) => q.eq("team", team)).collect()) {
+        const files = [];
+        for (const f of x.files) files.push({ id: f.id, name: f.name, size: f.size, url: await ctx.storage.getUrl(f.id) });
+        expenses.push({ id: x._id, kind: x.kind, date: x.date, description: x.description, amount: x.amount, people: x.people, perPerson: x.perPerson, files, by: x.by, at: x.at });
+      }
+      expenses.sort((p, q) => p.date.localeCompare(q.date) || p.at - q.at);
+      teams.push({ team, canEdit: canEditTeam(a, team), players, expenses });
     }
     return { event, canEditEvent: isExecEditor(a), teams };
   },
@@ -174,6 +181,84 @@ export const setEvent = mutation({
     const row = await ctx.db.query("tournaments").first();
     if (row) await ctx.db.replace(row._id, data);
     else await ctx.db.insert("tournaments", data);
+    return null;
+  },
+});
+
+// ---- Captains' expenses for the tournament -------------------------------------------------------
+export const EXPENSE_KINDS = ["Transport", "Accommodation", "Food & drinks", "Registration fee", "Equipment / kit", "Other"];
+const MAX_PROOFS = 10; // per expense
+
+// Checks one uploaded proof. A refused file is deleted from storage and its reason returned.
+async function takeProof(ctx: MutationCtx, a: Access, id: Id<"_storage">, name: string) {
+  const meta = await ctx.db.system.get(id);
+  if (!meta) return { error: `${name}: upload not found` };
+  let error = "";
+  if (meta.size > MAX_FILE) error = `${name}: too big (max 10 MB)`;
+  else if (!FILE_TYPES.includes(meta.contentType ?? "")) error = `${name}: only PDF or image files`;
+  if (error) {
+    await ctx.storage.delete(id);
+    return { error };
+  }
+  return { file: { id, name: name.trim().slice(0, 120) || "Proof", type: meta.contentType ?? "", size: meta.size, by: who(a), at: Date.now() } };
+}
+const money = (n?: number) => (n != null && isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : undefined);
+
+export const addExpense = mutation({
+  args: {
+    team: v.string(),
+    kind: v.string(),
+    date: v.string(),
+    description: v.optional(v.string()),
+    amount: v.number(),
+    people: v.optional(v.number()),
+    perPerson: v.optional(v.number()),
+    files: v.array(v.object({ id: v.id("_storage"), name: v.string() })),
+  },
+  handler: async (ctx, x): Promise<{ skipped: string[] }> => {
+    const a = await requireAccess(ctx);
+    if (!TEAMS.some((t) => t.id === x.team)) throw new ConvexError("Unknown team.");
+    if (!canEditTeam(a, x.team)) throw new ConvexError("Only the team's captains (and the President / VPs / admins) can add expenses.");
+    const kind = EXPENSE_KINDS.includes(x.kind) ? x.kind : "Other";
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(x.date)) throw new ConvexError("Pick the date of the expense.");
+    const amount = money(x.amount);
+    if (amount == null || amount > 100000) throw new ConvexError("Enter the price in euros.");
+    const people = x.people != null && x.people >= 1 && x.people <= 500 ? Math.round(x.people) : undefined;
+    const perPerson = money(x.perPerson) ?? (people ? money(amount / people) : undefined);
+    const files = [], skipped = [];
+    for (const f of x.files.slice(0, MAX_PROOFS)) {
+      const r = await takeProof(ctx, a, f.id, f.name);
+      if (r.file) files.push(r.file);
+      else skipped.push(r.error);
+    }
+    await ctx.db.insert("tournamentExpenses", {
+      team: x.team,
+      kind,
+      date: x.date,
+      description: x.description?.trim().slice(0, 300) || undefined,
+      amount,
+      people,
+      perPerson,
+      files,
+      by: who(a),
+      byEmail: a.email,
+      at: Date.now(),
+    });
+    await logActivity(ctx, a, x.team, "tournament", `Tournament: expense added (${kind}, ${amount} €)`);
+    return { skipped };
+  },
+});
+
+export const removeExpense = mutation({
+  args: { id: v.id("tournamentExpenses") },
+  handler: async (ctx, { id }) => {
+    const a = await requireAccess(ctx);
+    const x = await ctx.db.get(id);
+    if (!x) return null;
+    if (!canEditTeam(a, x.team)) throw new ConvexError("Only the team's captains (and the President / VPs / admins) can remove expenses.");
+    for (const f of x.files) await ctx.storage.delete(f.id);
+    await ctx.db.delete(id);
+    await logActivity(ctx, a, x.team, "tournament", `Tournament: expense removed (${x.kind}, ${x.amount} €)`);
     return null;
   },
 });

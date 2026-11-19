@@ -1342,6 +1342,8 @@ html.kb-active, html.kb-active * { cursor: grabbing !important; user-select: non
 #hub .ct-table td { vertical-align: top; }
 #hub .ct-table .tn-files { margin: 0 0 4px; }
 #hub .ct-notes { display: block; white-space: pre-line; color: var(--ink-soft); max-width: 46ch; }
+#hub .panel > details.ct-add { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line, #dfe3ea); }
+#hub .panel > details.ct-add > summary h2 { font-size: 16px; }
 #hub .rm.armed { color: var(--bad); border-color: var(--bad); }
 #hub .media-season h3 { margin: 4px 0 8px; font-size: 13px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--navy); }
 #hub .media-event { margin-bottom: 14px; }

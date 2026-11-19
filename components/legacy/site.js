@@ -2175,19 +2175,19 @@ export function initSite(backend, tools) {
     var stats = '<div class="grid-4">' + stat("Attending", String(c.yes), "confirmed players") + stat("Not attending", String(c.no), "said no") + stat("Not answered", String(c.none), "still to confirm") + stat("ID missing", String(c.noId), "attending, no ID / passport") + "</div>";
     var body = "";
     if (tnMine()) {
-      body = ts.length ? ts.map(function (t) { return tnTeamPanel(t); }).join("") : '<section class="panel"><p class="empty">No team linked to your account yet.</p></section>';
+      body = ts.length ? ts.map(function (t) { return tnTeamPanel(t) + tnExpensesPanel(t); }).join("") : '<section class="panel"><p class="empty">No team linked to your account yet.</p></section>';
     } else {
       // Admins, President/VPs, heads and the view-only account first pick a tournament from the list.
       // Only one tournament exists for now (the Convex `tournaments` row); add more entries here later.
       if (!state.tnEv) return tnList(d, c);
       var open = state.tnOpen, ot = ts.filter(function (t) { return t.team === open; })[0];
-      if (ot) return head(d.event) + '<p class="tn-back"><button type="button" class="btn sm" data-tn-back>← All teams</button></p>' + tnTeamPanel(ot, true) + tnConfirmed([ot]);
+      if (ot) return head(d.event) + '<p class="tn-back"><button type="button" class="btn sm" data-tn-back>← All teams</button></p>' + tnTeamPanel(ot, true) + tnExpensesPanel(ot) + tnConfirmed([ot]);
       body = '<p class="tn-back"><button type="button" class="btn sm" data-tn-evback>← All tournaments</button></p>';
-      body += '<section class="panel"><div class="panel-head"><h2>Every team</h2><p class="tn-total"><b>' + c.yes + "</b> " + (c.yes === 1 ? "person" : "people") + ' attending</p><button type="button" class="btn sm solid" data-tn-csv' + (c.yes ? "" : " disabled") + '>Download confirmed players (CSV)</button></div><div class="table-wrap"><table><thead><tr><th>Team</th><th class="r">Attending</th><th class="r">Not attending</th><th class="r">Not answered</th><th class="r">ID missing</th><th class="r">No documents</th><th class="r">Roster</th></tr></thead><tbody>' +
+      body += '<section class="panel"><div class="panel-head"><h2>Every team</h2><p class="tn-total"><b>' + c.yes + "</b> " + (c.yes === 1 ? "person" : "people") + ' attending</p><button type="button" class="btn sm solid" data-tn-csv' + (c.yes ? "" : " disabled") + '>Download confirmed players (CSV)</button></div><div class="table-wrap"><table><thead><tr><th>Team</th><th class="r">Attending</th><th class="r">Not attending</th><th class="r">Not answered</th><th class="r">ID missing</th><th class="r">No documents</th><th class="r">Roster</th><th class="r">Expenses</th></tr></thead><tbody>' +
         ts.map(function (t) { var k = tnCount(t.players), tm = team(t.team);
-          return '<tr class="click" data-tn-open="' + t.team + '" tabindex="0"' + (open === t.team ? ' aria-current="true"' : "") + '><td class="tname"><a href="#hub-tournament" class="tn-team" data-tn-link="' + t.team + '">' + esc(tm ? tLabel(tm) : t.team) + '</a></td><td class="r num"><b class="tn-n ok">' + k.yes + '</b></td><td class="r num">' + k.no + '</td><td class="r num">' + (k.none ? '<span class="tn-n warn">' + k.none + "</span>" : "0") + '</td><td class="r num">' + (k.noId ? '<span class="tn-n bad">' + k.noId + "</span>" : "0") + '</td><td class="r num">' + k.noDoc + '</td><td class="r num muted">' + t.players.length + "</td></tr>"; }).join("") +
-        '</tbody><tfoot><tr class="tn-foot"><td>Total</td><td class="r num"><b class="tn-n ok">' + c.yes + '</b></td><td class="r num">' + c.no + '</td><td class="r num">' + c.none + '</td><td class="r num">' + c.noId + '</td><td class="r num">' + c.noDoc + '</td><td class="r num">' + all.length + "</td></tr></tfoot></table></div>" + '<p class="muted" style="margin:0;font-size:12px">Click a team to see its players. A team with an empty roster has not added its players yet.</p></section>' +
-        tnConfirmed(ts);
+          return '<tr class="click" data-tn-open="' + t.team + '" tabindex="0"' + (open === t.team ? ' aria-current="true"' : "") + '><td class="tname"><a href="#hub-tournament" class="tn-team" data-tn-link="' + t.team + '">' + esc(tm ? tLabel(tm) : t.team) + '</a></td><td class="r num"><b class="tn-n ok">' + k.yes + '</b></td><td class="r num">' + k.no + '</td><td class="r num">' + (k.none ? '<span class="tn-n warn">' + k.none + "</span>" : "0") + '</td><td class="r num">' + (k.noId ? '<span class="tn-n bad">' + k.noId + "</span>" : "0") + '</td><td class="r num">' + k.noDoc + '</td><td class="r num muted">' + t.players.length + '</td><td class="r num">' + (t.expenses && t.expenses.length ? tnEur(tnExpTotal(t.expenses)) : '<span class="muted">—</span>') + "</td></tr>"; }).join("") +
+        '</tbody><tfoot><tr class="tn-foot"><td>Total</td><td class="r num"><b class="tn-n ok">' + c.yes + '</b></td><td class="r num">' + c.no + '</td><td class="r num">' + c.none + '</td><td class="r num">' + c.noId + '</td><td class="r num">' + c.noDoc + '</td><td class="r num">' + all.length + '</td><td class="r num">' + tnEur(tnExpTotal(tnAllExp(ts))) + "</td></tr></tfoot></table></div>" + '<p class="muted" style="margin:0;font-size:12px">Click a team to see its players. A team with an empty roster has not added its players yet.</p></section>' +
+        tnConfirmed(ts) + tnAllExpenses(ts);
     }
     return head(d.event) + stats + body + (d.canEditEvent && !hRO() && (hv().role === "admin" || hv().role === "exec") ? tnEventForm(d.event) : "");
   }
@@ -2221,6 +2221,52 @@ export function initSite(backend, tools) {
       '<span class="pill">' + (ed ? "Private: your team, the Board and Eva Morta" : "View only") + "</span></div>" +
       (t.players.length ? '<div class="table-wrap"><table class="tn-table"><thead><tr><th>Player</th><th>Attendance</th><th>ID / passport</th><th>Documents (PDF or image, max 10 MB)</th></tr></thead><tbody>' + rows + "</tbody></table></div>"
         : '<p class="empty">No players on the roster yet.' + (ed ? ' Add them first in <a href="#hub-teams">' + (can("all") ? "Teams" : "My team") + "</a> (Team roster), then come back here." : "") + "</p>") + "</section>";
+  }
+  // ---- Captains' expenses for the tournament (convex/tournament.ts addExpense / removeExpense) ----
+  var TN_KINDS = ["Transport", "Accommodation", "Food & drinks", "Registration fee", "Equipment / kit", "Other"];
+  function tnEur(n) { return (+n || 0).toLocaleString("en-GB", { style: "currency", currency: "EUR" }); }
+  function tnExpTotal(xs) { return xs.reduce(function (s, x) { return s + (+x.amount || 0); }, 0); }
+  function tnAllExp(ts) { var out = []; ts.forEach(function (t) { (t.expenses || []).forEach(function (x) { out.push(Object.assign({ team: t.team }, x)); }); }); return out; }
+  function tnExpRow(x, ed, withTeam) {
+    var tm = withTeam ? team(x.team) : null;
+    var files = x.files.map(function (f) { return '<li><a href="' + esc(f.url || "#") + '" target="_blank" rel="noopener">' + esc(clip(f.name, 30)) + "</a></li>"; }).join("");
+    return "<tr>" + (withTeam ? '<td class="tname">' + esc(tm ? tLabel(tm) : x.team) + "</td>" : "") + "<td><b>" + esc(x.kind) + "</b>" + (x.description ? '<br><small class="ct-notes">' + esc(x.description) + "</small>" : "") + '<br><small class="muted">Added by ' + esc(x.by) + "</small></td>" +
+      '<td class="num">' + esc(rDate(x.date)) + '</td><td class="r num"><b>' + tnEur(x.amount) + '</b></td><td class="r num">' + (x.people || '<span class="muted">—</span>') + '</td><td class="r num">' + (x.perPerson != null ? tnEur(x.perPerson) : '<span class="muted">—</span>') + "</td>" +
+      "<td>" + (files ? '<ul class="tn-files">' + files + "</ul>" : '<span class="tn-n warn">No proof</span>') + "</td>" + (ed ? '<td><button type="button" class="rm" data-tx-rm="' + esc(x.id) + '">Remove</button></td>' : "") + "</tr>";
+  }
+  function tnExpensesPanel(t) {
+    var ed = tnEditable(t), xs = t.expenses || [], tm = team(t.team), k = "tx:" + t.team;
+    var table = xs.length ? '<div class="table-wrap"><table class="ct-table"><thead><tr><th>Type</th><th>Date</th><th class="r">Price</th><th class="r">People</th><th class="r">Per person</th><th>Proof of expense</th>' + (ed ? "<th></th>" : "") + "</tr></thead><tbody>" + xs.map(function (x) { return tnExpRow(x, ed); }).join("") +
+      '</tbody><tfoot><tr class="tn-foot"><td colspan="2">Total</td><td class="r num">' + tnEur(tnExpTotal(xs)) + '</td><td colspan="' + (ed ? 4 : 3) + '"></td></tr></tfoot></table></div>' : '<p class="empty">No expense yet.' + (ed ? " Add the first one below." : "") + "</p>";
+    var form = ed ? '<details class="ct-add" data-open="' + esc(k) + '"' + ((state.open || {})[k] || !xs.length ? " open" : "") + '><summary><h2>Add an expense</h2></summary><form class="form tx-form" data-keep data-tx-form="' + esc(t.team) + '">' +
+      '<label>Type of expense<select name="kind">' + TN_KINDS.map(function (x) { return "<option>" + esc(x) + "</option>"; }).join("") + "</select></label>" +
+      '<label>Date<input name="date" type="date" required value="' + esc((LIVE.tournament.event || {}).date || "") + '"></label>' +
+      '<label>Price (€, total)<input name="amount" type="number" min="0" step="0.01" required inputmode="decimal" placeholder="0.00"></label>' +
+      '<label>Number of people<input name="people" type="number" min="1" step="1" inputmode="numeric" placeholder="e.g. 12"></label>' +
+      '<label>Price per person (€)<input name="perPerson" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Worked out for you"></label>' +
+      '<label class="wide">Description (optional)<input name="description" maxlength="300" placeholder="e.g. Bus Barcelona to Sevilla, return"></label>' +
+      '<div class="wide">' + pickBox(k, ".pdf,application/pdf,image/jpeg,image/png,image/webp,image/heic", "+ Add proof (PDF)") + '<small class="muted">Receipt, invoice or ticket. PDF or photo, max 10 MB each, up to 10 files</small></div>' +
+      '<div class="wide"><button class="btn sm solid" type="submit">Save expense</button>' + hoMsgHtml(k) + "</div></form></details>" : "";
+    return '<section class="panel"><div class="panel-head"><h2>Expenses · ' + esc(tm ? tLabel(tm) : t.team) + ' <span class="muted" style="font-weight:600">· ' + tnEur(tnExpTotal(xs)) + "</span></h2>" +
+      '<span class="pill">' + (ed ? "Private: your team, the Board and Eva Morta" : "View only") + "</span></div>" + table + form + "</section>";
+  }
+  function tnAllExpenses(ts) {
+    var xs = tnAllExp(ts);
+    if (!xs.length) return "";
+    xs.sort(function (p, q) { return p.date < q.date ? -1 : p.date > q.date ? 1 : 0; });
+    return '<section class="panel"><div class="panel-head"><h2>Expenses, every team <span class="muted" style="font-weight:600">· ' + tnEur(tnExpTotal(xs)) + '</span></h2><button type="button" class="btn sm" data-tx-csv>Download expenses (CSV)</button></div><div class="table-wrap"><table class="ct-table"><thead><tr><th>Team</th><th>Type</th><th>Date</th><th class="r">Price</th><th class="r">People</th><th class="r">Per person</th><th>Proof of expense</th></tr></thead><tbody>' +
+      xs.map(function (x) { return tnExpRow(x, false, true); }).join("") + "</tbody></table></div></section>";
+  }
+  function tnCsvDownload(lines, name) {
+    var csv = lines.map(function (r) { return r.map(function (x) { x = String(x == null ? "" : x); return /[",\n;]/.test(x) ? '"' + x.replace(/"/g, '""') + '"' : x; }).join(","); }).join("\r\n");
+    var a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" }));
+    a.download = name.toLowerCase().replace(/[^a-z0-9]+/g, "-") + ".csv";
+    document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
+  function tnExpCsv() {
+    var ev = LIVE.tournament.event, lines = [["Team", "Type", "Date", "Description", "Price (EUR)", "People", "Price per person (EUR)", "Proof files", "Added by"]];
+    tnAllExp(tnTeams()).forEach(function (x) { var tm = team(x.team); lines.push([tm ? tLabel(tm) : x.team, x.kind, x.date, x.description || "", x.amount.toFixed(2), x.people || "", x.perPerson != null ? x.perPerson.toFixed(2) : "", String(x.files.length), x.by]); });
+    tnCsvDownload(lines, ev.name + " " + ev.date + " expenses");
   }
   function tnConfirmed(ts) {
     var rows = [];
@@ -2285,6 +2331,36 @@ export function initSite(backend, tools) {
     });
     hub.querySelectorAll("[data-tn-evback]").forEach(function (b) { b.addEventListener("click", function () { state.tnEv = null; state.tnOpen = null; render(); window.scrollTo(0, 0); }); });
     hub.querySelectorAll("[data-tn-csv]").forEach(function (b) { b.addEventListener("click", tnCsv); });
+    hub.querySelectorAll("[data-tx-csv]").forEach(function (b) { b.addEventListener("click", tnExpCsv); });
+    bindKeep();
+    hub.querySelectorAll("[data-tx-form]").forEach(function (form) {
+      var tm_ = form.getAttribute("data-tx-form"), k = "tx:" + tm_, el = form.elements, autoPP = true;
+      // Price per person is worked out from price / people until the captain types their own.
+      function calc() { if (!autoPP) return; var a = parseFloat(el.amount.value), n = parseInt(el.people.value, 10); el.perPerson.value = a >= 0 && n >= 1 ? (Math.round(a / n * 100) / 100).toFixed(2) : ""; }
+      el.amount.addEventListener("input", calc); el.people.addEventListener("input", calc);
+      el.perPerson.addEventListener("input", function () { autoPP = el.perPerson.value === ""; });
+      form.addEventListener("submit", function (ev) {
+        ev.preventDefault();
+        var files = picked(k), bt = form.querySelector('button[type="submit"]'), amount = parseFloat(el.amount.value);
+        if (!(amount >= 0)) { hoSay(k, "Enter the price.", "bad"); return; }
+        if (tooBig(files, 10)) { hoSay(k, "A file is too big (max 10 MB each).", "bad"); return; }
+        bt.disabled = true; hoSay(k, files.length ? "Uploading " + files.length + " file" + (files.length === 1 ? "" : "s") + "…" : "Saving…", "busy");
+        uploadAll(files).then(function (up) {
+          return backend.run("tnAddExpense", { team: tm_, kind: el.kind.value, date: el.date.value, description: el.description.value || undefined, amount: amount,
+            people: el.people.value ? parseInt(el.people.value, 10) : undefined, perPerson: el.perPerson.value ? parseFloat(el.perPerson.value) : undefined, files: up.map(function (x) { return { id: x.id, name: x.name }; }) });
+        }).then(function (r) {
+          PICKS[k] = []; form.reset(); autoPP = true; bt.disabled = false; (state.open = state.open || {})[k] = true; keepDone(form);
+          if (r && r.skipped && r.skipped.length) { hoSay(k, "Saved, but not added: " + r.skipped.join("; "), "bad"); toast("Expense saved, some files were not added."); }
+          else { hoSay(k, "Saved ✓", "ok", 6000); toast("Expense saved."); }
+          pickRedraw(k);
+        }, function (x) { bt.disabled = false; hoSay(k, "Not saved: " + errText(x), "bad"); });
+      });
+    });
+    hub.querySelectorAll("[data-tx-rm]").forEach(function (b) { b.addEventListener("click", function () {
+      if (b.getAttribute("data-sure") !== "1") { b.setAttribute("data-sure", "1"); b.textContent = "Sure? Click again"; return; }
+      b.disabled = true;
+      Promise.resolve(backend.run("tnRemoveExpense", { id: b.getAttribute("data-tx-rm") })).then(function () { toast("Expense removed."); }, function (x) { b.disabled = false; toast(errText(x)); });
+    }); });
     var ef = $("tn-event"); if (ef) ef.addEventListener("submit", function (ev) {
       ev.preventDefault(); var bt = ef.querySelector("button"); bt.disabled = true;
       Promise.resolve(backend.run("tnEvent", { name: ef.elements.name.value, date: ef.elements.date.value, place: ef.elements.place.value || undefined, deadline: ef.elements.deadline.value || undefined }))
